@@ -196,6 +196,43 @@
   .p-core{position:absolute; top:16px; right:16px; font-size:10px; letter-spacing:1.1px; text-transform:uppercase;
     color:var(--gold); border:1px solid #6e5320; background:#1a140766; padding:4px 10px; border-radius:99px; font-weight:700;}
 
+  /* ====== панель-«скрин» с настоящими графиками (кривые, столбцы, круги) ====== */
+  .panel{background:linear-gradient(180deg,#0c1320,#0a0f18); border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  .panel .ph{display:flex; align-items:center; gap:7px; padding:8px 11px; background:#0e1622; border-bottom:1px solid var(--line);
+    font-size:9.5px; letter-spacing:.4px; text-transform:uppercase; color:var(--mut2); font-weight:700;}
+  .panel .ph .dots{display:flex; gap:4px;}
+  .panel .ph .dots i{width:7px; height:7px; border-radius:50%; background:#26374b;}
+  .panel .ph b{margin-left:auto; color:var(--emerald); font-size:11px; letter-spacing:0; text-transform:none;}
+  .panel .pb{padding:12px;}
+  /* линейный график (кривая) с заливкой и прорисовкой */
+  .lc{width:100%; height:auto; display:block; overflow:visible;}
+  .lc .lc-grid{stroke:var(--line); stroke-width:.35;}
+  .lc .lc-area{opacity:0; fill:url(#lcg); transition:opacity .9s ease .5s;}
+  .lc.cyan .lc-area{fill:url(#lcg2);}
+  .planner.in .lc .lc-area{opacity:1;}
+  .lc .lc-line{fill:none; stroke:var(--emerald); stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round;
+    filter:drop-shadow(0 0 3px #2fe38f66); stroke-dasharray:var(--len,600); stroke-dashoffset:var(--len,600);
+    transition:stroke-dashoffset 1.4s var(--e-out) .3s;}
+  .lc.cyan .lc-line{stroke:var(--cyan); filter:drop-shadow(0 0 3px #35d0ff66);}
+  .planner.in .lc .lc-line{stroke-dashoffset:0;}
+  .lc-cap{display:flex; justify-content:space-between; font-size:9px; color:var(--mut2); margin-top:5px;}
+  .lc-cap span{flex:1; text-align:center;}
+  /* столбчатый график */
+  .bc{display:flex; align-items:flex-end; gap:7px; height:80px;}
+  .bc .bar{flex:1; height:var(--h,50%); min-height:4px; border-radius:5px 5px 0 0;
+    background:linear-gradient(180deg,#2fe38f,#14a86a); box-shadow:0 0 8px #2fe38f33;
+    transform:scaleY(0); transform-origin:bottom; transition:transform .9s var(--e-out) .35s;}
+  .planner.in .bc .bar{transform:scaleY(1);}
+  .bc .bar.g{background:linear-gradient(180deg,#35d0ff,#1e7fa8);} .bc .bar.o{background:linear-gradient(180deg,#f5c451,#b8860b);}
+  .bcx{display:flex; gap:7px; margin-top:6px;}
+  .bcx span{flex:1; text-align:center; font-size:8.5px; color:var(--mut2);}
+  .kpi{display:flex; gap:16px; margin-top:11px; flex-wrap:wrap;}
+  .kpi div{font-size:9.5px; color:var(--mut2); text-transform:uppercase; letter-spacing:.4px;}
+  .kpi b{display:block; font-size:16px; color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:0; text-transform:none; margin-top:1px;}
+  .kpi .up{color:var(--emerald);} .kpi .down{color:var(--cyan);}
+  .legend .amt{margin-left:auto; color:var(--ink); font-variant-numeric:tabular-nums;}
+  .legend span{display:flex; align-items:center; gap:6px;}
+
   /* шаги механики */
   .steps{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:38px;}
   .step{padding:22px 18px; text-align:center; transition:transform .25s var(--e-out), border-color .25s;}
@@ -310,6 +347,12 @@
 
 <div class="glow g1"></div><div class="glow g2"></div>
 
+<!-- градиенты для заливки графиков -->
+<svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
+  <linearGradient id="lcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2fe38f" stop-opacity=".5"/><stop offset="1" stop-color="#2fe38f" stop-opacity="0"/></linearGradient>
+  <linearGradient id="lcg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#35d0ff" stop-opacity=".45"/><stop offset="1" stop-color="#35d0ff" stop-opacity="0"/></linearGradient>
+</defs></svg>
+
 <nav><div class="wrap">
   <div class="logo"><div class="c">🏛</div>Магнат</div>
   <a href="#price" class="btn btn-p">Получить</a>
@@ -353,18 +396,19 @@
         <div><h3>Умный планер привычек</h3><span class="p-sub">бестселлер · система роста</span></div>
       </div>
       <div class="p-body">
-        <div class="p-shot">
-          <table class="sheet">
-            <tr><th style="text-align:left">привычка</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>%</th><th>монет</th></tr>
-            <tr><td class="nm">🏋️ Тренировка</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">25</td></tr>
-            <tr><td class="nm">📚 Час на дело</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">25</td></tr>
-            <tr><td class="nm">💰 Шаг к деньгам</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="pc">71%</td><td class="gold">30</td></tr>
-            <tr><td class="nm">🧊 Холодный душ</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">10</td></tr>
-          </table>
-          <div class="pbars">
-            <div class="pbar"><span>Тренировка</span><div class="tk"><i style="--w:86%"></i></div><b>86%</b></div>
-            <div class="pbar"><span>Час на дело</span><div class="tk"><i style="--w:86%"></i></div><b>86%</b></div>
-            <div class="pbar"><span>Шаг к деньгам</span><div class="tk"><i style="--w:71%"></i></div><b>71%</b></div>
+        <div class="panel">
+          <div class="ph"><span class="dots"><i></i><i></i><i></i></span>Привычки · прогресс недели<b>+18%</b></div>
+          <div class="pb">
+            <svg class="lc" viewBox="0 0 100 44" data-pts="48,58,52,70,66,82,90" data-max="100" aria-label="выполнение по дням">
+              <line class="lc-grid" x1="0" y1="12" x2="100" y2="12"/><line class="lc-grid" x1="0" y1="28" x2="100" y2="28"/>
+              <path class="lc-area"></path><path class="lc-line"></path>
+            </svg>
+            <div class="lc-cap"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
+            <div class="pbars">
+              <div class="pbar"><span>Тренировка</span><div class="tk"><i style="--w:86%"></i></div><b>86%</b></div>
+              <div class="pbar"><span>Час на дело</span><div class="tk"><i style="--w:86%"></i></div><b>86%</b></div>
+              <div class="pbar"><span>Шаг к деньгам</span><div class="tk"><i style="--w:71%"></i></div><b>71%</b></div>
+            </div>
           </div>
         </div>
         <div class="p-side">
@@ -390,17 +434,24 @@
         <div><h3>Умный список задач</h3><span class="p-sub">приоритеты и сроки</span></div>
       </div>
       <div class="p-body">
-        <div class="p-shot">
-          <table class="sheet">
+        <div class="panel">
+          <div class="ph"><span class="dots"><i></i><i></i><i></i></span>Мои задачи · сегодня<b>3 из 8</b></div>
+          <div class="pb"><table class="sheet">
             <tr><th></th><th style="text-align:left">задача</th><th>приоритет</th><th>срок</th></tr>
             <tr><td class="ck"></td><td class="nm">Смонтировать ролик</td><td style="text-align:center"><span class="tag hi">Высокий</span></td><td class="grn">сегодня</td></tr>
             <tr><td class="ck"></td><td class="nm">5 сценариев</td><td style="text-align:center"><span class="tag md">Средний</span></td><td class="gold">1 дн.</td></tr>
             <tr><td class="ck on">✓</td><td class="strike">20 страниц книги</td><td style="text-align:center"><span class="tag lo">Низкий</span></td><td class="grn">✓</td></tr>
             <tr><td class="ck"></td><td class="nm">Позвонить маме</td><td style="text-align:center"><span class="tag md">Средний</span></td><td class="red">-1 дн.</td></tr>
             <tr><td class="ck"></td><td class="nm">Оплатить кредитку</td><td style="text-align:center"><span class="tag hi">Высокий</span></td><td class="gold">2 дн.</td></tr>
-          </table>
+          </table></div>
         </div>
         <div class="p-side">
+          <svg class="donut" viewBox="0 0 42 42" role="img" aria-label="выполнено 38%" style="--dc:#b06bff">
+            <circle class="ring-bg" cx="21" cy="21" r="15.915"/>
+            <circle class="ring" cx="21" cy="21" r="15.915" style="--pct:38"/>
+            <text class="ring-txt" x="21" y="20">38%</text>
+            <text class="ring-sub" x="21" y="26">готово</text>
+          </svg>
           <ul class="p-feat">
             <li><b>Авторасчёт</b> оставшихся дней</li>
             <li><b>Цветные теги</b> приоритетов</li>
@@ -418,16 +469,15 @@
         <div><h3>Фитнес планер</h3><span class="p-sub">прогресс в цифрах</span></div>
       </div>
       <div class="p-body">
-        <div class="p-shot">
-          <table class="sheet">
-            <tr><th style="text-align:left">качал</th><th>пн</th><th>вт</th><th>ср</th><th>чт</th><th>пт</th><th>сб</th></tr>
-            <tr><td class="nm">💪 Грудь</td><td class="ck on">✓</td><td class="ck"></td><td class="ck"></td><td class="ck on">✓</td><td class="ck"></td><td class="ck"></td></tr>
-            <tr><td class="nm">🦵 Ноги</td><td class="ck"></td><td class="ck on">✓</td><td class="ck"></td><td class="ck"></td><td class="ck on">✓</td><td class="ck"></td></tr>
-            <tr><td class="nm">🧱 Пресс</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td></tr>
-            <tr><td class="nm">🏃 Кардио</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td></tr>
-          </table>
-          <div class="pbars">
-            <div class="pbar"><span>Вес 84 → 78</span><div class="tk"><i style="--w:84%"></i></div><b>-5.1</b></div>
+        <div class="panel">
+          <div class="ph"><span class="dots"><i></i><i></i><i></i></span>Вес · динамика 6 недель<b>-5.1 кг</b></div>
+          <div class="pb">
+            <svg class="lc cyan" viewBox="0 0 100 44" data-pts="84,83.2,82,80.4,79.4,78.9,78" data-min="76.5" data-max="85" aria-label="вес по неделям">
+              <line class="lc-grid" x1="0" y1="15" x2="100" y2="15"/><line class="lc-grid" x1="0" y1="30" x2="100" y2="30"/>
+              <path class="lc-area"></path><path class="lc-line"></path>
+            </svg>
+            <div class="lc-cap"><span style="text-align:left">6 недель назад</span><span style="text-align:right">сейчас</span></div>
+            <div class="kpi"><div>старт<b>84.0</b></div><div>сейчас<b class="down">78.9</b></div><div>цель<b class="up">78.0</b></div></div>
           </div>
         </div>
         <div class="p-side">
@@ -453,13 +503,15 @@
         <div><h3>Эстетичный планер на неделю</h3><span class="p-sub">фокус и энергия</span></div>
       </div>
       <div class="p-body">
-        <div class="p-shot">
-          <table class="sheet">
-            <tr><th>пн</th><th>вт</th><th>ср</th><th>чт</th><th>пт</th><th>сб</th><th>вс</th></tr>
-            <tr><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td></tr>
-            <tr><td class="grn">⚡⚡⚡</td><td class="gold">⚡⚡</td><td class="grn">⚡⚡⚡</td><td class="red">⚡</td><td class="grn">⚡⚡⚡</td><td class="grn">⚡⚡⚡</td><td class="gold">⚡⚡</td></tr>
-            <tr><td class="grn">🙂</td><td class="gold">😐</td><td class="grn">😄</td><td class="red">😕</td><td class="grn">😄</td><td class="grn">🤩</td><td class="gold">🙂</td></tr>
-          </table>
+        <div class="panel">
+          <div class="ph"><span class="dots"><i></i><i></i><i></i></span>Энергия по дням<b>лучший: пт</b></div>
+          <div class="pb">
+            <div class="bc">
+              <div class="bar" style="--h:100%"></div><div class="bar" style="--h:63%"></div><div class="bar" style="--h:100%"></div><div class="bar o" style="--h:33%"></div><div class="bar" style="--h:100%"></div><div class="bar" style="--h:100%"></div><div class="bar" style="--h:63%"></div>
+            </div>
+            <div class="bcx"><span>🙂</span><span>😐</span><span>😄</span><span>😕</span><span>😄</span><span>🤩</span><span>🙂</span></div>
+            <div class="bcx"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
+          </div>
         </div>
         <div class="p-side">
           <svg class="donut" viewBox="0 0 42 42" role="img" aria-label="закрыто 5 из 7 дней" style="--dc:#f5c451">
@@ -484,25 +536,32 @@
         <div><h3>Финансовый планер</h3><span class="p-sub">куда уходят деньги</span></div>
       </div>
       <div class="p-body">
-        <div class="p-shot" style="display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap;">
-          <svg class="donut donut-multi" viewBox="0 0 42 42" role="img" aria-label="структура трат">
-            <circle class="seg" style="stroke:var(--emerald); stroke-dasharray:34 66; stroke-dashoffset:0;   --sd:0" cx="21" cy="21" r="15.915"/>
-            <circle class="seg" style="stroke:var(--cyan);    stroke-dasharray:21 79; stroke-dashoffset:-34; --sd:1" cx="21" cy="21" r="15.915"/>
-            <circle class="seg" style="stroke:var(--gold);    stroke-dasharray:17 83; stroke-dashoffset:-55; --sd:2" cx="21" cy="21" r="15.915"/>
-            <circle class="seg" style="stroke:var(--violet);  stroke-dasharray:14 86; stroke-dashoffset:-72; --sd:3" cx="21" cy="21" r="15.915"/>
-            <circle class="seg" style="stroke:var(--red);     stroke-dasharray:14 86; stroke-dashoffset:-86; --sd:4" cx="21" cy="21" r="15.915"/>
-            <text class="ring-txt" x="21" y="20" style="font-size:6px">траты</text>
-            <text class="ring-sub" x="21" y="25">за месяц</text>
-          </svg>
-          <div class="legend">
-            <span><i style="background:var(--emerald)"></i> Еда · 34%</span>
-            <span><i style="background:var(--cyan)"></i> Жильё · 21%</span>
-            <span><i style="background:var(--gold)"></i> Транспорт · 17%</span>
-            <span><i style="background:var(--violet)"></i> Досуг · 14%</span>
-            <span><i style="background:var(--red)"></i> Прочее · 14%</span>
+        <div class="panel">
+          <div class="ph"><span class="dots"><i></i><i></i><i></i></span>Структура трат · месяц<b>остаток 22 450 ₽</b></div>
+          <div class="pb" style="display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap;">
+            <svg class="donut donut-multi" viewBox="0 0 42 42" role="img" aria-label="структура трат">
+              <circle class="seg" style="stroke:var(--emerald); stroke-dasharray:34 66; stroke-dashoffset:0;   --sd:0" cx="21" cy="21" r="15.915"/>
+              <circle class="seg" style="stroke:var(--cyan);    stroke-dasharray:21 79; stroke-dashoffset:-34; --sd:1" cx="21" cy="21" r="15.915"/>
+              <circle class="seg" style="stroke:var(--gold);    stroke-dasharray:17 83; stroke-dashoffset:-55; --sd:2" cx="21" cy="21" r="15.915"/>
+              <circle class="seg" style="stroke:var(--violet);  stroke-dasharray:14 86; stroke-dashoffset:-72; --sd:3" cx="21" cy="21" r="15.915"/>
+              <circle class="seg" style="stroke:var(--red);     stroke-dasharray:14 86; stroke-dashoffset:-86; --sd:4" cx="21" cy="21" r="15.915"/>
+              <text class="ring-txt" x="21" y="20" style="font-size:6px">63 000</text>
+              <text class="ring-sub" x="21" y="25">₽ за месяц</text>
+            </svg>
+            <div class="legend" style="min-width:168px">
+              <span><i style="background:var(--emerald)"></i> Еда<span class="amt">21 400 ₽</span></span>
+              <span><i style="background:var(--cyan)"></i> Жильё<span class="amt">13 200 ₽</span></span>
+              <span><i style="background:var(--gold)"></i> Транспорт<span class="amt">10 700 ₽</span></span>
+              <span><i style="background:var(--violet)"></i> Досуг<span class="amt">8 800 ₽</span></span>
+              <span><i style="background:var(--red)"></i> Прочее<span class="amt">8 800 ₽</span></span>
+            </div>
           </div>
         </div>
         <div class="p-side">
+          <div class="bc" style="height:66px; width:100%; max-width:150px;">
+            <div class="bar" style="--h:92%"></div><div class="bar o" style="--h:62%"></div>
+          </div>
+          <div class="bcx" style="max-width:150px; width:100%;"><span>доход</span><span>расход</span></div>
           <ul class="p-feat">
             <li><b>Круговые диаграммы</b> расходов</li>
             <li>Учёт доходов, трат, долгов</li>
@@ -666,6 +725,31 @@ var PAYMENT_URL = "";
     setTimeout(tick, 150);
   }
   if(!reduce){ demo.classList.add("playing"); setTimeout(tick, 1100); }
+})();
+
+/* строим линейные графики (гладкая кривая + заливка); рисуются при появлении карточки */
+(function(){
+  document.querySelectorAll(".lc").forEach(function(svg){
+    var raw=(svg.dataset.pts||"").split(",").map(parseFloat).filter(function(v){return !isNaN(v);});
+    if(raw.length<2) return;
+    var max=parseFloat(svg.dataset.max), min=parseFloat(svg.dataset.min);
+    if(isNaN(max)) max=Math.max.apply(null,raw); if(isNaN(min)) min=0;
+    var W=100,H=44,pad=6,n=raw.length, span=(max-min)||1;
+    var xs=raw.map(function(_,i){ return n>1? +(i*(W/(n-1))).toFixed(2):0; });
+    var ys=raw.map(function(v){ return +(H-pad-((v-min)/span)*(H-2*pad)).toFixed(2); });
+    var d="M"+xs[0]+" "+ys[0];
+    for(var i=0;i<n-1;i++){
+      var x0=xs[i>0?i-1:0], y0=ys[i>0?i-1:0], x1=xs[i], y1=ys[i], x2=xs[i+1], y2=ys[i+1],
+          x3=xs[i+2<n?i+2:i+1], y3=ys[i+2<n?i+2:i+1];
+      var c1x=(x1+(x2-x0)/6).toFixed(2), c1y=(y1+(y2-y0)/6).toFixed(2),
+          c2x=(x2-(x3-x1)/6).toFixed(2), c2y=(y2-(y3-y1)/6).toFixed(2);
+      d+=" C"+c1x+" "+c1y+" "+c2x+" "+c2y+" "+x2+" "+y2;
+    }
+    var line=svg.querySelector(".lc-line"), area=svg.querySelector(".lc-area");
+    if(line){ line.setAttribute("d",d);
+      try{ line.style.setProperty("--len", Math.ceil(line.getTotalLength())); }catch(e){} }
+    if(area){ area.setAttribute("d", d+" L"+xs[n-1]+" "+H+" L"+xs[0]+" "+H+" Z"); }
+  });
 })();
 
 /* появление при скролле (рисует и круговые диаграммы, и полоски прогресса) */
