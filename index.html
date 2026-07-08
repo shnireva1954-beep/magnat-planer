@@ -24,7 +24,7 @@
     --emerald:#2fe38f; --emerald-d:#17a768; --gold:#f5c451; --cyan:#35d0ff; --red:#ff6b6b; --violet:#b06bff;
     --ink:#eef4fb; --mut:#93a6bd; --mut2:#5f7288;
     --fd:Georgia,"Times New Roman",serif; --fb:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    --r:16px;
+    --r:16px; --e-out:cubic-bezier(.16,1,.3,1);
   }
   *{box-sizing:border-box; margin:0; padding:0}
   html{scroll-behavior:smooth}
@@ -39,9 +39,10 @@
 
   .wrap{max-width:1120px; margin:0 auto; padding:0 20px;}
   section{padding:76px 0;}
+  section[id]{scroll-margin-top:78px;}   /* якорь не прячется под липким меню */
   h2{font-family:var(--fd); font-size:clamp(26px,4.6vw,40px); line-height:1.12; letter-spacing:-.01em; text-wrap:balance; position:relative; display:inline-block;}
   h2.uline::after{content:""; position:absolute; left:0; bottom:-8px; height:3px; width:0; border-radius:3px;
-    background:linear-gradient(90deg,var(--emerald),transparent); transition:width 1s cubic-bezier(.16,1,.3,1) .25s;}
+    background:linear-gradient(90deg,var(--emerald),transparent); transition:width 1s var(--e-out) .25s;}
   .rv.in h2.uline::after, h2.uline.in::after{width:64px;}
   .sub{color:var(--mut); max-width:560px; margin-top:14px; font-size:clamp(15px,2vw,17px);}
   .glass{background:linear-gradient(168deg,rgba(20,28,42,.62),rgba(15,21,32,.62));
@@ -64,7 +65,7 @@
   .btn-g:hover{border-color:var(--emerald); color:var(--emerald)}
 
   /* появление при скролле: с каскадом */
-  .rv{opacity:0; transform:translateY(28px); transition:opacity .75s cubic-bezier(.16,1,.3,1), transform .75s cubic-bezier(.16,1,.3,1); transition-delay:calc(var(--i,0)*90ms);}
+  .rv{opacity:0; transform:translateY(36px) scale(.98); transition:opacity .75s var(--e-out), transform .75s var(--e-out); transition-delay:calc(var(--i,0)*90ms);}
   .rv.in{opacity:1; transform:none;}
   @media(prefers-reduced-motion:reduce){
     .rv{opacity:1; transform:none; transition:none}
@@ -72,7 +73,9 @@
     html{scroll-behavior:auto}
   }
 
-  nav{position:sticky; top:0; z-index:30; backdrop-filter:blur(10px); background:#080b11cf; border-bottom:1px solid var(--line);}
+  nav{position:sticky; top:0; z-index:30; backdrop-filter:blur(10px); background:#080b11cf; border-bottom:1px solid var(--line);
+    transition:box-shadow .3s var(--e-out), background .3s;}
+  nav.scrolled{box-shadow:0 10px 30px #0007;}
   nav .wrap{display:flex; align-items:center; justify-content:space-between; height:64px;}
   .logo{display:flex; align-items:center; gap:10px; font-family:var(--fd); font-weight:700; font-size:20px;}
   .logo .c{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:17px;
@@ -91,25 +94,20 @@
   .hero .cta{display:flex; gap:12px; margin-top:26px; flex-wrap:wrap;}
   /* слова заголовка выплывают каскадом */
   .hero h1 .w{display:inline-block; opacity:0; transform:translateY(26px) rotate(1.2deg);
-    animation:wup .7s cubic-bezier(.16,1,.3,1) forwards; animation-delay:calc(var(--w,0)*80ms);}
+    animation:wup .7s var(--e-out) forwards; animation-delay:calc(var(--w,0)*80ms);}
   /* акцентные слова: каскад + перелив градиента вместе (иначе одна анимация съедает другую) */
-  .hero h1 .hl.w{animation:wup .7s cubic-bezier(.16,1,.3,1) forwards, hue 7s linear infinite;
+  .hero h1 .hl.w{animation:wup .7s var(--e-out) forwards, hue 7s linear infinite;
     animation-delay:calc(var(--w,0)*80ms), 0s;}
   @keyframes wup{to{opacity:1; transform:none}}
-  /* тонкая полоска прогресса скролла (в браузерах с поддержкой scroll-timeline) */
-  .sprog{position:fixed; top:0; left:0; height:2.5px; width:100%; z-index:60; pointer-events:none;
-    background:linear-gradient(90deg,var(--emerald),var(--cyan)); transform-origin:0 50%; transform:scaleX(0);
-    animation:sgrow linear both; animation-timeline:scroll(root);}
-  @keyframes sgrow{to{transform:scaleX(1)}}
-  @supports not (animation-timeline: scroll()){ .sprog{display:none} }
-  .hero .h-el{opacity:0; transform:translateY(22px); animation:hin .85s cubic-bezier(.16,1,.3,1) forwards;}
+  .hero .h-el{opacity:0; transform:translateY(22px); animation:hin .85s var(--e-out) forwards;}
   .hero .h-el:nth-child(2){animation-delay:.09s}.hero .h-el:nth-child(3){animation-delay:.18s}
-  .hero .demo-wrap{opacity:0; transform:translateY(26px) scale(.97); animation:hin2 .9s cubic-bezier(.16,1,.3,1) .22s forwards;}
+  .hero .demo-wrap{opacity:0; transform:translateY(26px) scale(.97); animation:hin2 .9s var(--e-out) .22s forwards;}
   @keyframes hin{to{opacity:1; transform:none}}
   @keyframes hin2{to{opacity:1; transform:none}}
 
   /* живая демо-сетка */
   .demo{padding:20px 18px 16px; position:relative;}
+  .demo.playing{box-shadow:inset 0 1px 0 #ffffff14, 0 14px 44px #00000055, 0 0 40px #2fe38f1f;}
   .demo .cap{font-size:11px; letter-spacing:1.4px; text-transform:uppercase; color:var(--emerald); margin-bottom:12px; font-weight:700;}
   .demo table{border-collapse:collapse; width:100%; font-size:12.5px;}
   .demo th{color:var(--mut2); font-weight:600; padding:4px 6px; text-align:center; font-size:11px;}
@@ -131,43 +129,76 @@
     animation:flyup .8s ease-out forwards; text-shadow:0 0 8px #f5c45188;}
   @keyframes flyup{0%{opacity:0; transform:translateY(4px) scale(.8)} 25%{opacity:1} 100%{opacity:0; transform:translateY(-34px) scale(1.15)}}
 
-  /* ====== мини-скрины таблиц в бенто (реалистичные) ====== */
-  .bento{display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-top:36px;}
-  .b-card{padding:18px; display:flex; flex-direction:column; gap:9px; position:relative; overflow:hidden;
-    transition:transform .25s cubic-bezier(.16,1,.3,1), box-shadow .25s, border-color .25s;}
-  .b-card:hover{transform:translateY(-4px); border-color:#1c7a54; box-shadow:0 14px 44px #00000055, 0 0 24px #2fe38f1f;}
-  .b1{grid-column:span 4;} .b2,.b3,.b4,.b5{grid-column:span 2;}
-  .b-card h3{font-size:16.5px; display:flex; align-items:center; gap:9px;}
-  .b-card p{color:var(--mut); font-size:13px;}
-  .shot{margin-top:auto; background:#0a0f16; border:1px solid var(--line); border-radius:10px; padding:9px; overflow:hidden;}
+  /* ====== планеры: карточки во всю ширину со скрином + фичами + круговыми диаграммами ====== */
+  .planners{display:flex; flex-direction:column; gap:22px; margin-top:38px;}
+  .planner{padding:22px; position:relative; overflow:hidden;
+    transition:transform .3s var(--e-out), box-shadow .3s, border-color .3s;}
+  .planner:hover{transform:translateY(-4px); border-color:#1c7a54; box-shadow:0 18px 50px #00000055, 0 0 30px #2fe38f18;}
+  /* блик-свип пробегает по карточке при появлении */
+  .planner::before{content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:3;
+    background:linear-gradient(115deg,transparent 36%,#ffffff16 50%,transparent 64%); transform:translateX(-135%);}
+  .planner.in::before{animation:sweep 1.1s var(--e-out) .3s forwards;}
+  @keyframes sweep{to{transform:translateX(135%)}}
+  .p-head{display:flex; align-items:center; gap:14px;}
+  .p-ic{width:52px; height:52px; flex:none; border-radius:14px; display:grid; place-items:center; font-size:26px;
+    background:linear-gradient(150deg,#0e3327,#0a1a24); border:1px solid var(--line2); box-shadow:0 0 16px #2fe38f1c;}
+  .p-head h3{font-size:19px;}
+  .p-head .p-sub{color:var(--mut2); font-size:11.5px; text-transform:uppercase; letter-spacing:.9px; margin-top:3px; display:block;}
+  .p-body{display:grid; grid-template-columns:1.2fr .9fr; gap:20px; align-items:center; margin-top:18px;}
+  .p-shot{background:#0a0f16; border:1px solid var(--line); border-radius:12px; padding:12px; overflow:hidden;}
+  .p-side{display:flex; flex-direction:column; gap:16px; align-items:center;}
+  .p-feat{list-style:none; display:flex; flex-direction:column; gap:10px; width:100%;}
+  .p-feat li{display:flex; gap:10px; font-size:14.5px; color:var(--mut); align-items:flex-start; line-height:1.4;}
+  .p-feat li::before{content:"✓"; color:var(--emerald); font-weight:800; flex:none; margin-top:1px;}
+  .p-feat li b{color:var(--ink); font-weight:600;}
+
+  /* мини-таблица-скрин */
   .sheet{width:100%; border-collapse:collapse; font-size:9.5px; color:var(--mut);}
   .sheet th{background:#111927; color:var(--mut2); font-weight:600; padding:3px 4px; border:1px solid #0e1622; font-size:8.5px; text-transform:uppercase; letter-spacing:.4px;}
   .sheet td{border:1px solid #0e1622; padding:3px 4px; background:#0d141f; white-space:nowrap;}
   .sheet .nm{color:var(--ink); font-size:9.5px;}
   .sheet .ck{width:14px; text-align:center; color:#04120b; font-weight:900; font-size:8px;}
   .sheet .ck.on{background:#1a7a52; color:#dcffee;}
-  /* галочки зажигаются по очереди при появлении карточки (td-безопасно: только цвет) */
-  .b-card .ck.on{background:#0d141f; color:transparent;
-    transition:background .35s ease, color .35s ease;
-    transition-delay:calc(var(--k,0)*70ms + .35s);}
-  .b-card.rv.in .ck.on{background:#1a7a52; color:#dcffee;}
   .sheet .pc{color:var(--violet); text-align:center; font-weight:700;}
   .sheet .gold{color:var(--gold); text-align:center;}
   .sheet .tag{font-size:8px; padding:1px 5px; border-radius:99px; font-weight:700;}
   .sheet .hi{background:#3a1620; color:#ff8fa3;} .sheet .md{background:#2a2410; color:var(--gold);} .sheet .lo{background:#12243a; color:var(--cyan);}
   .sheet .strike{text-decoration:line-through; color:var(--mut2);}
   .sheet .red{color:var(--red); text-align:center;} .sheet .grn{color:var(--emerald); text-align:center;}
-  .srow{display:flex; gap:6px; align-items:center; margin-top:6px;}
-  .spie{width:44px; height:44px; border-radius:50%; flex:none;
-    background:conic-gradient(var(--emerald) 0 34%, var(--cyan) 34% 55%, var(--gold) 55% 72%, var(--violet) 72% 86%, var(--red) 86% 100%);}
-  .spie i{display:block; width:26px; height:26px; border-radius:50%; background:#0a0f16; margin:9px;}
-  .slegend{font-size:8.5px; color:var(--mut2); line-height:1.7;}
-  .tag-core{position:absolute; top:13px; right:13px; font-size:10px; letter-spacing:1.2px; text-transform:uppercase;
-    color:var(--gold); border:1px solid #6e5320; background:#1a140766; padding:4px 9px; border-radius:99px; font-weight:700;}
+
+  /* растущие полоски прогресса (как «% выполнения» у конкурента) */
+  .pbars{display:flex; flex-direction:column; gap:6px; margin-top:11px;}
+  .pbar{display:grid; grid-template-columns:76px 1fr 32px; align-items:center; gap:8px; font-size:10px; color:var(--mut);}
+  .pbar .tk{height:7px; background:#111927; border-radius:99px; overflow:hidden;}
+  .pbar .tk i{display:block; height:100%; width:0; border-radius:99px;
+    background:linear-gradient(90deg,#178a5a,var(--emerald)); box-shadow:0 0 8px #2fe38f55;
+    transition:width 1.1s var(--e-out) .4s;}
+  .planner.in .pbar .tk i{width:var(--w);}
+  .pbar b{color:var(--emerald); text-align:right; font-weight:700;}
+
+  /* круговая диаграмма (SVG-кольцо, рисуется при появлении) */
+  .donut{width:132px; height:132px; display:block;}
+  .ring-bg{fill:none; stroke:#16202e; stroke-width:3.4;}
+  .ring{fill:none; stroke:var(--dc,#2fe38f); stroke-width:3.4; stroke-linecap:round;
+    stroke-dasharray:0 100; transform:rotate(-90deg); transform-origin:21px 21px;
+    transition:stroke-dasharray 1.2s var(--e-out) .35s; filter:drop-shadow(0 0 4px #2fe38f66);}
+  .planner.in .ring{stroke-dasharray:var(--pct) 100;}
+  .ring-txt{fill:var(--ink); font-size:9px; font-weight:800; text-anchor:middle; font-family:var(--fb);}
+  .ring-sub{fill:var(--mut2); font-size:3.4px; text-anchor:middle; text-transform:uppercase; letter-spacing:.3px;}
+  /* многосегментная круговая (структура трат) */
+  .donut-multi{width:150px; height:150px;}
+  .donut-multi .seg{fill:none; stroke-width:4.4; stroke-linecap:butt; transform:rotate(-90deg); transform-origin:21px 21px;
+    opacity:0; transition:opacity .5s ease calc(.35s + var(--sd,0)*.12s);}
+  .planner.in .donut-multi .seg{opacity:1;}
+  .legend{display:flex; flex-direction:column; gap:4px; font-size:11px; color:var(--mut); margin-top:2px;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .legend i{width:9px; height:9px; border-radius:3px; flex:none;}
+  .p-core{position:absolute; top:16px; right:16px; font-size:10px; letter-spacing:1.1px; text-transform:uppercase;
+    color:var(--gold); border:1px solid #6e5320; background:#1a140766; padding:4px 10px; border-radius:99px; font-weight:700;}
 
   /* шаги механики */
   .steps{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:38px;}
-  .step{padding:22px 18px; text-align:center; transition:transform .25s cubic-bezier(.16,1,.3,1), border-color .25s;}
+  .step{padding:22px 18px; text-align:center; transition:transform .25s var(--e-out), border-color .25s;}
   .step:hover{transform:translateY(-4px); border-color:#1c7a54;}
   .step .ico{font-size:30px; display:inline-block;}
   .step:hover .ico{animation:pop .4s ease;}
@@ -186,7 +217,7 @@
   .m-tag{font-size:8.5px; color:var(--emerald); letter-spacing:1.1px; text-transform:uppercase;}
   .m-bar{height:8px; border-radius:99px; background:#0a1119; border:1px solid var(--line); margin-top:9px; overflow:hidden;}
   .m-bar i{display:block; height:100%; width:64%; background:linear-gradient(90deg,#178a5a,var(--emerald)); box-shadow:0 0 9px #2fe38f7a;
-    animation:fillup 1.6s cubic-bezier(.16,1,.3,1);}
+    animation:fillup 1.6s var(--e-out);}
   @keyframes fillup{from{width:8%}}
   .m-tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:9px;}
   .m-tile{background:#0f1520; border:1px solid var(--line); border-radius:9px; padding:7px 3px; text-align:center;}
@@ -225,24 +256,11 @@
     display:flex; justify-content:space-between; align-items:center; gap:12px;}
   .qa summary::-webkit-details-marker{display:none}
   .qa summary::after{content:"+"; color:var(--emerald); font-size:20px; font-weight:400; flex:none;
-    transition:transform .3s cubic-bezier(.16,1,.3,1);}
+    transition:transform .3s var(--e-out);}
   .qa[open] summary::after{transform:rotate(45deg);}
   .qa .a{padding:0 20px; color:var(--mut); font-size:14px; max-height:0; overflow:hidden;
-    transition:max-height .45s cubic-bezier(.16,1,.3,1), padding .3s;}
+    transition:max-height .45s var(--e-out), padding .3s;}
   .qa[open] .a{max-height:200px; padding:0 20px 17px;}
-
-  /* липкая кнопка покупки на телефоне */
-  .mbar{position:fixed; left:0; right:0; bottom:0; z-index:40; display:none;
-    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
-    background:#0a0f16ee; backdrop-filter:blur(12px); border-top:1px solid var(--line2);
-    transform:translateY(110%); transition:transform .4s cubic-bezier(.16,1,.3,1);
-    align-items:center; gap:12px;}
-  .mbar.show{transform:none;}
-  .mbar .p{font-weight:800; color:var(--gold); font-size:17px; white-space:nowrap;}
-  .mbar .p small{display:block; font-weight:400; color:var(--mut2); font-size:10.5px;}
-  .mbar .btn{flex:1; padding:12px 16px; font-size:15px;}
-  .mbar .x{background:none; border:none; color:var(--mut2); font-size:20px; padding:4px 6px; cursor:pointer; flex:none;}
-  @media (max-width:860px){ .mbar{display:flex;} }
 
   .final{text-align:center; padding:84px 0;}
   .final h2{font-size:clamp(28px,5vw,44px);}
@@ -258,7 +276,7 @@
   .ovl{position:fixed; inset:0; background:#000c; backdrop-filter:blur(5px); display:none; align-items:center; justify-content:center; z-index:50; padding:20px;}
   .ovl.show{display:flex;}
   .modal{width:100%; max-width:380px; background:linear-gradient(168deg,#16223a,#0f1520); border:1px solid var(--line2); border-radius:20px; padding:26px 22px; box-shadow:0 20px 60px #000a; text-align:center;
-    animation:mopen .35s cubic-bezier(.16,1,.3,1);}
+    animation:mopen .35s var(--e-out);}
   @keyframes mopen{from{opacity:0; transform:translateY(18px) scale(.97)}}
   .modal .big{font-size:38px;}
   .modal h4{font-family:var(--fd); font-size:20px; margin:10px 0 8px;}
@@ -271,50 +289,25 @@
 
   @media (max-width:860px){
     .hero{grid-template-columns:1fr; gap:32px; padding:38px 0 12px;}
-    .bento{grid-template-columns:1fr 1fr;}
-    .b1{grid-column:span 2;} .b2,.b3,.b4,.b5{grid-column:span 1;}
     .steps{grid-template-columns:1fr 1fr;}
     .bundle{grid-template-columns:1fr; gap:30px;}
     section{padding:54px 0;}
   }
+  @media (max-width:760px){
+    .p-body{grid-template-columns:1fr; gap:16px;}
+    .p-side{order:-1;}            /* на телефоне круговая/фичи над скрином — сразу видно диаграмму */
+  }
   @media (max-width:520px){
-    .bento{grid-template-columns:1fr;}
-    .b1,.b2,.b3,.b4,.b5{grid-column:span 1;}
-    /* шаги на телефоне: компактные строки, а не гигантские плиты */
     .steps{grid-template-columns:1fr; gap:10px;}
     .step{display:flex; align-items:flex-start; gap:14px; text-align:left; padding:14px 16px;}
     .step .ico{font-size:24px; flex:none; margin-top:2px;}
     .step h3{margin:0 0 3px;}
-  }
-
-  /* ================= усиленная моушн-система =================
-     (emil-design-eng: сильные кастомные кривые, только transform/opacity, стаггер) */
-  :root{ --e-out:cubic-bezier(.16,1,.3,1); }
-
-  /* reveal заметнее: больше сдвиг + лёгкий масштаб (чтобы движение читалось и на ПК) */
-  .rv{transform:translateY(36px) scale(.98);}
-  .rv.in{transform:none;}
-
-  /* блик-свип пробегает по карточке набора в момент её появления */
-  .b-card::before{content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:2;
-    background:linear-gradient(115deg,transparent 34%,#ffffff1c 50%,transparent 66%);
-    transform:translateX(-135%);}
-  .b-card.in::before{animation:sweep 1.1s var(--e-out) forwards; animation-delay:calc(var(--i,0)*90ms + .3s);}
-  @keyframes sweep{to{transform:translateX(135%)}}
-
-  /* навбар приподнимается тенью после прокрутки */
-  nav{transition:box-shadow .3s var(--e-out), background .3s;}
-  nav.scrolled{box-shadow:0 10px 30px #0007;}
-
-  /* живая демо-карта чуть выезжает и подсвечивается, пока идёт авто-показ */
-  .demo.playing{box-shadow:inset 0 1px 0 #ffffff14, 0 14px 44px #00000055, 0 0 40px #2fe38f1f;}
-
-  @media(prefers-reduced-motion:reduce){
-    .b-card::before{display:none}
+    .p-head h3{font-size:17px;}
+    .p-core{top:14px; right:12px; font-size:8px; padding:3px 7px; letter-spacing:.7px;}
+    .planner .p-head{padding-right:88px;}   /* заголовок не заезжает под бейдж */
   }
 </style>
 
-<div class="sprog"></div>
 <div class="glow g1"></div><div class="glow g2"></div>
 
 <nav><div class="wrap">
@@ -349,70 +342,176 @@
 
 <section id="set"><div class="wrap">
   <h2 class="rv uline">Набор «Магнат 5 в 1»</h2>
-  <p class="sub rv">Пять листов, прошитых одной игрой: всё, что ты делаешь за день, превращается в монеты и уровень.</p>
-  <div class="bento">
-    <div class="glass b-card b1 rv" style="--i:0">
-      <span class="tag-core">ядро набора</span>
-      <h3>✅ Привычки</h3>
-      <p>Календарь месяца: серия множит монеты до x2, уровни растут от Новичка до Магната.</p>
-      <div class="shot"><table class="sheet">
-        <tr><th style="text-align:left">привычка</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>%</th><th>🪙</th></tr>
-        <tr><td class="nm">🏋️ Тренировка</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">25</td></tr>
-        <tr><td class="nm">📚 Час на дело</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">25</td></tr>
-        <tr><td class="nm">💰 Шаг к деньгам</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="pc">71%</td><td class="gold">30</td></tr>
-        <tr><td class="nm">🧊 Холодный душ</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">10</td></tr>
-      </table>
-      <div class="srow"><span class="slegend">🔥 серия 6 · множитель <b style="color:var(--emerald)">x1.6</b> · 🪙 сегодня <b style="color:var(--gold)">136</b> · уровень <b style="color:var(--emerald)">🚀 Стартапер</b></span></div>
+  <p class="sub rv">Пять листов, прошитых одной игрой: всё, что ты делаешь за день, превращается в монеты, проценты и уровень. С автоформулами и графиками - как у топовых планеров, но живее.</p>
+  <div class="planners">
+
+    <!-- 1. Привычки -->
+    <article class="glass planner rv">
+      <span class="p-core">ядро набора</span>
+      <div class="p-head">
+        <div class="p-ic">✅</div>
+        <div><h3>Умный планер привычек</h3><span class="p-sub">бестселлер · система роста</span></div>
       </div>
-    </div>
-    <div class="glass b-card b2 rv" style="--i:1">
-      <h3>🎯 Задачи</h3>
-      <p>Приоритеты, сроки, просрочка краснеет сама.</p>
-      <div class="shot"><table class="sheet">
-        <tr><th></th><th style="text-align:left">задача</th><th>приоритет</th><th>срок</th></tr>
-        <tr><td class="ck"></td><td class="nm">Смонтировать ролик</td><td style="text-align:center"><span class="tag hi">Высокий</span></td><td class="grn">сегодня</td></tr>
-        <tr><td class="ck"></td><td class="nm">5 сценариев</td><td style="text-align:center"><span class="tag md">Средний</span></td><td class="gold">1 дн.</td></tr>
-        <tr><td class="ck on">✓</td><td class="strike">20 страниц</td><td style="text-align:center"><span class="tag lo">Низкий</span></td><td class="grn">✓</td></tr>
-        <tr><td class="ck"></td><td class="nm">Позвонить маме</td><td style="text-align:center"><span class="tag md">Средний</span></td><td class="red">-1 дн.</td></tr>
-      </table></div>
-    </div>
-    <div class="glass b-card b3 rv" style="--i:2">
-      <h3>💪 Фитнес</h3>
-      <p>Тренировки, мышцы по дням, вес с графиком.</p>
-      <div class="shot"><table class="sheet">
-        <tr><th style="text-align:left">качал</th><th>пн</th><th>вт</th><th>ср</th><th>чт</th><th>пт</th></tr>
-        <tr><td class="nm">💪 Грудь</td><td class="ck on">✓</td><td class="ck"></td><td class="ck"></td><td class="ck on">✓</td><td class="ck"></td></tr>
-        <tr><td class="nm">🦵 Ноги</td><td class="ck"></td><td class="ck on">✓</td><td class="ck"></td><td class="ck"></td><td class="ck on">✓</td></tr>
-        <tr><td class="nm">🧱 Пресс</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td></tr>
-      </table>
-      <div class="srow"><span class="slegend">⚖️ вес 78.9 → цель 78 · <b style="color:var(--emerald)">сброшено 5.1 кг</b></span></div>
-      </div>
-    </div>
-    <div class="glass b-card b4 rv" style="--i:3">
-      <h3>📅 Неделя</h3>
-      <p>3 главных дела на день, энергия, итог недели.</p>
-      <div class="shot"><table class="sheet">
-        <tr><th>пн</th><th>вт</th><th>ср</th><th>чт</th><th>пт</th><th>сб</th><th>вс</th></tr>
-        <tr><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td></tr>
-        <tr><td class="grn">⚡⚡⚡</td><td class="gold">⚡⚡</td><td class="grn">⚡⚡⚡</td><td class="red">⚡</td><td class="grn">⚡⚡⚡</td><td class="grn">⚡⚡⚡</td><td class="gold">⚡⚡</td></tr>
-      </table>
-      <div class="srow"><span class="slegend">закрыто дней: <b style="color:var(--emerald)">5 / 7</b> · лучший день: пятница</span></div>
-      </div>
-    </div>
-    <div class="glass b-card b5 rv" style="--i:4">
-      <h3>💰 Финансы</h3>
-      <p>Дневник трат: категории считаются сами.</p>
-      <div class="shot">
-        <div class="srow">
-          <div class="spie"><i></i></div>
-          <div class="slegend">
-            <span style="color:var(--emerald)">■</span> еда 34% · <span style="color:var(--cyan)">■</span> жильё 21%<br>
-            <span style="color:var(--gold)">■</span> транспорт 17% · <span style="color:var(--violet)">■</span> досуг 14%<br>
-            остаток <b style="color:var(--gold)">22 450 ₽</b>
+      <div class="p-body">
+        <div class="p-shot">
+          <table class="sheet">
+            <tr><th style="text-align:left">привычка</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>%</th><th>монет</th></tr>
+            <tr><td class="nm">🏋️ Тренировка</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">25</td></tr>
+            <tr><td class="nm">📚 Час на дело</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">25</td></tr>
+            <tr><td class="nm">💰 Шаг к деньгам</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="pc">71%</td><td class="gold">30</td></tr>
+            <tr><td class="nm">🧊 Холодный душ</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">10</td></tr>
+          </table>
+          <div class="pbars">
+            <div class="pbar"><span>Тренировка</span><div class="tk"><i style="--w:86%"></i></div><b>86%</b></div>
+            <div class="pbar"><span>Час на дело</span><div class="tk"><i style="--w:86%"></i></div><b>86%</b></div>
+            <div class="pbar"><span>Шаг к деньгам</span><div class="tk"><i style="--w:71%"></i></div><b>71%</b></div>
           </div>
         </div>
+        <div class="p-side">
+          <svg class="donut" viewBox="0 0 42 42" role="img" aria-label="прогресс недели 82%">
+            <circle class="ring-bg" cx="21" cy="21" r="15.915"/>
+            <circle class="ring" cx="21" cy="21" r="15.915" style="--pct:82"/>
+            <text class="ring-txt" x="21" y="20">82%</text>
+            <text class="ring-sub" x="21" y="26">неделя</text>
+          </svg>
+          <ul class="p-feat">
+            <li><b>Авторасчёт %</b> выполнения по каждой привычке</li>
+            <li><b>Серия</b> множит монеты до x2</li>
+            <li>Уровни: <b>Новичок → Магнат</b></li>
+          </ul>
+        </div>
       </div>
-    </div>
+    </article>
+
+    <!-- 2. Задачи -->
+    <article class="glass planner rv">
+      <div class="p-head">
+        <div class="p-ic">🎯</div>
+        <div><h3>Умный список задач</h3><span class="p-sub">приоритеты и сроки</span></div>
+      </div>
+      <div class="p-body">
+        <div class="p-shot">
+          <table class="sheet">
+            <tr><th></th><th style="text-align:left">задача</th><th>приоритет</th><th>срок</th></tr>
+            <tr><td class="ck"></td><td class="nm">Смонтировать ролик</td><td style="text-align:center"><span class="tag hi">Высокий</span></td><td class="grn">сегодня</td></tr>
+            <tr><td class="ck"></td><td class="nm">5 сценариев</td><td style="text-align:center"><span class="tag md">Средний</span></td><td class="gold">1 дн.</td></tr>
+            <tr><td class="ck on">✓</td><td class="strike">20 страниц книги</td><td style="text-align:center"><span class="tag lo">Низкий</span></td><td class="grn">✓</td></tr>
+            <tr><td class="ck"></td><td class="nm">Позвонить маме</td><td style="text-align:center"><span class="tag md">Средний</span></td><td class="red">-1 дн.</td></tr>
+            <tr><td class="ck"></td><td class="nm">Оплатить кредитку</td><td style="text-align:center"><span class="tag hi">Высокий</span></td><td class="gold">2 дн.</td></tr>
+          </table>
+        </div>
+        <div class="p-side">
+          <ul class="p-feat">
+            <li><b>Авторасчёт</b> оставшихся дней</li>
+            <li><b>Цветные теги</b> приоритетов</li>
+            <li><b>Просрочка краснеет</b> сама</li>
+            <li>Сортировка по категориям</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <!-- 3. Фитнес -->
+    <article class="glass planner rv">
+      <div class="p-head">
+        <div class="p-ic">💪</div>
+        <div><h3>Фитнес планер</h3><span class="p-sub">прогресс в цифрах</span></div>
+      </div>
+      <div class="p-body">
+        <div class="p-shot">
+          <table class="sheet">
+            <tr><th style="text-align:left">качал</th><th>пн</th><th>вт</th><th>ср</th><th>чт</th><th>пт</th><th>сб</th></tr>
+            <tr><td class="nm">💪 Грудь</td><td class="ck on">✓</td><td class="ck"></td><td class="ck"></td><td class="ck on">✓</td><td class="ck"></td><td class="ck"></td></tr>
+            <tr><td class="nm">🦵 Ноги</td><td class="ck"></td><td class="ck on">✓</td><td class="ck"></td><td class="ck"></td><td class="ck on">✓</td><td class="ck"></td></tr>
+            <tr><td class="nm">🧱 Пресс</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td></tr>
+            <tr><td class="nm">🏃 Кардио</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td></tr>
+          </table>
+          <div class="pbars">
+            <div class="pbar"><span>Вес 84 → 78</span><div class="tk"><i style="--w:84%"></i></div><b>-5.1</b></div>
+          </div>
+        </div>
+        <div class="p-side">
+          <svg class="donut" viewBox="0 0 42 42" role="img" aria-label="к цели по весу 84%" style="--dc:#35d0ff">
+            <circle class="ring-bg" cx="21" cy="21" r="15.915"/>
+            <circle class="ring" cx="21" cy="21" r="15.915" style="--pct:84"/>
+            <text class="ring-txt" x="21" y="20">84%</text>
+            <text class="ring-sub" x="21" y="26">к цели</text>
+          </svg>
+          <ul class="p-feat">
+            <li><b>Мышцы по дням</b> недели</li>
+            <li><b>Вес и цель</b> с графиком</li>
+            <li><b>Круг прогресса</b> к форме</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <!-- 4. Неделя -->
+    <article class="glass planner rv">
+      <div class="p-head">
+        <div class="p-ic">📅</div>
+        <div><h3>Эстетичный планер на неделю</h3><span class="p-sub">фокус и энергия</span></div>
+      </div>
+      <div class="p-body">
+        <div class="p-shot">
+          <table class="sheet">
+            <tr><th>пн</th><th>вт</th><th>ср</th><th>чт</th><th>пт</th><th>сб</th><th>вс</th></tr>
+            <tr><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td></tr>
+            <tr><td class="grn">⚡⚡⚡</td><td class="gold">⚡⚡</td><td class="grn">⚡⚡⚡</td><td class="red">⚡</td><td class="grn">⚡⚡⚡</td><td class="grn">⚡⚡⚡</td><td class="gold">⚡⚡</td></tr>
+            <tr><td class="grn">🙂</td><td class="gold">😐</td><td class="grn">😄</td><td class="red">😕</td><td class="grn">😄</td><td class="grn">🤩</td><td class="gold">🙂</td></tr>
+          </table>
+        </div>
+        <div class="p-side">
+          <svg class="donut" viewBox="0 0 42 42" role="img" aria-label="закрыто 5 из 7 дней" style="--dc:#f5c451">
+            <circle class="ring-bg" cx="21" cy="21" r="15.915"/>
+            <circle class="ring" cx="21" cy="21" r="15.915" style="--pct:71"/>
+            <text class="ring-txt" x="21" y="20">5/7</text>
+            <text class="ring-sub" x="21" y="26">дней</text>
+          </svg>
+          <ul class="p-feat">
+            <li><b>3 главных дела</b> на день</li>
+            <li><b>Трекер энергии</b> и настроения</li>
+            <li><b>Умная сводка</b> за неделю</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <!-- 5. Финансы -->
+    <article class="glass planner rv">
+      <div class="p-head">
+        <div class="p-ic">💰</div>
+        <div><h3>Финансовый планер</h3><span class="p-sub">куда уходят деньги</span></div>
+      </div>
+      <div class="p-body">
+        <div class="p-shot" style="display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap;">
+          <svg class="donut donut-multi" viewBox="0 0 42 42" role="img" aria-label="структура трат">
+            <circle class="seg" style="stroke:var(--emerald); stroke-dasharray:34 66; stroke-dashoffset:0;   --sd:0" cx="21" cy="21" r="15.915"/>
+            <circle class="seg" style="stroke:var(--cyan);    stroke-dasharray:21 79; stroke-dashoffset:-34; --sd:1" cx="21" cy="21" r="15.915"/>
+            <circle class="seg" style="stroke:var(--gold);    stroke-dasharray:17 83; stroke-dashoffset:-55; --sd:2" cx="21" cy="21" r="15.915"/>
+            <circle class="seg" style="stroke:var(--violet);  stroke-dasharray:14 86; stroke-dashoffset:-72; --sd:3" cx="21" cy="21" r="15.915"/>
+            <circle class="seg" style="stroke:var(--red);     stroke-dasharray:14 86; stroke-dashoffset:-86; --sd:4" cx="21" cy="21" r="15.915"/>
+            <text class="ring-txt" x="21" y="20" style="font-size:6px">траты</text>
+            <text class="ring-sub" x="21" y="25">за месяц</text>
+          </svg>
+          <div class="legend">
+            <span><i style="background:var(--emerald)"></i> Еда · 34%</span>
+            <span><i style="background:var(--cyan)"></i> Жильё · 21%</span>
+            <span><i style="background:var(--gold)"></i> Транспорт · 17%</span>
+            <span><i style="background:var(--violet)"></i> Досуг · 14%</span>
+            <span><i style="background:var(--red)"></i> Прочее · 14%</span>
+          </div>
+        </div>
+        <div class="p-side">
+          <ul class="p-feat">
+            <li><b>Круговые диаграммы</b> расходов</li>
+            <li>Учёт доходов, трат, долгов</li>
+            <li><b>Остаток</b> считается сам</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
   </div>
 </div></section>
 
@@ -487,7 +586,6 @@
     <details class="glass qa rv" style="--i:2"><summary>Надо платить каждый месяц?</summary><div class="a">Нет. Платишь один раз - набор твой навсегда, включая будущие обновления.</div></details>
     <details class="glass qa rv" style="--i:3"><summary>Это работает на телефоне?</summary><div class="a">Да, через бесплатное приложение Google Таблицы. А для быстрых отметок в бандле есть веб-приложение и Telegram-бот.</div></details>
     <details class="glass qa rv" style="--i:4"><summary>Если что-то не получится?</summary><div class="a">Пиши на почту - поможем с настройкой. Условия возврата описаны в оферте.</div></details>
-  
   </div>
 </div></section>
 
@@ -507,13 +605,6 @@
   Почта: <a href="mailto:shnireva1954@gmail.com">shnireva1954@gmail.com</a><br>
   <span style="color:#3d4a5c">«Магнат» · планер как игра-тайкун</span>
 </div></footer>
-
-<!-- липкая покупка на телефоне -->
-<div class="mbar" id="mbar">
-  <div class="p">990 ₽<small>доступ навсегда</small></div>
-  <a href="#" class="btn btn-p" data-buy>Получить набор</a>
-  <button class="x" id="mbarX" aria-label="закрыть">✕</button>
-</div>
 
 <!-- модалка покупки: показывается, пока не подключена онлайн-оплата -->
 <div class="ovl" id="buyOvl">
@@ -577,7 +668,7 @@ var PAYMENT_URL = "";
   if(!reduce){ demo.classList.add("playing"); setTimeout(tick, 1100); }
 })();
 
-/* появление при скролле */
+/* появление при скролле (рисует и круговые диаграммы, и полоски прогресса) */
 (function(){
   if(!("IntersectionObserver" in window)){document.querySelectorAll(".rv").forEach(function(e){e.classList.add("in")});return;}
   var io=new IntersectionObserver(function(es){
@@ -611,10 +702,6 @@ var PAYMENT_URL = "";
   }
 })();
 
-/* индексы галочкам мини-таблиц - для поочерёдного взведения */
-document.querySelectorAll(".b-card").forEach(function(cd){
-  cd.querySelectorAll(".ck.on").forEach(function(ck,i){ ck.style.setProperty("--k", i); });
-});
 /* индексы словам заголовка */
 document.querySelectorAll(".hero h1 .w").forEach(function(w,i){ w.style.setProperty("--w", i); });
 
@@ -634,18 +721,6 @@ document.querySelectorAll(".hero h1 .w").forEach(function(w,i){ w.style.setPrope
     });
   },{threshold:.5});
   io.observe(el);
-})();
-
-/* липкая кнопка на телефоне: появляется после hero, прячется у футера */
-(function(){
-  var bar=document.getElementById("mbar"); if(!bar || !("IntersectionObserver" in window)) return;
-  var closed=false;
-  document.getElementById("mbarX").addEventListener("click",function(){closed=true; bar.classList.remove("show");});
-  var hero=document.querySelector(".hero"), foot=document.querySelector("footer");
-  var heroGone=false, footSeen=false;
-  function upd(){ bar.classList.toggle("show", heroGone && !footSeen && !closed); }
-  new IntersectionObserver(function(es){ heroGone = !es[0].isIntersecting; upd(); },{threshold:.05}).observe(hero);
-  new IntersectionObserver(function(es){ footSeen = es[0].isIntersecting; upd(); },{threshold:.05}).observe(foot);
 })();
 
 /* покупка: есть ссылка Robokassa - идём платить; нет - модалка с почтой */
