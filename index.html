@@ -1,0 +1,706 @@
+<meta charset="utf-8">
+<title>Магнат - планер, который играет с тобой</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Набор из 5 Google-таблиц с игровой механикой: привычки, задачи, фитнес, неделя, финансы. Галочки дают монеты, монеты растят уровень. 990 ₽ навсегда.">
+<meta name="theme-color" content="#080b11">
+<!-- превью ссылки в Telegram/VK/WhatsApp -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Магнат - планер, который играет с тобой">
+<meta property="og:description" content="5 Google-таблиц с механикой тайкуна: галочки дают монеты, монеты растят уровень. 990 ₽ навсегда.">
+<meta property="og:url" content="https://magnat-planer.ru/">
+<meta property="og:image" content="https://magnat-planer.ru/og.png">
+<link rel="canonical" href="https://magnat-planer.ru/">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Product","name":"Набор планеров «Магнат 5 в 1»",
+"description":"5 Google-таблиц с игровой механикой тайкуна: привычки, задачи, фитнес, неделя, финансы. Приложение и Telegram-бот в подарок.",
+"image":"https://magnat-planer.ru/og.png",
+"offers":{"@type":"Offer","price":"990","priceCurrency":"RUB","availability":"https://schema.org/InStock","url":"https://magnat-planer.ru/"}}
+</script>
+<style>
+  :root{
+    --bg:#080b11; --bg2:#0b0f17; --panel:#0f1520; --panel2:#131b28;
+    --line:#1c2735; --line2:#26374b;
+    --emerald:#2fe38f; --emerald-d:#17a768; --gold:#f5c451; --cyan:#35d0ff; --red:#ff6b6b; --violet:#b06bff;
+    --ink:#eef4fb; --mut:#93a6bd; --mut2:#5f7288;
+    --fd:Georgia,"Times New Roman",serif; --fb:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --r:16px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg); color:var(--ink); font-family:var(--fb); line-height:1.55;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden; position:relative;}
+  /* живой фон: два медленно дышащих глоу-пятна */
+  .glow{position:fixed; border-radius:50%; filter:blur(90px); pointer-events:none; z-index:-1; opacity:.55;}
+  .glow.g1{width:640px;height:640px; background:#0f2f24; top:-180px; right:-140px; animation:drift1 26s ease-in-out infinite alternate;}
+  .glow.g2{width:560px;height:560px; background:#0d2333; top:30%; left:-200px; animation:drift2 32s ease-in-out infinite alternate;}
+  @keyframes drift1{to{transform:translate(-60px,80px) scale(1.15)}}
+  @keyframes drift2{to{transform:translate(70px,-60px) scale(1.1)}}
+
+  .wrap{max-width:1120px; margin:0 auto; padding:0 20px;}
+  section{padding:76px 0;}
+  h2{font-family:var(--fd); font-size:clamp(26px,4.6vw,40px); line-height:1.12; letter-spacing:-.01em; text-wrap:balance; position:relative; display:inline-block;}
+  h2.uline::after{content:""; position:absolute; left:0; bottom:-8px; height:3px; width:0; border-radius:3px;
+    background:linear-gradient(90deg,var(--emerald),transparent); transition:width 1s cubic-bezier(.16,1,.3,1) .25s;}
+  .rv.in h2.uline::after, h2.uline.in::after{width:64px;}
+  .sub{color:var(--mut); max-width:560px; margin-top:14px; font-size:clamp(15px,2vw,17px);}
+  .glass{background:linear-gradient(168deg,rgba(20,28,42,.62),rgba(15,21,32,.62));
+    backdrop-filter:blur(12px) saturate(1.1); -webkit-backdrop-filter:blur(12px) saturate(1.1);
+    border:1px solid var(--line2); border-radius:var(--r);
+    box-shadow:inset 0 1px 0 #ffffff0e, 0 10px 34px #00000042;}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:9px;
+    padding:15px 26px; border-radius:14px; font-size:16px; font-weight:700; cursor:pointer;
+    border:none; text-decoration:none; color:var(--ink); position:relative; overflow:hidden;
+    transition:transform .12s ease, box-shadow .25s ease;}
+  .btn:active{transform:scale(.97)}
+  .btn-p{background:linear-gradient(180deg,var(--emerald),var(--emerald-d)); color:#04120b; box-shadow:0 0 26px #2fe38f42;}
+  .btn-p:hover{transform:translateY(-2px); box-shadow:0 8px 34px #2fe38f5c;}
+  /* пробегающий блик по главной кнопке */
+  .btn-p::after{content:""; position:absolute; top:0; left:-80%; width:50%; height:100%;
+    background:linear-gradient(100deg,transparent,#ffffff55,transparent); transform:skewX(-20deg);
+    animation:shine 4.2s ease-in-out infinite;}
+  @keyframes shine{0%,72%{left:-80%} 88%,100%{left:140%}}
+  .btn-g{background:transparent; border:1px solid var(--line2);}
+  .btn-g:hover{border-color:var(--emerald); color:var(--emerald)}
+
+  /* появление при скролле: с каскадом */
+  .rv{opacity:0; transform:translateY(28px); transition:opacity .75s cubic-bezier(.16,1,.3,1), transform .75s cubic-bezier(.16,1,.3,1); transition-delay:calc(var(--i,0)*90ms);}
+  .rv.in{opacity:1; transform:none;}
+  @media(prefers-reduced-motion:reduce){
+    .rv{opacity:1; transform:none; transition:none}
+    *{animation:none!important; transition:none!important}
+    html{scroll-behavior:auto}
+  }
+
+  nav{position:sticky; top:0; z-index:30; backdrop-filter:blur(10px); background:#080b11cf; border-bottom:1px solid var(--line);}
+  nav .wrap{display:flex; align-items:center; justify-content:space-between; height:64px;}
+  .logo{display:flex; align-items:center; gap:10px; font-family:var(--fd); font-weight:700; font-size:20px;}
+  .logo .c{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:17px;
+    background:linear-gradient(150deg,#0e3327,#0a1a24); border:1px solid var(--line2); box-shadow:0 0 14px #2fe38f22;}
+  nav .btn{padding:10px 18px; font-size:14px;}
+  nav .btn-p::after{display:none}
+
+  /* hero */
+  .hero{display:grid; grid-template-columns:1.08fr .92fr; gap:44px; align-items:center; padding:58px 0 34px;}
+  .hero h1{font-family:var(--fd); font-size:clamp(33px,5.2vw,54px); line-height:1.07; letter-spacing:-.015em; text-wrap:balance;}
+  .hero h1 .hl{background:linear-gradient(90deg,var(--emerald),#8be9b9,var(--cyan),var(--emerald));
+    background-size:280% 100%; -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation:hue 7s linear infinite; filter:drop-shadow(0 0 22px #2fe38f44);}
+  @keyframes hue{to{background-position:280% 0}}
+  .hero .lead{color:var(--mut); font-size:clamp(16px,2.1vw,18.5px); margin-top:18px; max-width:480px;}
+  .hero .cta{display:flex; gap:12px; margin-top:26px; flex-wrap:wrap;}
+  /* слова заголовка выплывают каскадом */
+  .hero h1 .w{display:inline-block; opacity:0; transform:translateY(26px) rotate(1.2deg);
+    animation:wup .7s cubic-bezier(.16,1,.3,1) forwards; animation-delay:calc(var(--w,0)*80ms);}
+  /* акцентные слова: каскад + перелив градиента вместе (иначе одна анимация съедает другую) */
+  .hero h1 .hl.w{animation:wup .7s cubic-bezier(.16,1,.3,1) forwards, hue 7s linear infinite;
+    animation-delay:calc(var(--w,0)*80ms), 0s;}
+  @keyframes wup{to{opacity:1; transform:none}}
+  /* тонкая полоска прогресса скролла (в браузерах с поддержкой scroll-timeline) */
+  .sprog{position:fixed; top:0; left:0; height:2.5px; width:100%; z-index:60; pointer-events:none;
+    background:linear-gradient(90deg,var(--emerald),var(--cyan)); transform-origin:0 50%; transform:scaleX(0);
+    animation:sgrow linear both; animation-timeline:scroll(root);}
+  @keyframes sgrow{to{transform:scaleX(1)}}
+  @supports not (animation-timeline: scroll()){ .sprog{display:none} }
+  .hero .h-el{opacity:0; transform:translateY(22px); animation:hin .85s cubic-bezier(.16,1,.3,1) forwards;}
+  .hero .h-el:nth-child(2){animation-delay:.09s}.hero .h-el:nth-child(3){animation-delay:.18s}
+  .hero .demo-wrap{opacity:0; transform:translateY(26px) scale(.97); animation:hin2 .9s cubic-bezier(.16,1,.3,1) .22s forwards;}
+  @keyframes hin{to{opacity:1; transform:none}}
+  @keyframes hin2{to{opacity:1; transform:none}}
+
+  /* живая демо-сетка */
+  .demo{padding:20px 18px 16px; position:relative;}
+  .demo .cap{font-size:11px; letter-spacing:1.4px; text-transform:uppercase; color:var(--emerald); margin-bottom:12px; font-weight:700;}
+  .demo table{border-collapse:collapse; width:100%; font-size:12.5px;}
+  .demo th{color:var(--mut2); font-weight:600; padding:4px 6px; text-align:center; font-size:11px;}
+  .demo td{padding:4px 6px;}
+  .demo td.nm{color:var(--ink); white-space:nowrap; font-size:13px;}
+  .cell{width:26px; height:26px; margin:0 auto; border-radius:7px; background:#0c141d; border:1px solid var(--line2);
+    cursor:pointer; display:grid; place-items:center; color:#04120b; font-weight:900; font-size:13px; position:relative;
+    transition:background .18s, box-shadow .18s, transform .1s;}
+  .cell:active{transform:scale(.88)}
+  .cell.on{background:var(--emerald); border-color:var(--emerald); box-shadow:0 0 12px #2fe38f77;}
+  .demo .tally{display:flex; align-items:center; justify-content:space-between; margin-top:14px; padding-top:12px; border-top:1px solid var(--line);}
+  .demo .coins{font-size:20px; font-weight:800; color:var(--gold); font-variant-numeric:tabular-nums;}
+  .demo .coins.bump{animation:bump .35s ease;}
+  @keyframes bump{40%{transform:scale(1.22)}}
+  .demo .lvl{font-size:12.5px; color:var(--emerald); font-family:var(--fd);}
+  .demo .hint{font-size:11.5px; color:var(--mut2); margin-top:8px; text-align:center;}
+  /* всплывающие +монеты */
+  .fly{position:absolute; font-size:13px; font-weight:800; color:var(--gold); pointer-events:none; z-index:5;
+    animation:flyup .8s ease-out forwards; text-shadow:0 0 8px #f5c45188;}
+  @keyframes flyup{0%{opacity:0; transform:translateY(4px) scale(.8)} 25%{opacity:1} 100%{opacity:0; transform:translateY(-34px) scale(1.15)}}
+
+  /* ====== мини-скрины таблиц в бенто (реалистичные) ====== */
+  .bento{display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-top:36px;}
+  .b-card{padding:18px; display:flex; flex-direction:column; gap:9px; position:relative; overflow:hidden;
+    transition:transform .25s cubic-bezier(.16,1,.3,1), box-shadow .25s, border-color .25s;}
+  .b-card:hover{transform:translateY(-4px); border-color:#1c7a54; box-shadow:0 14px 44px #00000055, 0 0 24px #2fe38f1f;}
+  .b1{grid-column:span 4;} .b2,.b3,.b4,.b5{grid-column:span 2;}
+  .b-card h3{font-size:16.5px; display:flex; align-items:center; gap:9px;}
+  .b-card p{color:var(--mut); font-size:13px;}
+  .shot{margin-top:auto; background:#0a0f16; border:1px solid var(--line); border-radius:10px; padding:9px; overflow:hidden;}
+  .sheet{width:100%; border-collapse:collapse; font-size:9.5px; color:var(--mut);}
+  .sheet th{background:#111927; color:var(--mut2); font-weight:600; padding:3px 4px; border:1px solid #0e1622; font-size:8.5px; text-transform:uppercase; letter-spacing:.4px;}
+  .sheet td{border:1px solid #0e1622; padding:3px 4px; background:#0d141f; white-space:nowrap;}
+  .sheet .nm{color:var(--ink); font-size:9.5px;}
+  .sheet .ck{width:14px; text-align:center; color:#04120b; font-weight:900; font-size:8px;}
+  .sheet .ck.on{background:#1a7a52; color:#dcffee;}
+  /* галочки зажигаются по очереди при появлении карточки (td-безопасно: только цвет) */
+  .b-card .ck.on{background:#0d141f; color:transparent;
+    transition:background .35s ease, color .35s ease;
+    transition-delay:calc(var(--k,0)*70ms + .35s);}
+  .b-card.rv.in .ck.on{background:#1a7a52; color:#dcffee;}
+  .sheet .pc{color:var(--violet); text-align:center; font-weight:700;}
+  .sheet .gold{color:var(--gold); text-align:center;}
+  .sheet .tag{font-size:8px; padding:1px 5px; border-radius:99px; font-weight:700;}
+  .sheet .hi{background:#3a1620; color:#ff8fa3;} .sheet .md{background:#2a2410; color:var(--gold);} .sheet .lo{background:#12243a; color:var(--cyan);}
+  .sheet .strike{text-decoration:line-through; color:var(--mut2);}
+  .sheet .red{color:var(--red); text-align:center;} .sheet .grn{color:var(--emerald); text-align:center;}
+  .srow{display:flex; gap:6px; align-items:center; margin-top:6px;}
+  .spie{width:44px; height:44px; border-radius:50%; flex:none;
+    background:conic-gradient(var(--emerald) 0 34%, var(--cyan) 34% 55%, var(--gold) 55% 72%, var(--violet) 72% 86%, var(--red) 86% 100%);}
+  .spie i{display:block; width:26px; height:26px; border-radius:50%; background:#0a0f16; margin:9px;}
+  .slegend{font-size:8.5px; color:var(--mut2); line-height:1.7;}
+  .tag-core{position:absolute; top:13px; right:13px; font-size:10px; letter-spacing:1.2px; text-transform:uppercase;
+    color:var(--gold); border:1px solid #6e5320; background:#1a140766; padding:4px 9px; border-radius:99px; font-weight:700;}
+
+  /* шаги механики */
+  .steps{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:38px;}
+  .step{padding:22px 18px; text-align:center; transition:transform .25s cubic-bezier(.16,1,.3,1), border-color .25s;}
+  .step:hover{transform:translateY(-4px); border-color:#1c7a54;}
+  .step .ico{font-size:30px; display:inline-block;}
+  .step:hover .ico{animation:pop .4s ease;}
+  @keyframes pop{50%{transform:scale(1.25) rotate(-6deg)}}
+  .step h3{font-size:15.5px; margin:10px 0 6px;}
+  .step p{font-size:13px; color:var(--mut);}
+
+  /* бандл */
+  .bundle{display:grid; grid-template-columns:.9fr 1.1fr; gap:44px; align-items:center;}
+  .phone{width:250px; margin:0 auto; border-radius:34px; padding:11px; background:linear-gradient(160deg,#1a2433,#0c1119);
+    border:1px solid var(--line2); box-shadow:0 26px 70px #000a, 0 0 54px #2fe38f16;
+    animation:floaty 6.5s ease-in-out infinite;}
+  @keyframes floaty{0%,100%{transform:translateY(0) rotate(0)} 50%{transform:translateY(-9px) rotate(-.8deg)}}
+  .screen{background:linear-gradient(180deg,#0b0f17,#080b11); border-radius:25px; padding:14px 12px; overflow:hidden;}
+  .m-lvl{font-family:var(--fd); font-size:16px;}
+  .m-tag{font-size:8.5px; color:var(--emerald); letter-spacing:1.1px; text-transform:uppercase;}
+  .m-bar{height:8px; border-radius:99px; background:#0a1119; border:1px solid var(--line); margin-top:9px; overflow:hidden;}
+  .m-bar i{display:block; height:100%; width:64%; background:linear-gradient(90deg,#178a5a,var(--emerald)); box-shadow:0 0 9px #2fe38f7a;
+    animation:fillup 1.6s cubic-bezier(.16,1,.3,1);}
+  @keyframes fillup{from{width:8%}}
+  .m-tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:9px;}
+  .m-tile{background:#0f1520; border:1px solid var(--line); border-radius:9px; padding:7px 3px; text-align:center;}
+  .m-tile b{font-size:13px;} .m-tile span{display:block; font-size:7.5px; color:var(--mut2); text-transform:uppercase; letter-spacing:.5px; margin-top:2px;}
+  .m-q{display:flex; align-items:center; gap:8px; padding:8px 9px; border-radius:9px; margin-top:7px; font-size:11px; background:#0f1520; border:1px solid var(--line);}
+  .m-q.done{background:linear-gradient(90deg,#0e2f22,#0f1520); border-color:#1c7a54;}
+  .m-q .b{width:15px;height:15px;border-radius:4px;border:2px solid var(--line2); flex:none; display:grid; place-items:center; font-size:9px; font-weight:900; color:#04120b;}
+  .m-q.done .b{background:var(--emerald); border-color:var(--emerald);}
+  .blist{list-style:none; display:flex; flex-direction:column; gap:12px; margin-top:20px;}
+  .blist li{display:flex; gap:11px; font-size:15px; color:var(--mut); align-items:flex-start;}
+  .blist li:before{content:"+"; color:var(--emerald); font-weight:800; font-size:17px; line-height:1.2;}
+  .blist li b{color:var(--ink)}
+
+  /* цена */
+  .price{max-width:460px; margin:36px auto 0; padding:34px 30px; text-align:center; border-color:#6e5320; box-shadow:0 0 44px #f5c4511c;}
+  .price .old{color:var(--mut2); text-decoration:line-through; font-size:17px;}
+  .price .now{font-family:var(--fd); font-size:54px; color:var(--gold); line-height:1; margin:4px 0 2px; text-shadow:0 0 40px #f5c45144;}
+  .price .once{color:var(--emerald); font-size:14px; font-weight:600;}
+  .price ul{list-style:none; text-align:left; margin:22px 0; display:flex; flex-direction:column; gap:10px;}
+  .price li{font-size:14.5px; display:flex; gap:10px;}
+  .price li:before{content:"✓"; color:var(--emerald); font-weight:700;}
+  .price .btn{width:100%;}
+  .price .pay-note{color:var(--mut2); font-size:12px; margin-top:12px;}
+
+  /* как получить */
+  .how{max-width:640px; margin:34px auto 0; display:flex; flex-direction:column; gap:12px;}
+  .h-step{display:flex; gap:16px; align-items:flex-start; padding:18px 20px;}
+  .h-step .n{width:34px; height:34px; flex:none; border-radius:10px; display:grid; place-items:center; font-weight:800;
+    background:linear-gradient(150deg,#0e3327,#0a1a24); border:1px solid #1c7a54; color:var(--emerald);}
+  .h-step h4{font-size:15.5px;} .h-step p{font-size:13.5px; color:var(--mut); margin-top:3px;}
+
+  /* FAQ-аккордеон на нативных details/summary */
+  .faq{max-width:720px; margin:32px auto 0; display:flex; flex-direction:column; gap:12px;}
+  .qa{padding:0;}
+  .qa summary{list-style:none; cursor:pointer; padding:17px 20px; font-size:16px; font-weight:700;
+    display:flex; justify-content:space-between; align-items:center; gap:12px;}
+  .qa summary::-webkit-details-marker{display:none}
+  .qa summary::after{content:"+"; color:var(--emerald); font-size:20px; font-weight:400; flex:none;
+    transition:transform .3s cubic-bezier(.16,1,.3,1);}
+  .qa[open] summary::after{transform:rotate(45deg);}
+  .qa .a{padding:0 20px; color:var(--mut); font-size:14px; max-height:0; overflow:hidden;
+    transition:max-height .45s cubic-bezier(.16,1,.3,1), padding .3s;}
+  .qa[open] .a{max-height:200px; padding:0 20px 17px;}
+
+  /* липкая кнопка покупки на телефоне */
+  .mbar{position:fixed; left:0; right:0; bottom:0; z-index:40; display:none;
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    background:#0a0f16ee; backdrop-filter:blur(12px); border-top:1px solid var(--line2);
+    transform:translateY(110%); transition:transform .4s cubic-bezier(.16,1,.3,1);
+    align-items:center; gap:12px;}
+  .mbar.show{transform:none;}
+  .mbar .p{font-weight:800; color:var(--gold); font-size:17px; white-space:nowrap;}
+  .mbar .p small{display:block; font-weight:400; color:var(--mut2); font-size:10.5px;}
+  .mbar .btn{flex:1; padding:12px 16px; font-size:15px;}
+  .mbar .x{background:none; border:none; color:var(--mut2); font-size:20px; padding:4px 6px; cursor:pointer; flex:none;}
+  @media (max-width:860px){ .mbar{display:flex;} }
+
+  .final{text-align:center; padding:84px 0;}
+  .final h2{font-size:clamp(28px,5vw,44px);}
+  .final .btn{margin-top:26px;}
+
+  footer{border-top:1px solid var(--line); padding:30px 0 34px; color:var(--mut2); font-size:12.5px; line-height:1.9; text-align:center;}
+  footer .flinks{display:flex; flex-direction:column; gap:6px; margin-bottom:16px;}
+  footer .flinks a{color:var(--mut); text-decoration:none; border-bottom:1px solid #2a3a4d; display:inline-block; margin:0 auto; padding-bottom:1px; transition:color .2s, border-color .2s;}
+  footer .flinks a:hover{color:var(--emerald); border-color:var(--emerald);}
+  footer a{color:var(--mut); text-decoration:underline;}
+
+  /* модалка покупки (до подключения онлайн-оплаты) */
+  .ovl{position:fixed; inset:0; background:#000c; backdrop-filter:blur(5px); display:none; align-items:center; justify-content:center; z-index:50; padding:20px;}
+  .ovl.show{display:flex;}
+  .modal{width:100%; max-width:380px; background:linear-gradient(168deg,#16223a,#0f1520); border:1px solid var(--line2); border-radius:20px; padding:26px 22px; box-shadow:0 20px 60px #000a; text-align:center;
+    animation:mopen .35s cubic-bezier(.16,1,.3,1);}
+  @keyframes mopen{from{opacity:0; transform:translateY(18px) scale(.97)}}
+  .modal .big{font-size:38px;}
+  .modal h4{font-family:var(--fd); font-size:20px; margin:10px 0 8px;}
+  .modal p{color:var(--mut); font-size:13.5px; margin-bottom:18px;}
+  .modal .btn{width:100%;}
+  .modal .close{margin-top:10px; background:none; border:none; color:var(--mut2); font-size:12.5px; cursor:pointer; text-decoration:underline;}
+  .modal .mailbox{background:#0a1119; border:1px dashed var(--line2); border-radius:12px; padding:12px;
+    font-size:14.5px; color:var(--emerald); margin-bottom:12px; user-select:all; -webkit-user-select:all; word-break:break-all;}
+  .modal .maillink{display:block; margin-top:10px; color:var(--mut2); font-size:12.5px; text-decoration:underline;}
+
+  @media (max-width:860px){
+    .hero{grid-template-columns:1fr; gap:32px; padding:38px 0 12px;}
+    .bento{grid-template-columns:1fr 1fr;}
+    .b1{grid-column:span 2;} .b2,.b3,.b4,.b5{grid-column:span 1;}
+    .steps{grid-template-columns:1fr 1fr;}
+    .bundle{grid-template-columns:1fr; gap:30px;}
+    section{padding:54px 0;}
+  }
+  @media (max-width:520px){
+    .bento{grid-template-columns:1fr;}
+    .b1,.b2,.b3,.b4,.b5{grid-column:span 1;}
+    /* шаги на телефоне: компактные строки, а не гигантские плиты */
+    .steps{grid-template-columns:1fr; gap:10px;}
+    .step{display:flex; align-items:flex-start; gap:14px; text-align:left; padding:14px 16px;}
+    .step .ico{font-size:24px; flex:none; margin-top:2px;}
+    .step h3{margin:0 0 3px;}
+  }
+
+  /* ================= усиленная моушн-система =================
+     (emil-design-eng: сильные кастомные кривые, только transform/opacity, стаггер) */
+  :root{ --e-out:cubic-bezier(.16,1,.3,1); }
+
+  /* reveal заметнее: больше сдвиг + лёгкий масштаб (чтобы движение читалось и на ПК) */
+  .rv{transform:translateY(36px) scale(.98);}
+  .rv.in{transform:none;}
+
+  /* блик-свип пробегает по карточке набора в момент её появления */
+  .b-card::before{content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:2;
+    background:linear-gradient(115deg,transparent 34%,#ffffff1c 50%,transparent 66%);
+    transform:translateX(-135%);}
+  .b-card.in::before{animation:sweep 1.1s var(--e-out) forwards; animation-delay:calc(var(--i,0)*90ms + .3s);}
+  @keyframes sweep{to{transform:translateX(135%)}}
+
+  /* навбар приподнимается тенью после прокрутки */
+  nav{transition:box-shadow .3s var(--e-out), background .3s;}
+  nav.scrolled{box-shadow:0 10px 30px #0007;}
+
+  /* живая демо-карта чуть выезжает и подсвечивается, пока идёт авто-показ */
+  .demo.playing{box-shadow:inset 0 1px 0 #ffffff14, 0 14px 44px #00000055, 0 0 40px #2fe38f1f;}
+
+  @media(prefers-reduced-motion:reduce){
+    .b-card::before{display:none}
+  }
+</style>
+
+<div class="sprog"></div>
+<div class="glow g1"></div><div class="glow g2"></div>
+
+<nav><div class="wrap">
+  <div class="logo"><div class="c">🏛</div>Магнат</div>
+  <a href="#price" class="btn btn-p">Получить</a>
+</div></nav>
+
+<header class="wrap"><div class="hero">
+  <div>
+    <h1 class="h-el"><span class="w">Планер,</span> <span class="w">который</span> <span class="hl w">играет</span> <span class="hl w">с</span> <span class="hl w">тобой</span></h1>
+    <p class="lead h-el">Набор из 5 Google-таблиц с механикой тайкуна: галочки дают монеты, монеты растят уровень. Дисциплина перестаёт быть скучной.</p>
+    <div class="cta h-el">
+      <a href="#price" class="btn btn-p">🏛 Получить за 990 ₽</a>
+      <a href="#set" class="btn btn-g">Что внутри</a>
+    </div>
+  </div>
+  <div class="demo-wrap"><div class="glass demo">
+    <div class="cap">Живая механика · попробуй прямо тут</div>
+    <table>
+      <tr><th style="text-align:left">Привычка</th><th>пн</th><th>вт</th><th>ср</th><th>чт</th><th>пт</th></tr>
+      <tr><td class="nm">🏋️ Тренировка</td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td></tr>
+      <tr><td class="nm">📚 Час на дело</td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td></tr>
+      <tr><td class="nm">💰 Шаг к деньгам</td><td><span class="cell" data-c="30"></span></td><td><span class="cell" data-c="30"></span></td><td><span class="cell" data-c="30"></span></td><td><span class="cell" data-c="30"></span></td><td><span class="cell" data-c="30"></span></td></tr>
+    </table>
+    <div class="tally">
+      <div class="coins" id="dCoins">🪙 0</div>
+      <div class="lvl" id="dLvl">🐣 Новичок</div>
+    </div>
+    <div class="hint">жми клетки - монеты считаются сами, как в таблице</div>
+  </div></div>
+</div></header>
+
+<section id="set"><div class="wrap">
+  <h2 class="rv uline">Набор «Магнат 5 в 1»</h2>
+  <p class="sub rv">Пять листов, прошитых одной игрой: всё, что ты делаешь за день, превращается в монеты и уровень.</p>
+  <div class="bento">
+    <div class="glass b-card b1 rv" style="--i:0">
+      <span class="tag-core">ядро набора</span>
+      <h3>✅ Привычки</h3>
+      <p>Календарь месяца: серия множит монеты до x2, уровни растут от Новичка до Магната.</p>
+      <div class="shot"><table class="sheet">
+        <tr><th style="text-align:left">привычка</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>%</th><th>🪙</th></tr>
+        <tr><td class="nm">🏋️ Тренировка</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">25</td></tr>
+        <tr><td class="nm">📚 Час на дело</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">25</td></tr>
+        <tr><td class="nm">💰 Шаг к деньгам</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="pc">71%</td><td class="gold">30</td></tr>
+        <tr><td class="nm">🧊 Холодный душ</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">10</td></tr>
+      </table>
+      <div class="srow"><span class="slegend">🔥 серия 6 · множитель <b style="color:var(--emerald)">x1.6</b> · 🪙 сегодня <b style="color:var(--gold)">136</b> · уровень <b style="color:var(--emerald)">🚀 Стартапер</b></span></div>
+      </div>
+    </div>
+    <div class="glass b-card b2 rv" style="--i:1">
+      <h3>🎯 Задачи</h3>
+      <p>Приоритеты, сроки, просрочка краснеет сама.</p>
+      <div class="shot"><table class="sheet">
+        <tr><th></th><th style="text-align:left">задача</th><th>приоритет</th><th>срок</th></tr>
+        <tr><td class="ck"></td><td class="nm">Смонтировать ролик</td><td style="text-align:center"><span class="tag hi">Высокий</span></td><td class="grn">сегодня</td></tr>
+        <tr><td class="ck"></td><td class="nm">5 сценариев</td><td style="text-align:center"><span class="tag md">Средний</span></td><td class="gold">1 дн.</td></tr>
+        <tr><td class="ck on">✓</td><td class="strike">20 страниц</td><td style="text-align:center"><span class="tag lo">Низкий</span></td><td class="grn">✓</td></tr>
+        <tr><td class="ck"></td><td class="nm">Позвонить маме</td><td style="text-align:center"><span class="tag md">Средний</span></td><td class="red">-1 дн.</td></tr>
+      </table></div>
+    </div>
+    <div class="glass b-card b3 rv" style="--i:2">
+      <h3>💪 Фитнес</h3>
+      <p>Тренировки, мышцы по дням, вес с графиком.</p>
+      <div class="shot"><table class="sheet">
+        <tr><th style="text-align:left">качал</th><th>пн</th><th>вт</th><th>ср</th><th>чт</th><th>пт</th></tr>
+        <tr><td class="nm">💪 Грудь</td><td class="ck on">✓</td><td class="ck"></td><td class="ck"></td><td class="ck on">✓</td><td class="ck"></td></tr>
+        <tr><td class="nm">🦵 Ноги</td><td class="ck"></td><td class="ck on">✓</td><td class="ck"></td><td class="ck"></td><td class="ck on">✓</td></tr>
+        <tr><td class="nm">🧱 Пресс</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td></tr>
+      </table>
+      <div class="srow"><span class="slegend">⚖️ вес 78.9 → цель 78 · <b style="color:var(--emerald)">сброшено 5.1 кг</b></span></div>
+      </div>
+    </div>
+    <div class="glass b-card b4 rv" style="--i:3">
+      <h3>📅 Неделя</h3>
+      <p>3 главных дела на день, энергия, итог недели.</p>
+      <div class="shot"><table class="sheet">
+        <tr><th>пн</th><th>вт</th><th>ср</th><th>чт</th><th>пт</th><th>сб</th><th>вс</th></tr>
+        <tr><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td></tr>
+        <tr><td class="grn">⚡⚡⚡</td><td class="gold">⚡⚡</td><td class="grn">⚡⚡⚡</td><td class="red">⚡</td><td class="grn">⚡⚡⚡</td><td class="grn">⚡⚡⚡</td><td class="gold">⚡⚡</td></tr>
+      </table>
+      <div class="srow"><span class="slegend">закрыто дней: <b style="color:var(--emerald)">5 / 7</b> · лучший день: пятница</span></div>
+      </div>
+    </div>
+    <div class="glass b-card b5 rv" style="--i:4">
+      <h3>💰 Финансы</h3>
+      <p>Дневник трат: категории считаются сами.</p>
+      <div class="shot">
+        <div class="srow">
+          <div class="spie"><i></i></div>
+          <div class="slegend">
+            <span style="color:var(--emerald)">■</span> еда 34% · <span style="color:var(--cyan)">■</span> жильё 21%<br>
+            <span style="color:var(--gold)">■</span> транспорт 17% · <span style="color:var(--violet)">■</span> досуг 14%<br>
+            остаток <b style="color:var(--gold)">22 450 ₽</b>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="rv uline">Как это играется</h2>
+  <div class="steps">
+    <div class="glass step rv" style="--i:0"><div class="ico">✅</div><div><h3>Отмечаешь день</h3><p>Сделал привычку - ставишь галочку в таблице.</p></div></div>
+    <div class="glass step rv" style="--i:1"><div class="ico">🪙</div><div><h3>Капают монеты</h3><p>Каждая галочка приносит монеты. Формулы считают всё сами.</p></div></div>
+    <div class="glass step rv" style="--i:2"><div class="ico">🔥</div><div><h3>Серия множит доход</h3><p>Дни подряд дают множитель до x2. Бросить становится жалко.</p></div></div>
+    <div class="glass step rv" style="--i:3"><div class="ico">👑</div><div><h3>Растёшь до Магната</h3><p>Новичок, Стартапер, Предприниматель, Директор, Магнат.</p></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap"><div class="bundle">
+  <div class="phone rv"><div class="screen">
+    <div class="m-tag">◆ уровень 3</div>
+    <div class="m-lvl">💼 Предприниматель</div>
+    <div class="m-bar"><i></i></div>
+    <div class="m-tiles">
+      <div class="m-tile"><b style="color:var(--gold)">6</b><span>серия</span></div>
+      <div class="m-tile"><b style="color:var(--emerald)">x1.6</b><span>множитель</span></div>
+      <div class="m-tile"><b>2 480</b><span>монет</span></div>
+    </div>
+    <div class="m-q done"><div class="b">✓</div>🏋️ Тренировка</div>
+    <div class="m-q done"><div class="b">✓</div>💰 Шаг к деньгам</div>
+    <div class="m-q"><div class="b"></div>📚 Час на дело</div>
+  </div></div>
+  <div>
+    <h2 class="rv uline">В подарок - приложение и бот</h2>
+    <p class="sub rv">Таблица - твой штаб. А для быстрых отметок с телефона в бандле идут бонусы:</p>
+    <ul class="blist">
+      <li class="rv" style="--i:0"><span><b>Веб-приложение «Магнат»</b> - та же игра иконкой на экране телефона: графики, магазин наград, город-империя.</span></li>
+      <li class="rv" style="--i:1"><span><b>Telegram-бот</b> - утренний пинг и отметки в один тап, серия и монеты те же.</span></li>
+      <li class="rv" style="--i:2"><span><b>Обновления набора</b> - новые листы и механики приходят бесплатно.</span></li>
+    </ul>
+  </div>
+</div></div></section>
+
+<section id="price"><div class="wrap">
+  <h2 class="rv uline" style="text-align:center">Один раз - и твоё навсегда</h2>
+  <div class="glass price rv">
+    <div class="old">1 490 ₽</div>
+    <div class="now">990 ₽</div>
+    <div class="once">разово · доступ навсегда · без подписки</div>
+    <ul>
+      <li>5 Google-таблиц с игровой механикой</li>
+      <li>Данные хранятся в твоём Google-аккаунте</li>
+      <li>Приложение и Telegram-бот в подарок</li>
+      <li>Все будущие обновления бесплатно</li>
+      <li>Помощь по настройке на почте</li>
+    </ul>
+    <a href="#" class="btn btn-p" data-buy>🏛 Купить за 990 ₽</a>
+    <div class="pay-note">Оплата картой или СБП через Робокассу. Ссылка на таблицы придёт на твой e-mail сразу после оплаты.</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="rv uline" style="text-align:center">Как получить за 5 минут</h2>
+  <div class="how">
+    <div class="glass h-step rv" style="--i:0"><div class="n">1</div><div><h4>Оплачиваешь</h4><p>Картой или СБП, займёт полминуты.</p></div></div>
+    <div class="glass h-step rv" style="--i:1"><div class="n">2</div><div><h4>Получаешь письмо</h4><p>Ссылка на набор приходит на e-mail сразу после оплаты.</p></div></div>
+    <div class="glass h-step rv" style="--i:2"><div class="n">3</div><div><h4>Открываешь в Google Таблицах</h4><p>На телефоне или компьютере, всё уже настроено.</p></div></div>
+    <div class="glass h-step rv" style="--i:3"><div class="n">4</div><div><h4>Копируешь шаблон себе</h4><p>Один клик - и планер твой навсегда, в твоём Google-аккаунте.</p></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="rv uline" style="text-align:center">Коротко о главном</h2>
+  <div class="faq">
+    <details class="glass qa rv" style="--i:0" open><summary>Мне нужно что-то уметь в таблицах?</summary><div class="a">Нет. Все формулы уже внутри, ты только ставишь галочки. Настройка своих привычек - на отдельном листе, по инструкции.</div></details>
+    <details class="glass qa rv" style="--i:1"><summary>Мои данные сохранятся?</summary><div class="a">Да. Таблица живёт в твоём Google-аккаунте: смена телефона, чистка кэша - ничего не теряется.</div></details>
+    <details class="glass qa rv" style="--i:2"><summary>Надо платить каждый месяц?</summary><div class="a">Нет. Платишь один раз - набор твой навсегда, включая будущие обновления.</div></details>
+    <details class="glass qa rv" style="--i:3"><summary>Это работает на телефоне?</summary><div class="a">Да, через бесплатное приложение Google Таблицы. А для быстрых отметок в бандле есть веб-приложение и Telegram-бот.</div></details>
+    <details class="glass qa rv" style="--i:4"><summary>Если что-то не получится?</summary><div class="a">Пиши на почту - поможем с настройкой. Условия возврата описаны в оферте.</div></details>
+  
+  </div>
+</div></section>
+
+<section class="final"><div class="wrap">
+  <h2 class="rv uline">Хватит начинать с понедельника.<br>Начни строить империю сегодня.</h2>
+  <a href="#" class="btn btn-p rv" data-buy>🏛 Получить «Магнат»</a>
+</div></section>
+
+<footer><div class="wrap">
+  <div class="flinks">
+    <a href="oferta.html">Публичная оферта</a>
+    <a href="privacy.html">Политика конфиденциальности</a>
+    <a href="mailto:shnireva1954@gmail.com">Поддержка</a>
+  </div>
+  Самозанятый Могуленко Артём Евгеньевич<br>
+  ИНН 753007234205 · Россия, г. Краснокаменск<br>
+  Почта: <a href="mailto:shnireva1954@gmail.com">shnireva1954@gmail.com</a><br>
+  <span style="color:#3d4a5c">«Магнат» · планер как игра-тайкун</span>
+</div></footer>
+
+<!-- липкая покупка на телефоне -->
+<div class="mbar" id="mbar">
+  <div class="p">990 ₽<small>доступ навсегда</small></div>
+  <a href="#" class="btn btn-p" data-buy>Получить набор</a>
+  <button class="x" id="mbarX" aria-label="закрыть">✕</button>
+</div>
+
+<!-- модалка покупки: показывается, пока не подключена онлайн-оплата -->
+<div class="ovl" id="buyOvl">
+  <div class="modal">
+    <div class="big">🏛</div>
+    <h4>Открываем продажи на днях</h4>
+    <p>Оплата картой и СБП уже подключается. Хочешь набор одним из первых - напиши на почту, забронируем по стартовой цене 990 ₽.</p>
+    <div class="mailbox" id="mailTxt">shnireva1954@gmail.com</div>
+    <button class="btn btn-p" id="copyBtn" type="button">📋 Скопировать адрес</button>
+    <a class="maillink" id="mailBtn" href="#">или открыть почтовое приложение</a>
+    <button class="close" id="ovlClose">закрыть</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ссылка на оплату Robokassa: вставить сюда, когда магазин активируют -
+   все кнопки покупки автоматически станут прямой оплатой. */
+var PAYMENT_URL = "";
+
+/* живая демо-сетка в hero + авто-показ волной при загрузке */
+(function(){
+  var LVL=[["🐣 Новичок",0],["🚀 Стартапер",300],["💼 Предприниматель",1500]];
+  var coins=0, el=document.getElementById("dCoins"), lv=document.getElementById("dLvl");
+  var demo=document.querySelector(".demo");
+  var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(!el||!demo) return;
+  function render(){
+    el.textContent="🪙 "+coins.toLocaleString("ru-RU");
+    el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump");
+    var t=LVL[0][0]; for(var i=0;i<LVL.length;i++) if(coins>=LVL[i][1]) t=LVL[i][0];
+    lv.textContent=t;
+  }
+  function fly(c,v){
+    if(reduce) return;
+    var f=document.createElement("span"); f.className="fly"; f.textContent="+"+v;
+    f.style.left=(c.offsetLeft+2)+"px"; f.style.top=(c.offsetTop-6)+"px";
+    demo.appendChild(f); setTimeout(function(){f.remove()},850);
+  }
+  var cells=[].slice.call(demo.querySelectorAll(".cell"));
+  cells.forEach(function(c){
+    c.addEventListener("click", function(){
+      autoOn=false; demo.classList.remove("playing");       // юзер взял управление - стоп авто-показ
+      var v=parseInt(c.dataset.c,10);
+      var on=c.classList.toggle("on");
+      coins+=on?v:-v; if(coins<0) coins=0;                   // не уходим в минус
+      render(); if(on) fly(c,v);
+    });
+  });
+  /* авто-показ: клетки зажигаются волной - сразу видимое движение (в т.ч. на ПК) */
+  var autoOn=true, i=0;
+  function tick(){
+    if(!autoOn || i>=cells.length){ demo.classList.remove("playing"); return; }
+    var c=cells[i++];
+    if(!c.classList.contains("on")){
+      c.classList.add("on");
+      var v=parseInt(c.dataset.c,10)||0; coins+=v; render(); fly(c,v);
+    }
+    setTimeout(tick, 150);
+  }
+  if(!reduce){ demo.classList.add("playing"); setTimeout(tick, 1100); }
+})();
+
+/* появление при скролле */
+(function(){
+  if(!("IntersectionObserver" in window)){document.querySelectorAll(".rv").forEach(function(e){e.classList.add("in")});return;}
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target);} });
+  },{threshold:.16});
+  document.querySelectorAll(".rv").forEach(function(e){io.observe(e)});
+})();
+
+/* премиум-микрофизика (только устройства с мышью, и не при reduced-motion) */
+(function(){
+  var fine = matchMedia("(pointer:fine)").matches && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(!fine) return;
+  // магнитная главная кнопка
+  document.querySelectorAll(".btn-p").forEach(function(b){
+    b.addEventListener("pointermove", function(e){
+      var r=b.getBoundingClientRect();
+      var dx=(e.clientX-r.left-r.width/2)/r.width, dy=(e.clientY-r.top-r.height/2)/r.height;
+      b.style.transform="translate("+ (dx*6).toFixed(1) +"px,"+ (dy*5-2).toFixed(1) +"px)";
+    });
+    b.addEventListener("pointerleave", function(){ b.style.transform=""; });
+  });
+  // лёгкий 3D-наклон живой демо-карты
+  var card=document.querySelector(".demo");
+  if(card){
+    card.addEventListener("pointermove", function(e){
+      var r=card.getBoundingClientRect();
+      var rx=((e.clientY-r.top)/r.height-.5)*-5, ry=((e.clientX-r.left)/r.width-.5)*6;
+      card.style.transform="perspective(800px) rotateX("+rx.toFixed(2)+"deg) rotateY("+ry.toFixed(2)+"deg)";
+    });
+    card.addEventListener("pointerleave", function(){ card.style.transform=""; });
+  }
+})();
+
+/* индексы галочкам мини-таблиц - для поочерёдного взведения */
+document.querySelectorAll(".b-card").forEach(function(cd){
+  cd.querySelectorAll(".ck.on").forEach(function(ck,i){ ck.style.setProperty("--k", i); });
+});
+/* индексы словам заголовка */
+document.querySelectorAll(".hero h1 .w").forEach(function(w,i){ w.style.setProperty("--w", i); });
+
+/* цена отсчитывается 1490 → 990 при появлении блока */
+(function(){
+  var el=document.querySelector(".price .now"); if(!el) return;
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) return;
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(!e.isIntersecting) return; io.disconnect();
+      var t0=performance.now(), from=1490, to=990, dur=900;
+      (function tick(now){
+        var p=Math.min(1,(now-t0)/dur), ease=1-Math.pow(1-p,3);
+        el.textContent=Math.round(from+(to-from)*ease).toLocaleString("ru-RU")+" ₽";
+        if(p<1) requestAnimationFrame(tick);
+      })(t0);
+    });
+  },{threshold:.5});
+  io.observe(el);
+})();
+
+/* липкая кнопка на телефоне: появляется после hero, прячется у футера */
+(function(){
+  var bar=document.getElementById("mbar"); if(!bar || !("IntersectionObserver" in window)) return;
+  var closed=false;
+  document.getElementById("mbarX").addEventListener("click",function(){closed=true; bar.classList.remove("show");});
+  var hero=document.querySelector(".hero"), foot=document.querySelector("footer");
+  var heroGone=false, footSeen=false;
+  function upd(){ bar.classList.toggle("show", heroGone && !footSeen && !closed); }
+  new IntersectionObserver(function(es){ heroGone = !es[0].isIntersecting; upd(); },{threshold:.05}).observe(hero);
+  new IntersectionObserver(function(es){ footSeen = es[0].isIntersecting; upd(); },{threshold:.05}).observe(foot);
+})();
+
+/* покупка: есть ссылка Robokassa - идём платить; нет - модалка с почтой */
+(function(){
+  var ovl=document.getElementById("buyOvl");
+  var mail="mailto:shnireva1954@gmail.com?subject="+encodeURIComponent("Магнат: бронирую набор за 990")+"&body="+encodeURIComponent("Привет! Хочу набор «Магнат 5 в 1» за 990 руб. Напиши, как оплатить.");
+  document.getElementById("mailBtn").setAttribute("href", mail);
+  // копирование адреса: работает даже там, где не настроено почтовое приложение
+  var copyBtn=document.getElementById("copyBtn");
+  copyBtn.addEventListener("click", function(){
+    var addr="shnireva1954@gmail.com", done=function(){
+      copyBtn.textContent="✓ Скопировано - жду письмо!";
+      setTimeout(function(){copyBtn.textContent="📋 Скопировать адрес";}, 2200);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(addr).then(done, function(){fallback();});
+    } else fallback();
+    function fallback(){
+      var t=document.createElement("textarea"); t.value=addr; t.style.position="fixed"; t.style.opacity="0";
+      document.body.appendChild(t); t.select();
+      try{ document.execCommand("copy"); done(); }catch(e){}
+      t.remove();
+    }
+  });
+  document.querySelectorAll("[data-buy]").forEach(function(b){
+    if(PAYMENT_URL){ b.setAttribute("href", PAYMENT_URL); return; }
+    b.addEventListener("click", function(ev){ ev.preventDefault(); ovl.classList.add("show"); });
+  });
+  document.getElementById("ovlClose").addEventListener("click", function(){ ovl.classList.remove("show"); });
+  ovl.addEventListener("click", function(e){ if(e.target===ovl) ovl.classList.remove("show"); });
+})();
+
+/* навбар приподнимается тенью после прокрутки */
+(function(){
+  var nav=document.querySelector("nav"); if(!nav) return;
+  function upd(){ nav.classList.toggle("scrolled", window.scrollY>10); }
+  addEventListener("scroll", upd, {passive:true}); upd();
+})();
+
+/* мягкий параллакс глубины (десктоп, без reduced-motion): свойство translate
+   складывается с transform, поэтому не мешает 3D-наклону демо и дрейфу фона */
+(function(){
+  if(!matchMedia("(pointer:fine)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  var items=[];
+  var dw=document.querySelector(".demo-wrap"); if(dw) items.push([dw,-.035]);
+  var ph=document.querySelector(".phone");     if(ph) items.push([ph,-.05]);
+  var g1=document.querySelector(".glow.g1");    if(g1) items.push([g1,.07]);
+  var g2=document.querySelector(".glow.g2");    if(g2) items.push([g2,-.06]);
+  if(!items.length) return;
+  var ticking=false;
+  function upd(){
+    ticking=false; var y=window.scrollY;
+    items.forEach(function(it){ it[0].style.translate="0 "+(y*it[1]).toFixed(1)+"px"; });
+  }
+  addEventListener("scroll", function(){ if(!ticking){ ticking=true; requestAnimationFrame(upd); } }, {passive:true});
+  upd();
+})();
+</script>
