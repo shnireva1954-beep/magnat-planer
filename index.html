@@ -918,8 +918,15 @@ var RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
   fit();
   window.addEventListener("load", fit);
-  window.addEventListener("resize", fit);
   if(document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+  // пересчёт ТОЛЬКО при смене ширины (на мобиле скролл прячет адресную строку =
+  // resize по высоте; пересчитывать на это = джанк). + дебаунс.
+  var lastW=window.innerWidth, tmr;
+  window.addEventListener("resize", function(){
+    if(window.innerWidth===lastW) return;
+    lastW=window.innerWidth;
+    clearTimeout(tmr); tmr=setTimeout(fit, 130);
+  });
 })();
 
 /* карусель планеров: точки-индикаторы + стрелки + активный слайд */
