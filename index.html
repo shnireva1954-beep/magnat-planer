@@ -187,6 +187,7 @@
   .parrow[disabled]{opacity:.25; pointer-events:none;}
 
   /* рамка «настоящей Google-таблицы» */
+  .sheetbox{overflow:hidden; border-radius:11px;}
   .sheet{background:#fff; border-radius:11px; overflow:hidden; border:1px solid #c4cddb;
     box-shadow:0 16px 38px -20px #000b; color:var(--s-ink); font-size:11px;}
   .sheet .win{display:flex; align-items:center; gap:7px; padding:7px 10px; background:#eef1f6; border-bottom:1px solid #dde3ec;}
@@ -887,6 +888,38 @@ var RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
     if(cols){ var h='<span class="cnr"></span>'; for(var c=0;c<nc;c++) h+='<span>'+L.charAt(c)+'</span>'; cols.innerHTML=h; }
     if(rows){ var r=''; for(var i=1;i<=nr;i++) r+='<span>'+i+'</span>'; rows.innerHTML=r; }
   });
+})();
+
+/* лист-таблица показывается ЦЕЛИКОМ: рендерим в удобной ширине и ужимаем под
+   карточку (как масштабированный скрин у конкурента) - таблица никогда не режется */
+(function(){
+  // оборачиваем каждый лист в бокс, который держит ужатую высоту
+  document.querySelectorAll(".planner > .sheet").forEach(function(sh){
+    var box=document.createElement("div"); box.className="sheetbox";
+    sh.parentNode.insertBefore(box, sh); box.appendChild(sh);
+  });
+  var boxes=[].slice.call(document.querySelectorAll(".sheetbox"));
+  function fit(){
+    boxes.forEach(function(box){
+      var sh=box.firstChild; if(!sh) return;
+      sh.style.transform="none"; box.style.height="";
+      var avail=box.clientWidth; if(!avail) return;
+      // естественная ширина листа (чтобы таблица помещалась целиком)
+      sh.style.width="max-content";
+      var natural=sh.offsetWidth;
+      // десктоп: лист на всю карточку (k=1). мобайл: рендерим по натуральной ширине и ужимаем
+      var designW=Math.max(avail, Math.min(natural, 480));
+      sh.style.width=designW+"px";
+      var k=Math.min(1, avail/designW);
+      sh.style.transformOrigin="top left";
+      sh.style.transform="scale("+k+")";
+      box.style.height=Math.ceil(sh.offsetHeight*k)+"px";
+    });
+  }
+  fit();
+  window.addEventListener("load", fit);
+  window.addEventListener("resize", fit);
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
 })();
 
 /* карусель планеров: точки-индикаторы + стрелки + активный слайд */
