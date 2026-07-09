@@ -25,7 +25,14 @@
     --emerald:#34e39a; --emerald2:#12b978; --em-deep:#0a3b29;
     --gold:#f6c85a; --gold2:#d8a63d; --cyan:#3dd6ff; --rose:#ff7a8a; --violet:#b98bff; --amber:#ffab5e;
     --ink:#eaf2fb; --mut:#9fb0c6; --mut2:#61748c;
+    /* светлая палитра «настоящей» таблицы */
+    --s-bg:#ffffff; --s-alt:#f6f8fc; --s-head:#eef2f8; --s-grid:#e0e6ef;
+    --s-ink:#212a36; --s-mut:#63718400; --s-mut2:#8a97a8;
+    --s-grn:#12a565; --s-grnb:#d6f1e4; --s-blu:#2f8fd8; --s-blub:#d9ecfb;
+    --s-gold:#c98a12; --s-goldb:#faedc9; --s-vio:#7a52d0; --s-viob:#e7ddf8;
+    --s-red:#e0556a; --s-redb:#fbdde2; --s-cyan:#1697bd;
     --fd:Georgia,"Times New Roman",serif; --fb:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --fm:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
     --r:18px;
     --ease:cubic-bezier(.16,1,.3,1);
     --shadow:0 24px 60px -20px #000c, 0 4px 16px -6px #0009;
@@ -34,7 +41,6 @@
   html{scroll-behavior:smooth}
   body{background:var(--bg); color:var(--ink); font-family:var(--fb); line-height:1.55;
     -webkit-font-smoothing:antialiased; overflow-x:hidden; position:relative;}
-  /* глубокий многослойный фон: радиальные пятна богатства + тонкая сетка + зерно */
   body::before{content:""; position:fixed; inset:0; z-index:-2; pointer-events:none;
     background:
       radial-gradient(1100px 620px at 82% -8%, #0f3a2a55, transparent 60%),
@@ -43,8 +49,8 @@
       linear-gradient(180deg, #070a0f, #080c12 60%, #070a0f);}
   body::after{content:""; position:fixed; inset:0; z-index:-2; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>");}
-  /* живой фон: медленно дышащие глоу-пятна */
-  .glow{position:fixed; border-radius:50%; filter:blur(100px); pointer-events:none; z-index:-1; opacity:.5;}
+  .glows{position:fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden;}
+  .glow{position:absolute; border-radius:50%; filter:blur(100px); opacity:.5;}
   .glow.g1{width:640px;height:640px; background:#0e3a2b; top:-190px; right:-150px; animation:drift1 28s ease-in-out infinite alternate;}
   .glow.g2{width:560px;height:560px; background:#123048; top:34%; left:-210px; animation:drift2 34s ease-in-out infinite alternate;}
   .glow.g3{width:440px;height:440px; background:#2a2109; bottom:-160px; right:16%; opacity:.4; animation:drift1 40s ease-in-out infinite alternate;}
@@ -53,14 +59,14 @@
 
   .wrap{max-width:1140px; margin:0 auto; padding:0 22px;}
   section{padding:84px 0;}
-  section[id]{scroll-margin-top:80px;}   /* якорь не прячется под липким меню */
+  section[id]{scroll-margin-top:80px;}
   h2{font-family:var(--fd); font-size:clamp(27px,4.6vw,42px); line-height:1.12; letter-spacing:-.015em; text-wrap:balance; position:relative; display:inline-block;}
   h2.uline::after{content:""; position:absolute; left:0; bottom:-10px; height:3px; width:0; border-radius:3px;
     background:linear-gradient(90deg,var(--emerald),var(--gold) 90%,transparent); transition:width 1.1s var(--ease) .2s; box-shadow:0 0 14px #34e39a55;}
   .rv.in h2.uline::after, h2.uline.in::after{width:72px;}
   .kicker{font-size:12px; letter-spacing:2.4px; text-transform:uppercase; color:var(--gold); font-weight:700; margin-bottom:14px; display:flex; align-items:center; gap:10px;}
   .kicker::before{content:""; width:26px; height:1px; background:linear-gradient(90deg,var(--gold),transparent);}
-  .sub{color:var(--mut); max-width:580px; margin-top:16px; font-size:clamp(15px,2vw,17px);}
+  .sub{color:var(--mut); max-width:600px; margin-top:16px; font-size:clamp(15px,2vw,17px);}
 
   .glass{background:linear-gradient(168deg,#141d2b9e,#0d1420b0);
     backdrop-filter:blur(14px) saturate(1.15); -webkit-backdrop-filter:blur(14px) saturate(1.15);
@@ -82,7 +88,6 @@
   .btn-g{background:#ffffff05; border:1px solid var(--line2); backdrop-filter:blur(6px);}
   .btn-g:hover{border-color:var(--emerald); color:var(--emerald); transform:translateY(-2px);}
 
-  /* появление при скролле: плавно, в ОБЕ стороны (повторяется при прокрутке вверх) */
   .rv{opacity:0; transform:translateY(26px) scale(.985);
     transition:opacity .7s var(--ease), transform .8s var(--ease);
     transition-delay:calc(var(--i,0)*75ms); will-change:opacity,transform;}
@@ -113,27 +118,18 @@
   .hero .lead{color:var(--mut); font-size:clamp(16px,2.1vw,18.5px); margin-top:20px; max-width:490px;}
   .hero .cta{display:flex; gap:12px; margin-top:28px; flex-wrap:wrap;}
   .hero .trust{display:flex; gap:20px; margin-top:26px; flex-wrap:wrap; color:var(--mut2); font-size:12.5px;}
-  .hero .trust b{color:var(--mut); font-weight:600;}
   .hero .trust span{display:inline-flex; align-items:center; gap:7px;}
   .hero .trust .dot{width:6px;height:6px;border-radius:50%;background:var(--emerald); box-shadow:0 0 8px var(--emerald);}
-  /* слова заголовка выплывают каскадом */
   .hero h1 .w{display:inline-block; opacity:0; transform:translateY(24px) rotate(1.4deg);
     animation:wup .75s var(--ease) forwards; animation-delay:calc(var(--w,0)*75ms);}
   .hero h1 .hl.w{animation:wup .75s var(--ease) forwards, hue 8s linear infinite;
     animation-delay:calc(var(--w,0)*75ms), 0s;}
   @keyframes wup{to{opacity:1; transform:none}}
-  /* тонкая полоска прогресса скролла */
-  .sprog{position:fixed; top:0; left:0; height:2.5px; width:100%; z-index:60; pointer-events:none;
-    background:linear-gradient(90deg,var(--emerald),var(--gold)); transform-origin:0 50%; transform:scaleX(0);
-    animation:sgrow linear both; animation-timeline:scroll(root); box-shadow:0 0 10px #34e39a66;}
-  @keyframes sgrow{to{transform:scaleX(1)}}
-  @supports not (animation-timeline: scroll()){ .sprog{display:none} }
   .hero .h-el{opacity:0; transform:translateY(20px); animation:hin .9s var(--ease) forwards;}
   .hero .h-el:nth-child(2){animation-delay:.1s}.hero .h-el:nth-child(3){animation-delay:.2s}.hero .h-el:nth-child(4){animation-delay:.3s}
   .hero .demo-wrap{opacity:0; transform:translateY(24px) scale(.97); animation:hin .95s var(--ease) .24s forwards;}
   @keyframes hin{to{opacity:1; transform:none}}
 
-  /* живая демо-сетка */
   .demo{padding:22px 20px 18px; position:relative;}
   .demo .cap{font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--emerald); margin-bottom:14px; font-weight:700; display:flex; align-items:center; gap:8px;}
   .demo .cap::before{content:""; width:7px;height:7px;border-radius:50%;background:var(--emerald); box-shadow:0 0 9px var(--emerald); animation:pulse 2s ease-in-out infinite;}
@@ -159,117 +155,134 @@
     animation:flyup .85s ease-out forwards; text-shadow:0 0 10px #f6c85a99;}
   @keyframes flyup{0%{opacity:0; transform:translateY(4px) scale(.8)} 25%{opacity:1} 100%{opacity:0; transform:translateY(-38px) scale(1.18)}}
 
-  /* ====== бенто планеров: каждый лист со своим визуальным характером ====== */
-  .bento{display:grid; grid-template-columns:repeat(6,1fr); gap:16px; margin-top:40px;}
-  .b-card{padding:20px; display:flex; flex-direction:column; gap:11px; position:relative; overflow:hidden;
-    transition:transform .3s var(--ease), box-shadow .3s, border-color .3s;}
-  .b-card::before{content:""; position:absolute; inset:0 0 auto 0; height:2px; opacity:.85;
+  /* ====== планеры: полноширинные карточки со «светлой настоящей таблицей» ====== */
+  .planners{display:flex; flex-direction:column; gap:26px; margin-top:40px;}
+  .planner{padding:22px; position:relative; overflow:hidden;}
+  .planner::before{content:""; position:absolute; inset:0 0 auto 0; height:2px; opacity:.9;
     background:linear-gradient(90deg,transparent,var(--ac,var(--emerald)),transparent);}
-  .b-card:hover{transform:translateY(-5px); border-color:var(--ac,#1c7a54); box-shadow:0 20px 50px -18px #000c, 0 0 30px -6px var(--acglow,#34e39a30);}
-  .b1{grid-column:span 4; --ac:var(--emerald); --acglow:#34e39a33;}
-  .b2{grid-column:span 2; --ac:var(--amber); --acglow:#ffab5e33;}
-  .b3{grid-column:span 3; --ac:var(--rose); --acglow:#ff7a8a30;}
-  .b4{grid-column:span 3; --ac:var(--violet); --acglow:#b98bff30;}
-  .b5{grid-column:span 6; --ac:var(--gold); --acglow:#f6c85a2e;}
-  .b-card h3{font-size:17px; display:flex; align-items:center; gap:9px;}
-  .b-card h3 .ic{width:30px;height:30px;border-radius:9px; display:grid; place-items:center; font-size:15px; flex:none;
-    background:color-mix(in srgb, var(--ac) 16%, transparent); border:1px solid color-mix(in srgb, var(--ac) 32%, transparent);}
-  .b-card p{color:var(--mut); font-size:13px; margin-top:-2px;}
-  .shot{margin-top:auto; background:linear-gradient(180deg,#0a0f17,#080c12); border:1px solid var(--line); border-radius:12px; padding:11px; overflow:hidden;}
+  .p1{--ac:var(--emerald)} .p2{--ac:var(--amber)} .p3{--ac:var(--rose)} .p4{--ac:var(--violet)} .p5{--ac:var(--gold)}
+  .p-head{display:flex; align-items:center; gap:14px; margin-bottom:16px;}
+  .p-head .ic{width:46px;height:46px;border-radius:13px; display:grid; place-items:center; font-size:23px; flex:none;
+    background:color-mix(in srgb, var(--ac) 16%, #0c1420); border:1px solid color-mix(in srgb, var(--ac) 34%, transparent);}
+  .p-head h3{font-size:20px; letter-spacing:-.01em;}
+  .p-head .st{font-size:12px; color:var(--mut2); letter-spacing:1.2px; text-transform:uppercase; margin-top:2px;}
+  .p-head .core{margin-left:auto; align-self:flex-start; font-size:10px; letter-spacing:1.4px; text-transform:uppercase;
+    color:var(--gold); border:1px solid #6e5320; background:#1a140744; padding:5px 11px; border-radius:99px; font-weight:700;}
 
-  /* мини-таблица */
-  .sheet{width:100%; border-collapse:collapse; font-size:9.5px; color:var(--mut);}
-  .sheet th{background:#111a28; color:var(--mut2); font-weight:600; padding:3px 4px; border:1px solid #0d1520; font-size:8.5px; text-transform:uppercase; letter-spacing:.4px;}
-  .sheet td{border:1px solid #0d1520; padding:3px 4px; background:#0c131e; white-space:nowrap;}
-  .sheet .nm{color:var(--ink); font-size:9.5px;}
-  .sheet .ck{width:15px; text-align:center; color:#03150d; font-weight:900; font-size:8px;}
-  .b-card .ck.on{background:#0c131e; color:transparent; transition:background .4s ease, color .4s ease; transition-delay:calc(var(--k,0)*60ms + .3s);}
-  .b-card.in .ck.on{background:linear-gradient(160deg,#1c8a5e,#137a4d); color:#dcffee;}
-  .sheet .pc{color:var(--violet); text-align:center; font-weight:700;}
-  .sheet .gold{color:var(--gold); text-align:center;}
-  .sheet .tag{font-size:8px; padding:1px 6px; border-radius:99px; font-weight:700;}
-  .sheet .hi{background:#3a1620; color:#ff8fa3;} .sheet .md{background:#2a2410; color:var(--gold);} .sheet .lo{background:#12243a; color:var(--cyan);}
-  .sheet .strike{text-decoration:line-through; color:var(--mut2);}
-  .sheet .red{color:var(--rose); text-align:center;} .sheet .grn{color:var(--emerald); text-align:center;}
+  /* светлая «таблица» */
+  .xls{background:var(--s-bg); border-radius:13px; overflow:hidden; border:1px solid #cfd7e2;
+    box-shadow:0 18px 40px -18px #000a, 0 2px 0 #ffffff10; color:var(--s-ink); font-size:11px;}
+  .xls-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  .fin3{display:grid; grid-template-columns:118px 1fr 118px; gap:14px; align-items:center;}
+  .xls .bar{display:flex; align-items:center; gap:8px; padding:7px 11px; background:var(--s-head); border-bottom:1px solid var(--s-grid);
+    font-size:10px; letter-spacing:.6px; text-transform:uppercase; color:#5b6b82; font-weight:700;}
+  .xls .bar .sq{width:11px;height:11px;border-radius:3px; background:var(--ac,var(--s-grn));}
+  .xls .bar .pct{margin-left:auto; color:var(--s-grn); font-size:12px;}
+  .xls .pad{padding:11px 12px;}
+  table.grid{border-collapse:collapse; width:100%; font-size:10.5px; color:#2c3542;}
+  table.grid th{background:var(--s-head); color:#5b6b82; font-weight:600; padding:4px 5px; border:1px solid var(--s-grid); font-size:9px; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap;}
+  table.grid td{border:1px solid var(--s-grid); padding:4px 6px; white-space:nowrap;}
+  table.grid td.nm{color:#212a36; font-weight:500; text-align:left;}
+  table.grid tr:nth-child(even) td{background:var(--s-alt);}
+  .ck2{text-align:center; color:#12a565; font-weight:800; width:16px;}
+  .ck2.on{background:var(--s-grnb)!important;}
+  .ck2.off{color:#c3ccd8;}
+  .num{text-align:right; font-variant-numeric:tabular-nums; color:#3a4552;}
+  .pcell{text-align:right; font-weight:700; color:var(--s-vio);}
+  .pill{display:inline-block; font-size:8.5px; padding:2px 8px; border-radius:99px; font-weight:700;}
+  .pill.hi{background:var(--s-redb); color:#c0344a;} .pill.md{background:var(--s-goldb); color:#a5720a;}
+  .pill.lo{background:var(--s-blub); color:#1d6fb0;} .pill.ur{background:#f6d3d3; color:#c0344a;}
+  .strike{text-decoration:line-through; color:#9aa6b4;}
+  .neg{color:#e0556a; text-align:right; font-variant-numeric:tabular-nums;}
+  .cat{color:#5b6b82;}
 
-  /* habits mini: колоночный график «сила по неделям» + прогресс уровня */
-  .minichart{display:flex; align-items:flex-end; gap:5px; height:40px; margin-top:9px; padding:0 2px;}
-  .minichart .bar{flex:1; border-radius:4px 4px 2px 2px; background:linear-gradient(180deg,var(--emerald),var(--em-deep));
-    box-shadow:inset 0 1px 0 #ffffff22; transform-origin:bottom; transform:scaleY(.06); transition:transform .8s var(--ease);}
-  .b-card.in .minichart .bar{transform:scaleY(1);}
-  .minichart .bar:nth-child(1){transition-delay:.15s}.minichart .bar:nth-child(2){transition-delay:.24s}
-  .minichart .bar:nth-child(3){transition-delay:.33s}.minichart .bar:nth-child(4){transition-delay:.42s}.minichart .bar:nth-child(5){transition-delay:.51s}
-  .lvlbar{height:8px; border-radius:99px; background:#0a1119; border:1px solid var(--line); overflow:hidden; margin-top:11px;}
-  .lvlbar i{display:block; height:100%; width:0; background:linear-gradient(90deg,var(--emerald2),var(--emerald),var(--gold)); box-shadow:0 0 10px #34e39a88; transition:width 1.3s var(--ease) .3s;}
-  .b-card.in .lvlbar i{width:68%;}
-  .metarow{display:flex; justify-content:space-between; font-size:9px; color:var(--mut2); margin-top:6px;}
-  .metarow b{color:var(--gold)} .metarow .em{color:var(--emerald)}
+  /* мини-бар в ячейке */
+  .hbar{height:8px; border-radius:3px; background:#eef2f7; overflow:hidden; min-width:52px;}
+  .hbar i{display:block; height:100%; width:0; border-radius:3px; transition:width 1.1s var(--ease) calc(var(--k,0)*70ms + .2s);}
+  .planner.in .hbar i{width:var(--w,60%);}
 
-  /* tasks mini: карточки-строки с цветным ребром приоритета */
-  .tlist{display:flex; flex-direction:column; gap:6px;}
-  .titem{display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; background:#0c131e; border:1px solid #0d1520; border-left:3px solid var(--p,var(--mut2)); font-size:10px; color:var(--ink);}
-  .titem.pH{--p:var(--rose)} .titem.pM{--p:var(--gold)} .titem.pL{--p:var(--cyan)}
-  .titem .box{width:13px;height:13px;border-radius:4px;border:1.5px solid var(--line2); flex:none; display:grid; place-items:center; font-size:8px; font-weight:900; color:#03150d;}
-  .titem.done{opacity:.5}
-  .titem.done .box{background:var(--emerald); border-color:var(--emerald)}
-  .titem.done span{text-decoration:line-through}
-  .titem .due{margin-left:auto; font-size:8.5px; padding:1px 6px; border-radius:99px; background:#12243a; color:var(--cyan);}
-  .titem .due.late{background:#3a1620; color:#ff8fa3}
-  .titem .due.today{background:#0e2f22; color:var(--emerald)}
+  /* волна прогресса (area) */
+  .wavebox{background:linear-gradient(180deg,#f2fbf6,#ffffff); border:1px solid var(--s-grid); border-radius:9px; padding:8px 8px 2px; position:relative;}
+  .wavebox .lab{position:absolute; top:7px; left:10px; font-size:8.5px; color:#7d8a99; letter-spacing:.5px; text-transform:uppercase; font-weight:600;}
+  .wave{width:100%; height:66px; display:block;}
+  .wave .warea{opacity:0; transition:opacity .6s ease .3s;}
+  .planner.in .wave .warea{opacity:1;}
+  .wave .wline{fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round;
+    stroke-dasharray:600; stroke-dashoffset:600; transition:stroke-dashoffset 1.5s var(--ease) .2s;}
+  .planner.in .wave .wline{stroke-dashoffset:0;}
 
-  /* fitness mini: человечек с подсвеченными мышцами + линия веса */
-  .fitwrap{display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:center;}
-  .figure{position:relative; width:74px; height:118px; flex:none; margin:0 auto;}
-  .figure svg{width:100%; height:100%; overflow:visible;}
-  .figure .m{fill:#141d2b; stroke:#28394e; stroke-width:1.4; transition:fill .5s ease, filter .5s ease;}
-  .b-card.in .figure .m.tr{fill:var(--rose); filter:drop-shadow(0 0 5px #ff7a8a99);}
-  .figure .m.tr:nth-of-type(1){transition-delay:.2s}.figure .m.tr:nth-of-type(2){transition-delay:.32s}.figure .m.tr:nth-of-type(3){transition-delay:.44s}
-  .fitside{display:flex; flex-direction:column; gap:8px;}
-  .wchart{height:44px; position:relative;}
-  .wchart svg{width:100%; height:100%; overflow:visible;}
-  .wchart .ln{fill:none; stroke:var(--cyan); stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round;
-    stroke-dasharray:200; stroke-dashoffset:200; transition:stroke-dashoffset 1.4s var(--ease) .3s; filter:drop-shadow(0 1px 4px #3dd6ff55);}
-  .b-card.in .wchart .ln{stroke-dashoffset:0;}
-  .wchart .dot{fill:var(--cyan); opacity:0; transition:opacity .3s ease 1.5s}
-  .b-card.in .wchart .dot{opacity:1}
-  .fitstat{display:flex; gap:6px;}
-  .chip{flex:1; text-align:center; padding:5px 4px; border-radius:8px; background:#0c131e; border:1px solid #0d1520;}
-  .chip b{display:block; font-size:12px; color:var(--rose)} .chip.e b{color:var(--emerald)} .chip span{font-size:7.5px; color:var(--mut2); text-transform:uppercase; letter-spacing:.4px;}
+  /* кольцо-пончик (donut) */
+  .ring{width:100%; height:100%; display:block;}
+  .ring .track{stroke:#e9edf3;}
+  .ring .val{stroke-linecap:round; stroke-dasharray:0 100; transition:stroke-dasharray 1.3s var(--ease) .3s; transform:rotate(-90deg); transform-origin:21px 21px;}
+  .planner.in .ring .val{stroke-dasharray:var(--v,75) 100;}
+  .ring text{font-family:var(--fb); font-weight:800; fill:#212a36;}
+  .ring .cap{fill:#8a97a8; font-weight:600;}
 
-  /* week (эстетичная) mini: РОВНАЯ сетка 7 дней, энергия = сегменты (цифры/эмодзи не бегают) */
-  .wgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:5px;}
-  .wcol{display:flex; flex-direction:column; align-items:center; gap:5px;}
-  .wcol .d{font-size:8px; color:var(--mut2); text-transform:uppercase; letter-spacing:.3px; height:10px; line-height:10px;}
-  .wcol .chk{width:15px;height:15px;border-radius:5px; background:#0c131e; border:1px solid var(--line2); display:grid; place-items:center; font-size:8px; font-weight:900; color:transparent;
-    transition:background .4s ease, color .4s ease; transition-delay:calc(var(--d,0)*55ms + .25s);}
-  .b-card.in .wcol.on .chk{background:linear-gradient(160deg,var(--violet),#8b5cf6); color:#fff; border-color:var(--violet);}
-  .energy{display:flex; flex-direction:column-reverse; gap:2px; height:34px; justify-content:flex-start;}
-  .energy i{width:12px; height:5px; border-radius:2px; background:#141d2b; transition:background .4s ease; transition-delay:calc(var(--d,0)*55ms + .4s);}
-  .b-card.in .wcol .energy i.f{background:linear-gradient(90deg,var(--violet),var(--cyan));}
-  .wfoot{display:flex; justify-content:space-between; font-size:9px; color:var(--mut2); margin-top:10px;}
-  .wfoot b{color:var(--violet)}
+  /* человечек (фитнес) */
+  .fig{width:100%; height:auto; display:block;}
+  .fig .m{fill:#e9edf3; stroke:#cdd5e0; stroke-width:1.1;}
+  .fig .m.t{fill:#8fe0bb; stroke:#3cae7d; opacity:0; transition:opacity .5s ease;}
+  .planner.in .fig .m.t{opacity:1; transition-delay:calc(var(--d,0)*.12s + .2s);}
 
-  /* finance mini: пончик + категории с барами + баланс */
-  .findon{display:grid; grid-template-columns:auto 1fr auto; gap:16px; align-items:center;}
-  .donut{width:86px;height:86px;border-radius:50%; flex:none; position:relative;
-    background:conic-gradient(var(--emerald) 0 34%, var(--cyan) 34% 55%, var(--gold) 55% 72%, var(--violet) 72% 86%, var(--rose) 86% 100%);
-    -webkit-mask:radial-gradient(circle 27px at 50% 50%, transparent 98%, #000 100%);
-    mask:radial-gradient(circle 27px at 50% 50%, transparent 98%, #000 100%);
-    transform:rotate(-90deg) scale(.6); opacity:0; transition:transform .9s var(--ease) .2s, opacity .6s ease .2s;}
-  .b-card.in .donut{transform:rotate(0) scale(1); opacity:1;}
-  .fcats{display:flex; flex-direction:column; gap:7px; min-width:0;}
-  .fcat{display:grid; grid-template-columns:9px 1fr auto; gap:8px; align-items:center; font-size:10px; color:var(--mut);}
-  .fcat .sw{width:9px;height:9px;border-radius:3px}
-  .fcat .track{height:6px; border-radius:99px; background:#0c131e; overflow:hidden;}
-  .fcat .track i{display:block; height:100%; width:0; border-radius:99px; transition:width 1s var(--ease) .35s;}
-  .b-card.in .fcat .track i{width:var(--w,50%);}
-  .fcat b{color:var(--ink); font-variant-numeric:tabular-nums; font-size:9.5px;}
-  .fbal{text-align:center; flex:none;}
-  .fbal b{display:block; font-family:var(--fd); font-size:22px; color:var(--gold); text-shadow:0 0 20px #f6c85a33; line-height:1;}
-  .fbal span{font-size:8px; color:var(--mut2); text-transform:uppercase; letter-spacing:.6px;}
+  /* компоновка листов */
+  .row2{display:grid; grid-template-columns:1fr 128px; gap:12px; align-items:stretch;}
+  .rightcol{display:flex; flex-direction:column; gap:10px; justify-content:center;}
+  .donutwrap{width:100%; aspect-ratio:1/1; max-width:118px; margin:0 auto;}
+  .totrow{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .stat{flex:1; min-width:88px; background:var(--s-alt); border:1px solid var(--s-grid); border-radius:9px; padding:8px 10px; text-align:center;}
+  .stat b{display:block; font-size:16px; color:#212a36; font-variant-numeric:tabular-nums;}
+  .stat.g b{color:var(--s-grn)} .stat.r b{color:var(--s-red)} .stat.gd b{color:var(--s-gold)} .stat.v b{color:var(--s-vio)}
+  .stat span{font-size:8px; color:#8a97a8; text-transform:uppercase; letter-spacing:.5px;}
 
-  .tag-core{position:absolute; top:15px; right:15px; font-size:9.5px; letter-spacing:1.4px; text-transform:uppercase;
-    color:var(--gold); border:1px solid #6e5320; background:linear-gradient(180deg,#1a140766,#1a140733); padding:4px 10px; border-radius:99px; font-weight:700;}
+  .fitgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px;}
+  .fday{background:var(--s-alt); border:1px solid var(--s-grid); border-radius:9px; padding:8px 6px; text-align:center;}
+  .fday .dh{font-size:9px; color:#5b6b82; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;}
+  .fday .mood{font-size:15px;}
+  .fday .figs{display:flex; justify-content:center; gap:6px; margin:4px 0 6px;}
+  .fday .figs > div{width:34px;}
+  .fday .flabel{font-size:7.5px; color:#9aa6b4; text-transform:uppercase; letter-spacing:.3px;}
+  .fday .mini{height:26px; display:flex; align-items:flex-end; justify-content:center; gap:3px; margin-top:5px;}
+  .fday .mini i{width:8px; border-radius:2px 2px 0 0; background:var(--s-grn); opacity:.85;}
+
+  .weekgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+  .wd{background:var(--s-alt); border:1px solid var(--s-grid); border-radius:8px; padding:7px 5px; text-align:center;}
+  .wd .dh{font-size:8.5px; color:#5b6b82; font-weight:700; text-transform:uppercase; margin-bottom:5px;}
+  .wd .tk{display:flex; flex-direction:column; gap:3px; margin-bottom:6px;}
+  .wd .tk i{height:5px; border-radius:2px; background:#dfe6ef;}
+  .wd .tk i.d{background:var(--s-vio);}
+  .wd .en{display:flex; justify-content:center; gap:2px; margin-bottom:4px;}
+  .wd .en i{width:4px;height:12px;border-radius:1px; background:#e2e7ee;}
+  .wd .en i.f{background:linear-gradient(180deg,#f6c85a,#e0a93a);}
+  .wd .mo{font-size:12px;}
+  .wd .ring{margin:2px auto 0; width:34px; height:34px;}
+
+  .p-feats{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px;}
+  .p-feats .f{display:flex; gap:8px; align-items:flex-start; font-size:12.5px; color:var(--mut);}
+  .p-feats .f::before{content:"✓"; color:var(--ac,var(--emerald)); font-weight:800; flex:none;}
+  .p-feats .f b{color:var(--ink); font-weight:600;}
+
+  /* ====== система дисциплины ====== */
+  .disc{margin-top:30px; padding:30px 26px;}
+  .disc .top{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:22px;}
+  .disc .top .fire{font-size:30px; filter:drop-shadow(0 0 14px #ff8a3a66);}
+  .disc .top h3{font-family:var(--fd); font-size:clamp(20px,3vw,26px);}
+  .disc .top p{color:var(--mut); font-size:13.5px; width:100%; max-width:620px;}
+  .ladder{display:grid; grid-template-columns:repeat(5,1fr); gap:10px; position:relative;}
+  .ladder .lv{background:linear-gradient(180deg,#0f1826,#0c111b); border:1px solid var(--line2); border-radius:13px; padding:16px 10px 14px; text-align:center; position:relative; overflow:hidden;
+    transform:translateY(16px); opacity:0; transition:transform .6s var(--ease), opacity .6s ease; transition-delay:calc(var(--i,0)*90ms);}
+  .disc.in .ladder .lv{transform:none; opacity:1;}
+  .ladder .lv .em{font-size:26px;}
+  .ladder .lv .nm{font-family:var(--fd); font-size:14px; margin-top:6px;}
+  .ladder .lv .cn{font-size:10.5px; color:var(--mut2); margin-top:3px; font-variant-numeric:tabular-nums;}
+  .ladder .lv.cur{border-color:var(--emerald); box-shadow:0 0 0 1px #34e39a55, 0 0 30px -6px #34e39a55;}
+  .ladder .lv.cur::before{content:"ты здесь"; position:absolute; top:8px; left:50%; transform:translateX(-50%); font-size:8px; letter-spacing:1px; text-transform:uppercase; color:#03150d; background:var(--emerald); padding:2px 8px; border-radius:99px; font-weight:800;}
+  .ladder .lv.cur .em{margin-top:12px;}
+  .disc .strip{display:flex; gap:12px; margin-top:20px; flex-wrap:wrap;}
+  .disc .chip{flex:1; min-width:150px; background:#0c1420; border:1px solid var(--line2); border-radius:12px; padding:14px 16px; display:flex; align-items:center; gap:12px;}
+  .disc .chip .big{font-size:26px;}
+  .disc .chip b{font-size:17px; color:var(--gold); display:block; font-variant-numeric:tabular-nums;}
+  .disc .chip span{font-size:11.5px; color:var(--mut);}
 
   /* шаги механики */
   .steps{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:42px;}
@@ -341,19 +354,6 @@
     transition:max-height .5s var(--ease), padding .35s;}
   .qa[open] .a{max-height:240px; padding:0 22px 18px;}
 
-  /* липкая кнопка покупки на телефоне */
-  .mbar{position:fixed; left:0; right:0; bottom:0; z-index:40; display:none;
-    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
-    background:#0a0f16ee; backdrop-filter:blur(14px); border-top:1px solid var(--line2);
-    transform:translateY(110%); transition:transform .45s var(--ease);
-    align-items:center; gap:12px;}
-  .mbar.show{transform:none;}
-  .mbar .p{font-weight:800; color:var(--gold); font-size:17px; white-space:nowrap;}
-  .mbar .p small{display:block; font-weight:400; color:var(--mut2); font-size:10.5px;}
-  .mbar .btn{flex:1; padding:12px 16px; font-size:15px;}
-  .mbar .x{background:none; border:none; color:var(--mut2); font-size:20px; padding:4px 6px; cursor:pointer; flex:none;}
-  @media (max-width:860px){ .mbar{display:flex;} }
-
   .final{text-align:center; padding:92px 0;}
   .final h2{font-size:clamp(28px,5vw,46px);}
   .final .btn{margin-top:28px;}
@@ -380,26 +380,41 @@
   .modal .maillink{display:block; margin-top:10px; color:var(--mut2); font-size:12.5px; text-decoration:underline;}
 
   @media (max-width:860px){
-    .hero{grid-template-columns:1fr; gap:34px; padding:42px 0 14px;}
-    .bento{grid-template-columns:1fr 1fr;}
-    .b1,.b2,.b3,.b4,.b5{grid-column:span 2;}
-    .steps{grid-template-columns:1fr 1fr;}
+    .hero{grid-template-columns:minmax(0,1fr); gap:34px; padding:42px 0 14px;}
     .bundle{grid-template-columns:1fr; gap:32px;}
+    .steps{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .p-feats{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .row2{grid-template-columns:1fr;}
+    .rightcol{flex-direction:row; justify-content:space-around;}
+    .donutwrap{max-width:100px;}
+    .ladder{grid-template-columns:repeat(5,1fr); gap:6px;}
+    .ladder .lv{padding:12px 4px 10px;}
+    .ladder .lv .nm{font-size:11px;}
+    .ladder .lv .em{font-size:20px;}
     section{padding:60px 0;}
   }
-  @media (max-width:520px){
-    .bento{grid-template-columns:1fr;}
-    .b1,.b2,.b3,.b4,.b5{grid-column:span 1;}
+  @media (max-width:560px){
+    .fitgrid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .weekgrid{grid-template-columns:repeat(4,minmax(0,1fr));}
+    .p-feats{grid-template-columns:1fr;}
+    .steps{grid-template-columns:minmax(0,1fr);}
+    .ladder{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .xls{font-size:10px;}
+    .fin3{grid-template-columns:1fr;}
+    /* демо-таблица в hero: компактнее, чтобы влезала на узкий экран */
+    .demo{padding:16px 12px 14px;}
+    .demo table{font-size:11px; table-layout:fixed;}
+    .demo th,.demo td{padding:3px 2px;}
+    .demo td.nm{font-size:11px; white-space:normal;}
+    .cell{width:100%; max-width:26px; height:23px;}
     .steps{grid-template-columns:1fr; gap:10px;}
-    .step{display:flex; align-items:flex-start; gap:14px; text-align:left; padding:15px 17px;}
-    .step .ico{font-size:26px; flex:none; margin-top:2px;}
-    .step .n{margin-bottom:2px}
-    .step h3{margin:0 0 3px;}
+    .step{padding:18px 16px;}
+    .step .ico{font-size:26px;}
+    .ladder .lv:last-child{grid-column:1 / -1;}
   }
 </style>
 
-<div class="sprog"></div>
-<div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
+<div class="glows"><div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div></div>
 
 <nav><div class="wrap">
   <div class="logo"><div class="c">🏛</div>Магнат</div>
@@ -439,94 +454,222 @@
 
 <section id="set"><div class="wrap">
   <div class="kicker rv">Набор 5 в 1</div>
-  <h2 class="rv uline">Пять таблиц, одна игра</h2>
-  <p class="sub rv">Всё, что ты делаешь за день, превращается в монеты и уровень. Каждый лист - со своим характером и своими графиками.</p>
-  <div class="bento">
+  <h2 class="rv uline">Пять живых таблиц, одна игра</h2>
+  <p class="sub rv">Не скучные списки, а полноценные системы: автоформулы, графики, кривые прогресса, человечки и пончики - как у топовых планеров, только прошитые игрой.</p>
 
-    <div class="glass b-card b1 rv" style="--i:0">
-      <span class="tag-core">ядро набора</span>
-      <h3><span class="ic">✅</span>Привычки</h3>
-      <p>Календарь месяца: серия множит монеты до x2, уровни от Новичка до Магната.</p>
-      <div class="shot">
-        <table class="sheet">
-          <tr><th style="text-align:left">привычка</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>%</th><th>🪙</th></tr>
-          <tr><td class="nm">🏋️ Тренировка</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">25</td></tr>
-          <tr><td class="nm">📚 Час на дело</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="pc">86%</td><td class="gold">25</td></tr>
-          <tr><td class="nm">💰 Шаг к деньгам</td><td class="ck on">✓</td><td class="ck"></td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck on">✓</td><td class="ck"></td><td class="pc">71%</td><td class="gold">30</td></tr>
-        </table>
-        <div class="minichart" aria-hidden="true">
-          <div class="bar" style="height:52%"></div><div class="bar" style="height:74%"></div><div class="bar" style="height:61%"></div><div class="bar" style="height:88%"></div><div class="bar" style="height:96%"></div>
+  <div class="planners">
+
+    <!-- 1. ПРИВЫЧКИ -->
+    <div class="glass planner p1 rv">
+      <div class="p-head">
+        <div class="ic">✅</div>
+        <div><h3>Умный планер привычек</h3><div class="st">бестселлер · система роста</div></div>
+        <span class="core">ядро набора</span>
+      </div>
+      <div class="xls"><div class="xls-scroll">
+        <div class="bar"><span class="sq"></span>Планер привычек · месяц<span class="pct">82%</span></div>
+        <div class="pad">
+          <div class="row2">
+            <div class="wavebox">
+              <span class="lab">Кривая прогресса по дням</span>
+              <svg class="wave" viewBox="0 0 320 66" preserveAspectRatio="none">
+                <defs><linearGradient id="wg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#12a565" stop-opacity=".32"/><stop offset="1" stop-color="#12a565" stop-opacity="0"/></linearGradient></defs>
+                <path class="warea" fill="url(#wg1)" d="M0,48 C24,44 40,46 64,40 S110,44 140,34 S196,38 224,26 S288,22 320,16 L320,66 L0,66 Z"/>
+                <path class="wline" stroke="#12a565" d="M0,48 C24,44 40,46 64,40 S110,44 140,34 S196,38 224,26 S288,22 320,16"/>
+              </svg>
+            </div>
+            <div class="rightcol">
+              <div class="donutwrap">
+                <svg class="ring" viewBox="0 0 42 42">
+                  <circle class="track" cx="21" cy="21" r="15.9" fill="none" stroke-width="4.4" pathLength="100"/>
+                  <circle class="val" cx="21" cy="21" r="15.9" fill="none" stroke="#12a565" stroke-width="4.4" pathLength="100" style="--v:82"/>
+                  <text x="21" y="20.5" text-anchor="middle" font-size="9">82%</text>
+                  <text x="21" y="27" text-anchor="middle" font-size="3.4" class="cap">МЕСЯЦ</text>
+                </svg>
+              </div>
+              <div style="text-align:center; font-size:10px; color:#5b6b82">🔥 серия <b style="color:#c98a12">6</b> · x1.6</div>
+            </div>
+          </div>
+          <table class="grid" style="margin-top:11px">
+            <tr><th style="text-align:left">Привычка</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>%</th><th style="width:60px">прогресс</th></tr>
+            <tr><td class="nm">🏋️ Тренировка</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="pcell">86%</td><td><div class="hbar" style="--w:86%;--k:0"><i style="background:#12a565"></i></div></td></tr>
+            <tr><td class="nm">📚 Час на дело</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="pcell">86%</td><td><div class="hbar" style="--w:86%;--k:1"><i style="background:#2f8fd8"></i></div></td></tr>
+            <tr><td class="nm">💰 Шаг к деньгам</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="pcell">80%</td><td><div class="hbar" style="--w:80%;--k:2"><i style="background:#c98a12"></i></div></td></tr>
+            <tr><td class="nm">🧊 Холодный душ</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="pcell">80%</td><td><div class="hbar" style="--w:80%;--k:3"><i style="background:#7a52d0"></i></div></td></tr>
+            <tr><td class="nm">💧 Вода 2 литра</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="pcell">90%</td><td><div class="hbar" style="--w:90%;--k:4"><i style="background:#1697bd"></i></div></td></tr>
+          </table>
         </div>
-        <div class="lvlbar"><i></i></div>
-        <div class="metarow"><span>🔥 серия 6 · <span class="em">x1.6</span></span><span>🪙 сегодня <b>136</b> · <span class="em">🚀 Стартапер</span></span></div>
+      </div></div>
+      <div class="p-feats">
+        <div class="f"><b>Авторасчёт %</b> по каждой привычке</div>
+        <div class="f"><b>Кривая прогресса</b> и сила недель</div>
+        <div class="f"><b>Топ привычек</b> месяца - барами</div>
+        <div class="f"><b>Серия множит</b> монеты до x2</div>
       </div>
     </div>
 
-    <div class="glass b-card b2 rv" style="--i:1">
-      <h3><span class="ic">🎯</span>Задачи</h3>
-      <p>Приоритеты и сроки, просрочка краснеет сама.</p>
-      <div class="shot"><div class="tlist">
-        <div class="titem pH"><span class="box"></span><span>Смонтировать ролик</span><span class="due today">сегодня</span></div>
-        <div class="titem pM"><span class="box"></span><span>5 сценариев</span><span class="due">1 дн.</span></div>
-        <div class="titem pL done"><span class="box">✓</span><span>20 страниц</span><span class="due">✓</span></div>
-        <div class="titem pM"><span class="box"></span><span>Позвонить маме</span><span class="due late">-1 дн.</span></div>
-      </div></div>
-    </div>
-
-    <div class="glass b-card b3 rv" style="--i:2">
-      <h3><span class="ic">💪</span>Фитнес</h3>
-      <p>Что качал по дням - на человечке, вес - живым графиком.</p>
-      <div class="shot"><div class="fitwrap">
-        <div class="figure" aria-hidden="true">
-          <svg viewBox="0 0 74 118">
-            <circle cx="37" cy="12" r="9" class="m"/>
-            <path class="m tr" d="M23 26 h28 a4 4 0 0 1 4 4 v14 a4 4 0 0 1 -4 4 h-28 a4 4 0 0 1 -4 -4 v-14 a4 4 0 0 1 4 -4 Z"/>
-            <path class="m" d="M14 28 q-6 2 -6 12 v14 q0 4 4 4 t4 -4 v-22 Z"/>
-            <path class="m" d="M60 28 q6 2 6 12 v14 q0 4 -4 4 t-4 -4 v-22 Z"/>
-            <path class="m tr" d="M25 54 h24 v20 h-24 Z"/>
-            <path class="m tr" d="M25 76 h11 v34 q0 4 -4 4 t-4 -4 v-2 h-3 Z"/>
-            <path class="m" d="M49 76 h-11 v34 q0 4 4 4 t4 -4 v-2 h3 Z"/>
-          </svg>
-        </div>
-        <div class="fitside">
-          <div class="wchart" aria-hidden="true">
-            <svg viewBox="0 0 120 44" preserveAspectRatio="none">
-              <polyline class="ln" points="2,10 26,16 50,14 74,26 98,32 118,38"/>
-              <circle class="dot" cx="118" cy="38" r="3"/>
-            </svg>
-          </div>
-          <div class="fitstat">
-            <div class="chip"><b>4/7</b><span>трен.</span></div>
-            <div class="chip e"><b>-5.1</b><span>кг</span></div>
+    <!-- 2. ЗАДАЧИ -->
+    <div class="glass planner p2 rv">
+      <div class="p-head">
+        <div class="ic">🎯</div>
+        <div><h3>Планер задач</h3><div class="st">приоритеты · сроки · просрочка</div></div>
+      </div>
+      <div class="xls"><div class="xls-scroll">
+        <div class="bar" style="--ac:#e0a93a"><span class="sq"></span>Мои задачи</div>
+        <div class="pad">
+          <table class="grid">
+            <tr><th style="text-align:left">Задача</th><th>Срок</th><th>Осталось</th><th>Приоритет</th><th>✓</th><th>Категория</th></tr>
+            <tr><td class="nm">🎬 Смонтировать ролик</td><td class="num">10 янв</td><td class="neg" style="color:#12a565">сегодня</td><td><span class="pill hi">Высокий</span></td><td class="ck2 off">☐</td><td class="cat">Дело</td></tr>
+            <tr><td class="nm">✍️ Написать 5 сценариев</td><td class="num">11 янв</td><td class="num" style="color:#c98a12">1 дн.</td><td><span class="pill md">Средний</span></td><td class="ck2 off">☐</td><td class="cat">Дело</td></tr>
+            <tr><td class="nm strike">📚 Прочитать 20 страниц</td><td class="num strike">9 янв</td><td class="ck2 on">✓</td><td><span class="pill lo">Низкий</span></td><td class="ck2 on">✓</td><td class="cat">Учёба</td></tr>
+            <tr><td class="nm">💸 Оплатить кредитку</td><td class="num">8 янв</td><td class="neg">-1 дн.</td><td><span class="pill ur">Срочно</span></td><td class="ck2 off">☐</td><td class="cat">Быт</td></tr>
+            <tr><td class="nm">📞 Позвонить маме</td><td class="num">14 янв</td><td class="num" style="color:#c98a12">3 дн.</td><td><span class="pill md">Средний</span></td><td class="ck2 off">☐</td><td class="cat">Люди</td></tr>
+            <tr><td class="nm">🏦 План на неделю</td><td class="num">13 янв</td><td class="num" style="color:#c98a12">2 дн.</td><td><span class="pill lo">Низкий</span></td><td class="ck2 off">☐</td><td class="cat">Дело</td></tr>
+          </table>
+          <div class="totrow">
+            <div class="stat gd"><b>4</b><span>открыто</span></div>
+            <div class="stat g"><b>1</b><span>готово</span></div>
+            <div class="stat r"><b>1</b><span>просрочено</span></div>
           </div>
         </div>
       </div></div>
-    </div>
-
-    <div class="glass b-card b4 rv" style="--i:3">
-      <h3><span class="ic">📅</span>Неделя</h3>
-      <p>3 главных дела на день и ровная шкала энергии.</p>
-      <div class="shot">
-        <div class="wgrid" id="wgrid" aria-hidden="true"></div>
-        <div class="wfoot"><span>закрыто дней <b>5 / 7</b></span><span>пик энергии - пятница</span></div>
+      <div class="p-feats">
+        <div class="f"><b>Авторасчёт дней</b> до срока</div>
+        <div class="f"><b>Цветные теги</b> приоритетов</div>
+        <div class="f"><b>Категории</b> и сортировка</div>
+        <div class="f"><b>Просрочка</b> краснеет сама</div>
       </div>
     </div>
 
-    <div class="glass b-card b5 rv" style="--i:4">
-      <h3><span class="ic">💰</span>Финансы</h3>
-      <p>Дневник трат: категории и остаток считаются сами, расходы - настоящим пончиком.</p>
-      <div class="shot"><div class="findon">
-        <div class="donut" aria-hidden="true"></div>
-        <div class="fcats">
-          <div class="fcat"><span class="sw" style="background:var(--emerald)"></span><div class="track"><i style="--w:100%;background:var(--emerald)"></i></div><b>34%</b></div>
-          <div class="fcat"><span class="sw" style="background:var(--cyan)"></span><div class="track"><i style="--w:62%;background:var(--cyan)"></i></div><b>21%</b></div>
-          <div class="fcat"><span class="sw" style="background:var(--gold)"></span><div class="track"><i style="--w:50%;background:var(--gold)"></i></div><b>17%</b></div>
-          <div class="fcat"><span class="sw" style="background:var(--violet)"></span><div class="track"><i style="--w:41%;background:var(--violet)"></i></div><b>14%</b></div>
+    <!-- 3. ФИТНЕС (человечки) -->
+    <div class="glass planner p3 rv">
+      <div class="p-head">
+        <div class="ic">💪</div>
+        <div><h3>Фитнес-планер</h3><div class="st">человечки · вес · прогресс в цифрах</div></div>
+      </div>
+      <div class="xls"><div class="xls-scroll">
+        <div class="bar" style="--ac:#e0556a"><span class="sq"></span>Тело за неделю · что качал по дням</div>
+        <div class="pad">
+          <div class="fitgrid" id="fitgrid"></div>
+          <div class="row2" style="margin-top:11px">
+            <div class="wavebox" style="background:linear-gradient(180deg,#fef2f4,#fff)">
+              <span class="lab">Вес, кг - динамика</span>
+              <svg class="wave" viewBox="0 0 320 66" preserveAspectRatio="none">
+                <defs><linearGradient id="wg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0556a" stop-opacity=".26"/><stop offset="1" stop-color="#e0556a" stop-opacity="0"/></linearGradient></defs>
+                <path class="warea" fill="url(#wg3)" d="M0,14 C40,18 60,20 96,24 S168,30 208,36 S280,46 320,52 L320,66 L0,66 Z"/>
+                <path class="wline" stroke="#e0556a" d="M0,14 C40,18 60,20 96,24 S168,30 208,36 S280,46 320,52"/>
+              </svg>
+            </div>
+            <div class="rightcol">
+              <div class="stat g" style="text-align:center"><b>-5.1</b><span>сброшено, кг</span></div>
+              <div class="stat" style="text-align:center"><b>4/7</b><span>тренировок</span></div>
+            </div>
+          </div>
         </div>
-        <div class="fbal"><b>22 450 ₽</b><span>остаток</span></div>
       </div></div>
+      <div class="p-feats">
+        <div class="f"><b>Человечек</b> по мышцам, спереди и сзади</div>
+        <div class="f"><b>Вес</b> живым графиком</div>
+        <div class="f"><b>Калории, вода, сон</b> по дням</div>
+        <div class="f"><b>Настроение</b> смайликами</div>
+      </div>
     </div>
 
+    <!-- 4. НЕДЕЛЯ -->
+    <div class="glass planner p4 rv">
+      <div class="p-head">
+        <div class="ic">📅</div>
+        <div><h3>Планер недели</h3><div class="st">3 дела на день · энергия · итог</div></div>
+      </div>
+      <div class="xls"><div class="xls-scroll">
+        <div class="bar" style="--ac:#7a52d0"><span class="sq"></span>Неделя · энергия · настроение</div>
+        <div class="pad">
+          <div class="weekgrid" id="weekgrid"></div>
+          <div class="totrow">
+            <div class="stat v"><b>5/7</b><span>закрыто дней</span></div>
+            <div class="stat gd"><b>ПТ</b><span>лучший день</span></div>
+            <div class="stat g"><b>18</b><span>мини-привычек</span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="p-feats">
+        <div class="f"><b>3 главных дела</b> на каждый день</div>
+        <div class="f"><b>Трекер энергии</b> ровной шкалой</div>
+        <div class="f"><b>Мини-привычки</b> недели</div>
+        <div class="f"><b>Круги прогресса</b> и итог</div>
+      </div>
+    </div>
+
+    <!-- 5. ФИНАНСЫ -->
+    <div class="glass planner p5 rv">
+      <div class="p-head">
+        <div class="ic">💰</div>
+        <div><h3>Финансовый планер</h3><div class="st">куда уходят деньги · план и факт</div></div>
+      </div>
+      <div class="xls"><div class="xls-scroll">
+        <div class="bar" style="--ac:#c98a12"><span class="sq"></span>Финансы месяца · доля трат по категориям</div>
+        <div class="pad">
+          <div class="fin3">
+            <div>
+              <div class="donutwrap">
+                <svg class="ring" viewBox="0 0 42 42">
+                  <circle class="track" cx="21" cy="21" r="15.9" fill="none" stroke-width="5" pathLength="100"/>
+                  <circle class="val" cx="21" cy="21" r="15.9" fill="none" stroke="#12a565" stroke-width="5" pathLength="100" stroke-dasharray="0 100" style="--v:34"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#2f8fd8" stroke-width="5" pathLength="100" stroke-dasharray="21 100" stroke-dashoffset="-34" transform="rotate(-90 21 21)"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#c98a12" stroke-width="5" pathLength="100" stroke-dasharray="17 100" stroke-dashoffset="-55" transform="rotate(-90 21 21)"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#7a52d0" stroke-width="5" pathLength="100" stroke-dasharray="14 100" stroke-dashoffset="-72" transform="rotate(-90 21 21)"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#e0556a" stroke-width="5" pathLength="100" stroke-dasharray="14 100" stroke-dashoffset="-86" transform="rotate(-90 21 21)"/>
+                </svg>
+              </div>
+              <div style="font-size:8.5px; color:#5b6b82; line-height:1.7; margin-top:8px">
+                <span style="color:#12a565">■</span> еда 34% · <span style="color:#2f8fd8">■</span> жильё 21%<br>
+                <span style="color:#c98a12">■</span> транспорт 17% · <span style="color:#7a52d0">■</span> досуг 14%
+              </div>
+            </div>
+            <table class="grid">
+              <tr><th style="text-align:left">Категория</th><th>План</th><th>Факт</th><th style="width:56px"></th></tr>
+              <tr><td class="nm">🍔 Еда</td><td class="num">40 000</td><td class="num">38 200</td><td><div class="hbar" style="--w:100%;--k:0"><i style="background:#12a565"></i></div></td></tr>
+              <tr><td class="nm">🏠 Жильё</td><td class="num">25 000</td><td class="num">24 000</td><td><div class="hbar" style="--w:62%;--k:1"><i style="background:#2f8fd8"></i></div></td></tr>
+              <tr><td class="nm">🚗 Транспорт</td><td class="num">18 000</td><td class="neg">19 400</td><td><div class="hbar" style="--w:50%;--k:2"><i style="background:#c98a12"></i></div></td></tr>
+              <tr><td class="nm">🎮 Досуг</td><td class="num">15 000</td><td class="num">15 800</td><td><div class="hbar" style="--w:41%;--k:3"><i style="background:#7a52d0"></i></div></td></tr>
+            </table>
+            <div class="rightcol">
+              <div class="stat g" style="text-align:center"><b>+118к</b><span>доход</span></div>
+              <div class="stat r" style="text-align:center"><b>-95.6к</b><span>расход</span></div>
+              <div class="stat gd" style="text-align:center"><b>22 450 ₽</b><span>осталось</span></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="p-feats">
+        <div class="f"><b>Доходы, расходы, долги</b> в одном</div>
+        <div class="f"><b>Пончики</b> трат и поступлений</div>
+        <div class="f"><b>План vs факт</b> с подсветкой</div>
+        <div class="f"><b>Автоитоги</b> и «Осталось»</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- система дисциплины -->
+  <div class="glass disc rv" id="disc">
+    <div class="top">
+      <span class="fire">🔥</span>
+      <h3>Система дисциплины</h3>
+      <p>То, чего нет у мёртвых таблиц. Каждая галочка - монеты. Дни подряд - серия и множитель. Монеты растят уровень: от Новичка до Магната. Бросить на серии становится физически жалко - так дисциплина держится сама.</p>
+    </div>
+    <div class="ladder">
+      <div class="lv" style="--i:0"><div class="em">🐣</div><div class="nm">Новичок</div><div class="cn">0 🪙</div></div>
+      <div class="lv cur" style="--i:1"><div class="em">🚀</div><div class="nm">Стартапер</div><div class="cn">300 🪙</div></div>
+      <div class="lv" style="--i:2"><div class="em">💼</div><div class="nm">Предприниматель</div><div class="cn">1 500 🪙</div></div>
+      <div class="lv" style="--i:3"><div class="em">🏢</div><div class="nm">Директор</div><div class="cn">5 000 🪙</div></div>
+      <div class="lv" style="--i:4"><div class="em">👑</div><div class="nm">Магнат</div><div class="cn">15 000 🪙</div></div>
+    </div>
+    <div class="strip">
+      <div class="chip"><span class="big">🔥</span><div><b>6 дней</b><span>текущая серия без пропусков</span></div></div>
+      <div class="chip"><span class="big">✖️</span><div><b>x1.6</b><span>множитель монет за серию (до x2)</span></div></div>
+      <div class="chip"><span class="big">🪙</span><div><b>2 480</b><span>монет накоплено в этом месяце</span></div></div>
+    </div>
   </div>
 </div></section>
 
@@ -626,13 +769,6 @@
   <span style="color:#3d4a5c">«Магнат» · планер как игра-тайкун</span>
 </div></footer>
 
-<!-- липкая покупка на телефоне -->
-<div class="mbar" id="mbar">
-  <div class="p">990 ₽<small>доступ навсегда</small></div>
-  <a href="#" class="btn btn-p" data-buy>Получить набор</a>
-  <button class="x" id="mbarX" aria-label="закрыть">✕</button>
-</div>
-
 <!-- модалка покупки: показывается, пока не подключена онлайн-оплата -->
 <div class="ovl" id="buyOvl">
   <div class="modal">
@@ -648,32 +784,86 @@
 
 <script>
 "use strict";
-/* страница всегда открывается сверху (браузер иначе восстанавливает прошлую позицию -
-   при обновлении казалось, что открывается с середины) */
+/* страница ВСЕГДА открывается сверху (iOS Safari иначе восстанавливает прошлую
+   позицию скролла и после обновления казалось, что страница открылась с середины) */
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-window.addEventListener("load", function(){ window.scrollTo(0, 0); });
+(function(){
+  function top(){ window.scrollTo(0,0); }
+  window.addEventListener("load", function(){ if(!location.hash){ top(); requestAnimationFrame(top); setTimeout(top,90); } });
+  window.addEventListener("pageshow", function(){ if(!location.hash) top(); });
+})();
 
-/* ссылка на оплату Robokassa: вставить сюда, когда магазин активируют -
-   все кнопки покупки автоматически станут прямой оплатой. */
 var PAYMENT_URL = "";
 var RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/* сетка недели (эстетичный лист): ровные колонки, энергия = сегменты */
+/* человечки фитнеса + сетка недели строятся из данных (чтобы разметка была компактной) */
 (function(){
-  var g=document.getElementById("wgrid"); if(!g) return;
-  var days=["пн","вт","ср","чт","пт","сб","вс"];
-  var closed=[1,1,1,0,1,1,0];        // закрытые дни
-  var energy=[3,2,3,1,3,3,2];        // уровень энергии 1..5
-  var html="";
-  for(var i=0;i<7;i++){
-    var segs="";
-    for(var s=0;s<5;s++) segs+='<i class="'+(s<energy[i]?"f":"")+'"></i>';
-    html+='<div class="wcol'+(closed[i]?" on":"")+'" style="--d:'+i+'">'
-        +'<div class="d">'+days[i]+'</div>'
-        +'<div class="chk">✓</div>'
-        +'<div class="energy">'+segs+'</div></div>';
+  /* один человечек: мышцы, которые тренировали в этот день, подсвечены */
+  function figure(front, trained){
+    // trained: массив кодов мышц ["chest","abs","arms","legs","back","shoulders"]
+    function cls(m){ return "m" + (trained.indexOf(m)>=0 ? " t" : ""); }
+    if(front){
+      return '<svg class="fig" viewBox="0 0 44 92">'
+        + '<circle cx="22" cy="8" r="6" class="m"/>'
+        + '<path class="'+cls("shoulders")+'" d="M11 17 h22 a3 3 0 0 1 3 3 v3 a3 3 0 0 1 -3 3 h-22 a3 3 0 0 1 -3 -3 v-3 a3 3 0 0 1 3 -3Z"/>'
+        + '<path class="'+cls("chest")+'" d="M13 27 h16 v11 h-16Z"/>'
+        + '<path class="'+cls("arms")+'" d="M7 20 q-3 1 -3 8 v12 q0 3 3 3 t3 -3 v-18Z"/>'
+        + '<path class="'+cls("arms")+'" d="M37 20 q3 1 3 8 v12 q0 3 -3 3 t-3 -3 v-18Z"/>'
+        + '<path class="'+cls("abs")+'" d="M14 39 h14 v13 h-14Z"/>'
+        + '<path class="'+cls("legs")+'" d="M14 53 h6 v33 q0 3 -3 3 t-3 -3Z"/>'
+        + '<path class="'+cls("legs")+'" d="M30 53 h-6 v33 q0 3 3 3 t3 -3Z"/>'
+        + '</svg>';
+    }
+    return '<svg class="fig" viewBox="0 0 44 92">'
+      + '<circle cx="22" cy="8" r="6" class="m"/>'
+      + '<path class="'+cls("shoulders")+'" d="M11 17 h22 a3 3 0 0 1 3 3 v3 a3 3 0 0 1 -3 3 h-22 a3 3 0 0 1 -3 -3 v-3 a3 3 0 0 1 3 -3Z"/>'
+      + '<path class="'+cls("back")+'" d="M13 27 h16 v25 h-16Z"/>'
+      + '<path class="'+cls("arms")+'" d="M7 20 q-3 1 -3 8 v12 q0 3 3 3 t3 -3 v-18Z"/>'
+      + '<path class="'+cls("arms")+'" d="M37 20 q3 1 3 8 v12 q0 3 -3 3 t-3 -3 v-18Z"/>'
+      + '<path class="'+cls("legs")+'" d="M14 53 h6 v33 q0 3 -3 3 t-3 -3Z"/>'
+      + '<path class="'+cls("legs")+'" d="M30 53 h-6 v33 q0 3 3 3 t3 -3Z"/>'
+      + '</svg>';
   }
-  g.innerHTML=html;
+  var days=[
+    {d:"ПН", mood:"😄", tr:["chest","arms"], bars:[16,11]},
+    {d:"ВТ", mood:"🙂", tr:["legs","abs"], bars:[13,9]},
+    {d:"СР", mood:"😐", tr:["back","shoulders"], bars:[15,12]},
+    {d:"ЧТ", mood:"😎", tr:["chest","abs","arms"], bars:[18,14]}
+  ];
+  var g=document.getElementById("fitgrid");
+  if(g){
+    g.innerHTML=days.map(function(x,i){
+      var bars=x.bars.map(function(h){return '<i style="height:'+h+'px"></i>';}).join("");
+      return '<div class="fday" style="--d:'+i+'">'
+        +'<div class="dh">'+x.d+'</div><div class="mood">'+x.mood+'</div>'
+        +'<div class="figs"><div>'+figure(true,x.tr)+'<div class="flabel">спереди</div></div>'
+        +'<div>'+figure(false,x.tr)+'<div class="flabel">сзади</div></div></div>'
+        +'<div class="mini">'+bars+'</div></div>';
+    }).join("");
+  }
+
+  /* сетка недели */
+  var wk=[
+    {d:"ПН",tasks:[1,1,1],en:3,mo:"😄",p:100},
+    {d:"ВТ",tasks:[1,1,0],en:2,mo:"🙂",p:66},
+    {d:"СР",tasks:[1,1,1],en:3,mo:"😄",p:100},
+    {d:"ЧТ",tasks:[1,0,0],en:1,mo:"😐",p:33},
+    {d:"ПТ",tasks:[1,1,1],en:5,mo:"😄",p:100},
+    {d:"СБ",tasks:[1,1,0],en:3,mo:"🙂",p:66},
+    {d:"ВС",tasks:[0,0,0],en:2,mo:"😴",p:0}
+  ];
+  var wg=document.getElementById("weekgrid");
+  if(wg){
+    wg.innerHTML=wk.map(function(x){
+      var tk=x.tasks.map(function(t){return '<i class="'+(t?"d":"")+'"></i>';}).join("");
+      var en=""; for(var e=0;e<5;e++) en+='<i class="'+(e<x.en?"f":"")+'"></i>';
+      var v=x.p;
+      var ring='<svg class="ring" viewBox="0 0 42 42"><circle class="track" cx="21" cy="21" r="15.9" fill="none" stroke-width="5" pathLength="100"/>'
+        +'<circle class="val" cx="21" cy="21" r="15.9" fill="none" stroke="#7a52d0" stroke-width="5" pathLength="100" style="--v:'+v+'"/></svg>';
+      return '<div class="wd"><div class="dh">'+x.d+'</div><div class="tk">'+tk+'</div>'
+        +'<div class="en">'+en+'</div><div class="mo">'+x.mo+'</div>'+ring+'</div>';
+    }).join("");
+  }
 })();
 
 /* живая демо-сетка в hero */
@@ -698,17 +888,17 @@ var RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
   });
 })();
 
-/* появление при скролле - в ОБЕ стороны: анимация повторяется и при прокрутке вверх */
+/* появление при скролле - в ОБЕ стороны */
 (function(){
-  var els=document.querySelectorAll(".rv");
+  var els=document.querySelectorAll(".rv, #disc");
   if(!("IntersectionObserver" in window) || RM){ els.forEach(function(e){e.classList.add("in")}); return; }
   var io=new IntersectionObserver(function(entries){
     entries.forEach(function(e){ e.target.classList.toggle("in", e.isIntersecting); });
-  },{threshold:.16, rootMargin:"0px 0px -6% 0px"});
+  },{threshold:.12, rootMargin:"0px 0px -6% 0px"});
   els.forEach(function(e){io.observe(e)});
 })();
 
-/* премиум-микрофизика (только устройства с мышью, не при reduced-motion) */
+/* лёгкий 3D-наклон демо-карты (только мышь) */
 (function(){
   var fine = matchMedia("(pointer:fine)").matches && !RM;
   if(!fine) return;
@@ -731,14 +921,10 @@ var RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 })();
 
-/* индексы галочкам мини-таблиц - для поочерёдного взведения */
-document.querySelectorAll(".b-card").forEach(function(cd){
-  cd.querySelectorAll(".ck.on").forEach(function(ck,i){ ck.style.setProperty("--k", i); });
-});
 /* индексы словам заголовка */
 document.querySelectorAll(".hero h1 .w").forEach(function(w,i){ w.style.setProperty("--w", i); });
 
-/* цена отсчитывается 1490 → 990 при появлении блока (повторяется при возврате) */
+/* цена отсчитывается 1490 → 990 при появлении */
 (function(){
   var el=document.querySelector(".price .now"); if(!el || RM || !("IntersectionObserver" in window)) return;
   var running=false;
@@ -756,16 +942,11 @@ document.querySelectorAll(".hero h1 .w").forEach(function(w,i){ w.style.setPrope
   io.observe(el);
 })();
 
-/* липкая кнопка на телефоне: появляется после hero, прячется у футера */
+/* тень у меню при скролле */
 (function(){
-  var bar=document.getElementById("mbar"); if(!bar || !("IntersectionObserver" in window)) return;
-  var closed=false;
-  document.getElementById("mbarX").addEventListener("click",function(){closed=true; bar.classList.remove("show");});
-  var hero=document.querySelector(".hero"), foot=document.querySelector("footer");
-  var heroGone=false, footSeen=false;
-  function upd(){ bar.classList.toggle("show", heroGone && !footSeen && !closed); }
-  new IntersectionObserver(function(es){ heroGone = !es[0].isIntersecting; upd(); },{threshold:.05}).observe(hero);
-  new IntersectionObserver(function(es){ footSeen = es[0].isIntersecting; upd(); },{threshold:.05}).observe(foot);
+  var nav=document.querySelector("nav"); if(!nav) return;
+  var upd=function(){ nav.classList.toggle("scrolled", window.scrollY>12); };
+  upd(); window.addEventListener("scroll", upd, {passive:true});
 })();
 
 /* покупка: есть ссылка Robokassa - идём платить; нет - модалка с почтой */
@@ -795,12 +976,5 @@ document.querySelectorAll(".hero h1 .w").forEach(function(w,i){ w.style.setPrope
   });
   document.getElementById("ovlClose").addEventListener("click", function(){ ovl.classList.remove("show"); });
   ovl.addEventListener("click", function(e){ if(e.target===ovl) ovl.classList.remove("show"); });
-})();
-
-/* тень у меню при скролле */
-(function(){
-  var nav=document.querySelector("nav"); if(!nav) return;
-  var upd=function(){ nav.classList.toggle("scrolled", window.scrollY>12); };
-  upd(); window.addEventListener("scroll", upd, {passive:true});
 })();
 </script>
