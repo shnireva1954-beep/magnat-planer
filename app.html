@@ -1,5 +1,8 @@
+<!doctype html>
+<html lang="ru">
 <meta charset="utf-8">
-<title>Магнат</title>
+<title>Магнат — приложение</title>
+<meta name="robots" content="noindex">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,7 +16,7 @@
     --bg:#080b11; --bg2:#0b0f17; --panel:#0f1520; --panel2:#131b28;
     --line:#1c2735; --line2:#26374b;
     --emerald:#2fe38f; --cyan:#35d0ff; --gold:#f5c451; --violet:#b06bff; --danger:#ff6b6b; --orange:#ff9f43;
-    --ink:#eef4fb; --mut:#93a6bd; --mut2:#5f7288;
+    --ink:#eef4fb; --mut:#93a6bd; --mut2:#68809b;
     --fd:Georgia,"Times New Roman",serif; --fb:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   }
   *{box-sizing:border-box; margin:0; padding:0}
@@ -103,9 +106,6 @@
   .hedit2{color:var(--emerald); font-size:10.5px; cursor:pointer; text-transform:none; letter-spacing:0; font-weight:600;}
   .si .cnt{font-size:9.5px; color:var(--emerald); margin-top:4px;}
   .modal input[type=date]{color-scheme:dark;}
-  .month-cells{display:grid; grid-template-columns:repeat(11,1fr); gap:4px;}
-  .mc{aspect-ratio:1; border-radius:5px; background:#0c141d; border:1px solid var(--line);}
-  .mc.l1{background:#12402e}.mc.l2{background:#1a7a52}.mc.l3{background:var(--emerald);box-shadow:0 0 6px #2fe38f66}.mc.today{outline:2px solid var(--cyan)}
 
   /* reward shop */
   .shop{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px;}
@@ -113,7 +113,6 @@
   .si .i{font-size:26px} .si .n{font-size:11.5px; color:var(--mut); margin:8px 0 6px; min-height:30px; display:flex; align-items:center; justify-content:center;}
   .si .pr{font-size:13px; color:#8a6f2e; font-weight:700; font-variant-numeric:tabular-nums;}
   .si.afford{border-color:#1c7a54; box-shadow:0 0 14px #2fe38f22;} .si.afford .pr{color:var(--emerald)}
-  .si.bought{opacity:.5} .si.bought .pr{color:var(--emerald)}
 
   .sec-h{font-size:15px; margin:22px 2px 12px;}
   .ins-t b{color:var(--gold);}
@@ -216,7 +215,7 @@ const TODAY=ymd(new Date());
 let FIRST_RUN=false;
 function load(){ try{const r=localStorage.getItem(KEY); if(r) return JSON.parse(r);}catch(e){} FIRST_RUN=true; return seed(); }
 function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} }
-function freshStart(){  // чистый лист для реального клиента - без чужих данных
+function freshStart(){  // чистый лист для реального клиента — без чужих данных
   let id=1; const habits=DEFHABITS.map(([ico,name,coin])=>({id:id++,ico,name,coin}));
   return {habits, checks:{}, tasks:[], finance:{income:0,entries:[]}, body:{goalW:0,calGoal:2400,waterGoal:2500,log:[]}, bought:[], spent:0};
 }
@@ -281,14 +280,14 @@ function homeInsight(){
   if(st>0 && st<rec){
     const n=rec-st+1;
     if(n<=7){ const w=n===1?"день":(n<5?"дня":"дней");
-      return `Держи темп ещё <b>${n} ${w}</b> - побьёшь свой рекорд из <b>${rec} дн.</b>`; }
+      return `Держи темп ещё <b>${n} ${w}</b> — побьёшь свой рекорд из <b>${rec} дн.</b>`; }
   }
   // 2) заметная дельта дисциплины неделя к неделе
   const a=pctRange(6,0), b=pctRange(13,7);
   if(b>0){
     const d=Math.round((a-b)/b*100);
     if(d>=10) return `За неделю дисциплина выросла на <b>+${d}%</b>. Отличный разгон.`;
-    if(d<=-10) return `Дисциплина просела на <b>${Math.abs(d)}%</b> за неделю - вернись в ритм сегодня.`;
+    if(d<=-10) return `Дисциплина просела на <b>${Math.abs(d)}%</b> за неделю — вернись в ритм сегодня.`;
   }
   // 3) слабый день недели за 30 дней
   const wd=[0,0,0,0,0,0,0], wt=[0,0,0,0,0,0,0];
@@ -297,7 +296,7 @@ function homeInsight(){
   for(let w=0;w<7;w++){ if(wt[w]>0){ const r=wd[w]/wt[w]; if(r<wr){wr=r;wi=w;} } }
   if(wi>=0){
     const nm=["воскресенье","понедельник","вторник","среду","четверг","пятницу","субботу"][wi];
-    return `Чаще всего пропускаешь <b>${nm}</b> - поставь на этот день минимум дел.`;
+    return `Чаще всего пропускаешь <b>${nm}</b> — поставь на этот день минимум дел.`;
   }
   return null;
 }
@@ -444,7 +443,7 @@ function vHome(root){
   const w=body_curW();
   const ins=homeInsight();
   root.innerHTML=`
-   ${S.demoData?`<div class="glass demonote"><span>👀 Внутри - пример с демо-данными, чтобы всё пощупать.</span><button class="ok2" id="startOwn">🚀 Начать своё</button></div>`:""}
+   ${S.demoData?`<div class="glass demonote"><span>👀 Внутри — пример с демо-данными, чтобы всё пощупать.</span><button class="ok2" id="startOwn">🚀 Начать своё</button></div>`:""}
    <div class="glass hero">
      <div class="hero-row">
        <div><div class="lvl-tag">◆ уровень ${li+1}</div><div class="lvl-name">${lvl[0]}</div></div>
@@ -455,13 +454,14 @@ function vHome(root){
      <div class="tiles">
        <div class="tile"><div class="v g">${st}</div><div class="l">серия 🔥</div></div>
        <div class="tile"><div class="v e">×${mult(st).toFixed(1)}</div><div class="l">множитель</div></div>
-       <div class="tile"><div class="v">❄️ ${Math.min(3,1+Math.floor(st/7))}</div><div class="l">заморозка</div></div>
+       <div class="tile"><div class="v vi">🏆 ${recordStreak()}</div><div class="l">рекорд серии</div></div>
      </div>
    </div>
    <div class="glass card" style="margin-top:13px">
      <h3>Сегодня <span id="todayCnt" style="color:var(--mut);font-weight:400;text-transform:none"></span></h3>
      <div class="donut-wrap"><canvas id="todayRing"></canvas><div class="donut-c"><div class="p e" id="todayP">0%</div><div class="t">выполнено</div></div></div>
      <div class="tchips" id="todayChips"></div>
+     <div style="font-size:10.5px;color:var(--mut2);margin-top:10px;text-align:center">день идёт в серию 🔥 от 3 выполненных привычек</div>
    </div>
    ${ins?`<div class="glass card" style="margin-top:13px"><h3>Инсайт недели</h3>
      <div style="display:flex;gap:10px;font-size:13.5px;color:var(--mut);line-height:1.55;align-items:flex-start"><span style="flex:none">💡</span><span class="ins-t">${ins}</span></div></div>`:""}
@@ -478,7 +478,7 @@ function vHome(root){
      <button class="bk" id="bkSave">💾 Скачать копию данных</button>
      <button class="bk" id="bkLoad">📥 Восстановить из копии</button>
    </div>
-   <p class="bknote">Данные живут в этом браузере. Копия - страховка при смене телефона или чистке кэша.</p>
+   <p class="bknote">Данные живут в этом браузере. Копия — страховка при смене телефона или чистке кэша.</p>
    <button class="reset" id="resetBtn">сбросить всё и начать с чистого листа</button>`;
   // charts
   const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),diM=new Date(y,mo+1,0).getDate();
@@ -506,6 +506,7 @@ function vHome(root){
     });
     cw.appendChild(chip);
   });
+  if(!S.habits.length) cw.innerHTML='<span style="font-size:12.5px;color:var(--mut2)">Привычек нет — добавь первую в разделе «✅ Привычки»</span>';
   root.querySelector("#bkSave").addEventListener("click",()=>{
     const blob=new Blob([JSON.stringify(S)],{type:"application/json"});
     const url=URL.createObjectURL(blob), a=document.createElement("a");
@@ -537,6 +538,16 @@ function vHome(root){
 }
 
 function vHabits(root){
+  // пустое состояние: все привычки удалены
+  if(!S.habits.length){
+    root.innerHTML=`<div class="glass card" style="text-align:center;padding:36px 18px">
+      <div style="font-size:42px">✅</div>
+      <h3 style="text-transform:none;font-size:16px;color:var(--ink);margin:12px 0 6px">Привычек пока нет</h3>
+      <p style="color:var(--mut);font-size:14px;margin-bottom:16px">Добавь первую — появится календарь месяца, серия и монеты.</p>
+      <div class="addbtn" id="addHabit">➕ Добавить привычку</div></div>`;
+    root.querySelector("#addHabit").addEventListener("click",addHabit);
+    return;
+  }
   const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),diM=new Date(y,mo+1,0).getDate();
   let head="<tr><th class='name' style='text-align:left'>Привычка</th>";
   for(let d=1;d<=diM;d++) head+=`<th${d===now.getDate()?' class="tdy"':''}>${d}</th>`; head+="<th>%</th></tr>";
@@ -549,7 +560,7 @@ function vHabits(root){
     const pc=elapsed?Math.round(cnt/elapsed*100):0;
     r+=`<td style="color:var(--violet);font-weight:700">${pc}</td></tr>`; rows+=r;
   });
-  // недельная сила (последние 8 недель - % выполнения)
+  // недельная сила (последние 8 недель — % выполнения)
   const wk=[]; for(let w=7;w>=0;w--){let dc=0,tp=0;for(let i=0;i<7;i++){const ds=addDays(TODAY,-(w*7+i));dc+=checksOf(ds).length;tp+=S.habits.length;}wk.push(tp?Math.round(dc/tp*100):0);}
   // топ привычек за месяц
   const tops=S.habits.map(h=>{let c=0;for(let d=1;d<=elapsed;d++){if(isDone(h.id,`${y}-${pad(mo+1)}-${pad(d)}`))c++;}return{h,pc:elapsed?Math.round(c/elapsed*100):0};}).sort((a,b)=>b.pc-a.pc);
@@ -633,7 +644,7 @@ function vTasks(root){
     });
     list.appendChild(q);
   });
-  if(!sorted.length) list.innerHTML='<div style="color:var(--mut2);text-align:center;padding:16px;font-size:13px">Задач пока нет - добавь первую кнопкой ниже 👇</div>';
+  if(!sorted.length) list.innerHTML='<div style="color:var(--mut2);text-align:center;padding:16px;font-size:13px">Задач пока нет — добавь первую кнопкой ниже 👇</div>';
   root.querySelector("#addTask").addEventListener("click",async()=>{
     const r=await askModal("Новая задача",[
       {name:"name",label:"Задача",placeholder:"Смонтировать ролик"},
@@ -685,7 +696,7 @@ function vMoney(root){
     `:`
     <div class="glass card" style="text-align:center;padding:30px 18px;margin-top:13px">
       <div style="font-size:40px">💰</div>
-      <p style="color:var(--mut);font-size:14px;margin-top:10px">Добавь первый доход или расход - появятся графики и разбор трат по категориям.</p>
+      <p style="color:var(--mut);font-size:14px;margin-top:10px">Добавь первый доход или расход — появятся графики и разбор трат по категориям.</p>
     </div>`}
     <div class="row2" style="margin-top:13px">
       <div class="addbtn" id="addIn">➕ Доход</div><div class="addbtn" id="addOut">➖ Расход</div>
@@ -702,7 +713,7 @@ function vBody(root){
     root.innerHTML=`<div class="glass card" style="text-align:center;padding:36px 18px">
       <div style="font-size:42px">⚖️</div>
       <h3 style="text-transform:none;font-size:16px;color:var(--ink);margin:12px 0 6px">Раздел «Тело»</h3>
-      <p style="color:var(--mut);font-size:14px;margin-bottom:16px">Записывай вес - увидишь свою динамику красивым графиком.</p>
+      <p style="color:var(--mut);font-size:14px;margin-bottom:16px">Записывай вес — увидишь свою динамику красивым графиком.</p>
       <div class="addbtn" id="addW">⚖️ Записать первый вес</div></div>`;
     root.querySelector("#addW").addEventListener("click",async()=>{
       const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",placeholder:"75"}]);
@@ -730,8 +741,8 @@ function vBody(root){
       </div>
       ${prog!=null?`
       <div class="bar-t" style="margin-top:12px"><span style="width:${prog}%"></span></div>
-      <div class="bar-m"><span>${reached?"🎉 цель достигнута - задай новую":"осталось <b>"+left.toFixed(1)+" кг</b>"}</span><span><b>${prog}%</b> пути</span></div>`
-      :`<div style="font-size:12px;color:var(--mut2);margin-top:10px">Задай цель - появится прогресс до неё.</div>`}
+      <div class="bar-m"><span>${reached?"🎉 цель достигнута — задай новую":"осталось <b>"+left.toFixed(1)+" кг</b>"}</span><span><b>${prog}%</b> пути</span></div>`
+      :`<div style="font-size:12px;color:var(--mut2);margin-top:10px">Задай цель — появится прогресс до неё.</div>`}
     </div>
     <div class="grid" style="margin-top:13px;grid-template-columns:repeat(3,1fr)">
       <div class="glass card"><div class="stat"><div class="v e num">${Math.abs(lost)<0.05?"0.0":(lost>0?"−":"+")+Math.abs(lost).toFixed(1)}</div><div class="l">кг с ${fmtD(S.body.log[0].date)}</div></div></div>
@@ -791,7 +802,7 @@ function vShop(root){
     it.addEventListener("click",()=>{ if(wallet()<cost){toast("Не хватает монет 🪙");return;} S.bought.push(idx);S.spent+=cost;save();render();toast("Награда куплена! Отдыхай честно 🎉"); });
     grid.appendChild(it);
   });
-  // свои награды - награды всегда личные
+  // свои награды — награды всегда личные
   S.myRewards.forEach(rw=>{
     const cnt=S.boughtMy[rw.id]||0;
     const it=el(`<div class="si${w>=rw.cost?" afford":""}"><span class="rm" data-id="${rw.id}" title="удалить награду">✕</span><div class="i">${rw.ico}</div><div class="n"></div><div class="pr">🪙 ${nf(rw.cost)}</div>${cnt?`<div class="cnt">куплено ×${cnt}</div>`:""}</div>`);
@@ -828,7 +839,7 @@ function addFinance(type){
   m.appendChild(el(`<span class="lab">Сумма, ₽</span>`));
   const amt=document.createElement("input"); amt.type="number"; amt.inputMode="numeric"; amt.className="amt-in"; amt.placeholder="0";
   m.appendChild(amt);
-  m.appendChild(el(`<span class="lab">Категория - нажми</span>`));
+  m.appendChild(el(`<span class="lab">Категория — нажми</span>`));
   const grid=el(`<div class="catgrid"></div>`);
   cats.forEach(([ic,nm],i)=>{
     const c=el(`<div class="catopt${i===sel?" sel":""}"><span class="ci">${ic}</span><span class="cn"></span></div>`);
@@ -911,7 +922,7 @@ function shareCard(){
     const file=new File([b],"magnat.png",{type:"image/png"});
     if(navigator.canShare&&navigator.canShare({files:[file]})){ navigator.share({files:[file],text:"Моя империя в Магнате 🏛"}).catch(()=>{}); return; }
     const url=URL.createObjectURL(b),a=document.createElement("a");a.href=url;a.download="magnat.png";a.click();URL.revokeObjectURL(url);
-    toast("Картинка сохранена - кидай в сторис 🔥");
+    toast("Картинка сохранена — кидай в сторис 🔥");
   },"image/png");
 }
 
@@ -920,7 +931,7 @@ let cur="home";
 const RENDER={home:vHome,habits:vHabits,tasks:vTasks,money:vMoney,body:vBody,shop:vShop};
 function render(){
   const xp=totalXP(),li=levelIdx(xp);
-  // празднуем пересечение уровня вверх (первый рендер - тихо запоминаем)
+  // празднуем пересечение уровня вверх (первый рендер — тихо запоминаем)
   if(S.lastLvl==null) S.lastLvl=li;
   else if(li>S.lastLvl){ S.lastLvl=li; save(); celebrateLevel(li); }
   else if(li<S.lastLvl){ S.lastLvl=li; }
@@ -941,7 +952,7 @@ let rzT; window.addEventListener("resize",()=>{clearTimeout(rzT);rzT=setTimeout(
   cc.addEventListener("click",()=>{cur="shop";render();window.scrollTo(0,0);});
 })();
 
-// плашка «это демо» - до покупки набора; прячется крестиком
+// плашка «это демо» — до покупки набора; прячется крестиком
 (function(){
   const bar=document.getElementById("demoBar"); if(!bar) return;
   if(!S.hideDemoBar) bar.classList.add("show");
@@ -952,8 +963,8 @@ function showOnboarding(){
   const ovl=el(`<div class="ovl"></div>`);
   const m=el(`<div class="modal" style="max-width:380px">
     <h4 style="font-size:22px">🏛 Добро пожаловать</h4>
-    <p style="color:var(--mut);font-size:14px;margin:10px 0 4px;line-height:1.55">Это <b>Магнат</b> - ты превращаешь свою жизнь в игру-тайкун. Каждый день дисциплины даёт <b class="e">⭐ опыт</b> (растит уровень Новичок→Магнат) и <b class="g">🪙 монеты</b> (копишь и тратишь на реальные награды). Серия дней подряд множит доход.</p>
-    <p style="color:var(--mut2);font-size:12.5px;margin:12px 0 2px">Сейчас внутри - пример для наглядности. С чего начнём?</p>
+    <p style="color:var(--mut);font-size:14px;margin:10px 0 4px;line-height:1.55">Это <b>Магнат</b> — ты превращаешь свою жизнь в игру-тайкун. Каждый день дисциплины даёт <b class="e">⭐ опыт</b> (растит уровень Новичок→Магнат) и <b class="g">🪙 монеты</b> (копишь и тратишь на реальные награды). Серия дней подряд множит доход.</p>
+    <p style="color:var(--mut2);font-size:12.5px;margin:12px 0 2px">Сейчас внутри — пример для наглядности. С чего начнём?</p>
     <div class="btns" style="flex-direction:column">
       <button class="ok" id="obFresh">🚀 Начать своё (чистый лист)</button>
       <button class="no" id="obDemo">👀 Посмотреть пример</button>

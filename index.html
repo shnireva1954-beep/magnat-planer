@@ -1,5 +1,7 @@
+<!doctype html>
+<html lang="ru">
 <meta charset="utf-8">
-<title>Магнат - планер, который играет с тобой</title>
+<title>Магнат — планер, который играет с тобой</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="5 живых дашбордов в Google-таблицах с игровой механикой: привычки, задачи, фитнес, неделя, финансы. KPI, графики, инсайты. Галочки дают монеты, монеты растят уровень. 990 ₽ навсегда.">
 <meta name="theme-color" content="#070a0f">
@@ -7,10 +9,14 @@
 <link rel="apple-touch-icon" href="icon.png">
 <!-- превью ссылки в Telegram/VK/WhatsApp -->
 <meta property="og:type" content="website">
-<meta property="og:title" content="Магнат - планер, который играет с тобой">
+<meta property="og:title" content="Магнат — планер, который играет с тобой">
 <meta property="og:description" content="5 Google-таблиц с механикой тайкуна: галочки дают монеты, монеты растят уровень. 990 ₽ навсегда.">
 <meta property="og:url" content="https://magnat-planer.ru/">
 <meta property="og:image" content="https://magnat-planer.ru/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:site_name" content="Магнат">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="https://magnat-planer.ru/">
 <script type="application/ld+json">
@@ -19,6 +25,17 @@
 "image":"https://magnat-planer.ru/og.png",
 "offers":{"@type":"Offer","price":"990","priceCurrency":"RUB","availability":"https://schema.org/InStock","url":"https://magnat-planer.ru/"}}
 </script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Почему Google-таблицы, а не приложение?","acceptedAnswer":{"@type":"Answer","text":"Данные принадлежат тебе: таблицы лежат в твоём Google-аккаунте и не исчезнут, если сервис закроется. Их можно настроить под себя, а для быстрых отметок в наборе есть веб-приложение «Магнат»."}},
+{"@type":"Question","name":"Мне нужно что-то уметь в таблицах?","acceptedAnswer":{"@type":"Answer","text":"Нет. Все формулы уже внутри, ты только ставишь галочки. Настройка своих привычек — на отдельном листе, по инструкции."}},
+{"@type":"Question","name":"Мои данные сохранятся?","acceptedAnswer":{"@type":"Answer","text":"Да. Таблица живёт в твоём Google-аккаунте: смена телефона или чистка кэша — ничего не теряется."}},
+{"@type":"Question","name":"Надо платить каждый месяц?","acceptedAnswer":{"@type":"Answer","text":"Нет. Платишь один раз — набор твой навсегда, включая будущие обновления."}},
+{"@type":"Question","name":"Это работает на телефоне?","acceptedAnswer":{"@type":"Answer","text":"Да, через бесплатное приложение Google Таблицы. Для быстрых отметок в бандле есть веб-приложение «Магнат»."}},
+{"@type":"Question","name":"Чем это лучше бесплатных шаблонов?","acceptedAnswer":{"@type":"Answer","text":"Бесплатные шаблоны — пустые сетки. Здесь — игровая система с монетами, серией и уровнями, дашборды с KPI и инсайтами, автоформулы и приложение в подарок."}},
+{"@type":"Question","name":"Если что-то не получится?","acceptedAnswer":{"@type":"Answer","text":"Напиши на почту — поможем с настройкой. Условия возврата описаны в оферте."}}
+]}
+</script>
 <style>
   :root{
     --bg:#070a0f; --bg2:#0a0e15;
@@ -26,7 +43,7 @@
     --line:#1a2431; --line2:#28394e;
     --emerald:#34e39a; --emerald2:#12b978; --em-deep:#0a3b29;
     --gold:#f6c85a; --gold2:#d8a63d; --cyan:#3dd6ff; --rose:#ff7a8a; --violet:#b98bff; --amber:#ffab5e;
-    --ink:#eaf2fb; --mut:#9fb0c6; --mut2:#61748c;
+    --ink:#eaf2fb; --mut:#9fb0c6; --mut2:#6b7f99;
     /* светлая палитра «настоящей» таблицы */
     --s-bg:#ffffff; --s-alt:#f6f8fc; --s-head:#eef2f8; --s-grid:#e0e6ef;
     --s-ink:#212a36; --s-mut:#637184; --s-mut2:#8a97a8;
@@ -189,11 +206,12 @@
     color:var(--gold); border:1px solid #6e5320; background:#1a140744; padding:4px 9px; border-radius:99px; font-weight:700;}
 
   /* карусель: точки, стрелки, подсказка */
-  .pdots{display:flex; justify-content:center; gap:9px; margin-top:18px;}
-  .pdots button{width:8px;height:8px;border-radius:99px;border:none;background:#2a3a4e;cursor:pointer;padding:0;
-    transition:width .35s var(--ease), background .3s;}
-  .pdots button.on{background:var(--emerald); width:24px; box-shadow:0 0 10px #34e39a66;}
-  .phint{text-align:center; color:var(--mut2); font-size:12.5px; margin-top:10px;}
+  .pdots{display:flex; justify-content:center; gap:3px; margin-top:12px;}
+  .pdots button{width:20px;height:20px;border-radius:99px;border:6px solid transparent;background-color:#2a3a4e;cursor:pointer;padding:0;
+    background-clip:content-box; transition:width .35s var(--ease), background-color .3s;}
+  .pdots button.on{background-color:var(--emerald); width:36px;}
+  .phint{display:none; text-align:center; color:var(--mut2); font-size:12.5px; margin-top:8px;}
+  @media(max-width:860px){.phint{display:block;}}
   .parrow{position:absolute; top:44%; z-index:4; width:44px;height:44px;border-radius:50%; cursor:pointer;
     display:grid;place-items:center; background:#0e1622ee; border:1px solid var(--line2); color:var(--ink); font-size:19px;
     backdrop-filter:blur(6px); box-shadow:0 8px 24px #000a; transition:transform .2s var(--ease), border-color .3s, opacity .3s;}
@@ -298,7 +316,7 @@
   .radar .rpoly{fill:#e0556a2b; stroke:#e0556a; stroke-width:1.6; stroke-linejoin:round; opacity:0; transition:opacity .8s ease .35s;}
   .planner.in .radar .rpoly{opacity:1;}
   .radar text{font-family:var(--fb); font-size:6.5px; fill:#8a97a8; font-weight:600;}
-  /* вкладки листов снизу - как в настоящих Google Таблицах */
+  /* вкладки листов снизу — как в настоящих Google Таблицах */
   .sheet .tabsg{display:flex; align-items:center; gap:3px; background:#f1f4f9; border-top:1px solid #e4e9f1; padding:4px 8px; font-size:8px; color:#7d8a99; white-space:nowrap;}
   .sheet .tabsg span{padding:2.5px 9px; border-radius:5px;}
   .sheet .tabsg span.on{background:#fff; color:#212a36; font-weight:700; border:1px solid #dfe5ee;}
@@ -544,7 +562,7 @@
   }
 </style>
 
-<div class="glows"><div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div></div>
+<div class="glows" aria-hidden="true"><div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div></div>
 
 <nav><div class="wrap">
   <div class="logo"><div class="c">🏛</div>Магнат</div>
@@ -561,7 +579,7 @@
   <div>
     <div class="kicker h-el">Планер · игра · тайкун</div>
     <h1 class="h-el"><span class="w">Планер,</span> <span class="w">который</span> <span class="hl w">играет</span> <span class="hl w">с</span> <span class="hl w">тобой</span></h1>
-    <p class="lead h-el">Хватит бросать всё на третий день. 5 Google-таблиц с механикой тайкуна: галочки дают монеты, серия множит доход, монеты растят уровень - дисциплина затягивает, как игра.</p>
+    <p class="lead h-el">Хватит бросать всё на третий день. 5 Google-таблиц с механикой тайкуна: галочки дают монеты, серия множит доход, монеты растят уровень — дисциплина затягивает, как игра.</p>
     <div class="cta h-el">
       <a href="#price" class="btn btn-p">🏛 Получить за 990 ₽</a>
       <a href="#set" class="btn btn-g">Что внутри</a>
@@ -585,14 +603,14 @@
       <div class="coins" id="dCoins">🪙 0</div>
       <div class="lvl" id="dLvl">🐣 Новичок</div>
     </div>
-    <div class="hint" id="dHint">жми клетки - монеты капают, империя строится</div>
+    <div class="hint" id="dHint">жми клетки — монеты капают, империя строится</div>
   </div></div>
 </div></header>
 
 <section id="set"><div class="wrap">
   <div class="kicker rv">Набор 5 в 1</div>
   <h2 class="rv uline">Пять живых дашбордов, одна игра</h2>
-  <p class="sub rv">Не скучные списки, а полноценные дашборды в Google-таблицах: KPI-карточки, живые графики, инсайты и уровни, которые считаются сами. Как топовый SaaS - только твоё навсегда. Листай -&gt;</p>
+  <p class="sub rv">Не скучные списки, а полноценные дашборды в Google-таблицах: KPI-карточки, живые графики, инсайты и уровни, которые считаются сами. Как топовый SaaS — только твоё навсегда. Листай →</p>
 
   <div class="pcarousel rv">
    <button class="parrow l" id="arrPrev" aria-label="предыдущий">‹</button>
@@ -639,7 +657,7 @@
             <tr><td class="nm">💧 Вода 2 литра</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="pcell">90%</td></tr>
           </table>
           <div class="lvlrow"><b>💼 Предприниматель</b><span class="lvlbar"><i style="--w:28%"></i></span><span><b>2 480</b> / 5 000 🪙 до Директора</span></div>
-          <div class="insight"><span class="ii">💡</span><span><b>Пятница - твой сильный день: 94%.</b> Ещё 1 день серии - и множитель вырастет до <b>×1.7</b>.</span></div>
+          <div class="insight"><span class="ii">💡</span><span><b>Пятница — твой сильный день: 94%.</b> Ещё 1 день серии — и множитель вырастет до <b>×1.7</b>.</span></div>
         </div></div>
         <div class="tabsg"><span class="on">📊 Дашборд</span><span>Привычки</span><span>История</span><span>Настройки</span><span style="margin-left:auto">＋</span></div>
       </div>
@@ -677,7 +695,7 @@
             <div class="cbars" style="--cb:#e0a93a"><i style="--h:55%;--k:0"></i><i style="--h:80%;--k:1"></i><i style="--h:60%;--k:2"></i><i style="--h:90%;--k:3"></i><i style="--h:70%;--k:4"></i><i style="--h:35%;--k:5"></i><i style="--h:18%;--k:6"></i></div>
             <div class="cbl"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
           </div>
-          <div class="insight"><span class="ii">💡</span><span><b>Пик продуктивности - четверг.</b> «Оплатить кредитку» просрочена на 1 день - закрой её первой.</span></div>
+          <div class="insight"><span class="ii">💡</span><span><b>Пик продуктивности — четверг.</b> «Оплатить кредитку» просрочена на 1 день — закрой её первой.</span></div>
         </div></div>
         <div class="tabsg"><span class="on">📊 Дашборд</span><span>Задачи</span><span>Архив</span><span style="margin-left:auto">＋</span></div>
       </div>
@@ -731,7 +749,7 @@
           </div>
           <span class="lab2" style="margin:10px 0 0">Тренировки недели</span>
           <div class="focus" style="margin-top:5px"><span class="dn2">пн ✓</span><span>вт</span><span class="dn2">ср ✓</span><span class="dn2">чт ✓</span><span>пт</span><span class="dn2">сб ✓</span><span>вс</span></div>
-          <div class="insight"><span class="ii">💡</span><span><b>Ноги и пресс в тонусе.</b> Плечи отстают - добавь один подход в среду, и радар выровняется.</span></div>
+          <div class="insight"><span class="ii">💡</span><span><b>Ноги и пресс в тонусе.</b> Плечи отстают — добавь один подход в среду, и радар выровняется.</span></div>
         </div></div>
         <div class="tabsg"><span class="on">📊 Дашборд</span><span>Тренировки</span><span>Замеры</span><span style="margin-left:auto">＋</span></div>
       </div>
@@ -753,12 +771,20 @@
           <div class="ttl"><span class="sq" style="--ac:#7a52d0"></span><b>ПУЛЬТ НЕДЕЛИ</b><span class="pct" style="color:#7a52d0">64%</span></div>
           <div class="kpis k3">
             <div class="kpi" style="--kc:#7a52d0"><div class="kl">Выполнено</div><div class="kv">25 / 39</div><span class="kd up">64% недели</span></div>
-            <div class="kpi" style="--kc:#c98a12"><div class="kl">Энергия</div><div class="kv">⚡ 3.4 / 5</div><span class="kd up">пик - пятница</span></div>
+            <div class="kpi" style="--kc:#c98a12"><div class="kl">Энергия</div><div class="kv">⚡ 3.4 / 5</div><span class="kd up">пик — пятница</span></div>
             <div class="kpi"><div class="kl">Фокус-цели</div><div class="kv">2 / 3</div><span class="kd nt">недели</span></div>
           </div>
           <div class="weekgrid" id="weekgrid"></div>
+          <div class="wavebox" style="background:linear-gradient(180deg,#f7f3fd,#fff);margin-top:9px">
+            <span class="lab">Энергия недели</span>
+            <svg class="wave" viewBox="0 0 300 60" preserveAspectRatio="none">
+              <defs><linearGradient id="wg4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a52d0" stop-opacity=".26"/><stop offset="1" stop-color="#7a52d0" stop-opacity="0"/></linearGradient></defs>
+              <path class="warea" fill="url(#wg4)" d="M0,30 C17,34 33,42 50,42 S83,30 100,30 S133,50 150,50 S183,12 200,12 S233,30 250,30 S283,44 300,44 L300,60 L0,60 Z"/>
+              <path class="wline" stroke="#7a52d0" d="M0,30 C17,34 33,42 50,42 S83,30 100,30 S133,50 150,50 S183,12 200,12 S233,30 250,30 S283,44 300,44"/>
+            </svg>
+          </div>
           <div class="focus"><span class="dn2">✓ Запустить сайт</span><span class="dn2">✓ 3 тренировки</span><span>○ Дочитать книгу</span></div>
-          <div class="insight"><span class="ii">💡</span><span><b>Энергия проседает к воскресенью.</b> Ставь лёгкие задачи на выходные - процент недели вырастет.</span></div>
+          <div class="insight"><span class="ii">💡</span><span><b>Энергия проседает к воскресенью.</b> Ставь лёгкие задачи на выходные — процент недели вырастет.</span></div>
         </div></div>
         <div class="tabsg"><span class="on">📊 Дашборд</span><span>Неделя</span><span>Рефлексия</span><span style="margin-left:auto">＋</span></div>
       </div>
@@ -782,7 +808,7 @@
             <div class="kpi"><div class="kl">Доход</div><div class="kv">118 400</div><span class="kd up">+12%</span></div>
             <div class="kpi" style="--kc:#e0556a"><div class="kl">Расход</div><div class="kv">95 950</div><span class="kd dn">+4%</span></div>
             <div class="kpi" style="--kc:#c98a12"><div class="kl">Сбережения</div><div class="kv">22 450</div><span class="kd up">19% дохода</span></div>
-            <div class="kpi" style="--kc:#2f8fd8"><div class="kl">Подушка</div><div class="kv">3.2 мес</div><span class="kd nt">цель - 6</span></div>
+            <div class="kpi" style="--kc:#2f8fd8"><div class="kl">Подушка</div><div class="kv">3.2 мес</div><span class="kd nt">цель — 6</span></div>
           </div>
           <div class="fin3">
             <div class="donutwrap">
@@ -806,7 +832,7 @@
             <div class="cbars" style="--cb:#c98a12"><i style="--h:26%;--k:0"></i><i style="--h:38%;--k:1"></i><i style="--h:34%;--k:2"></i><i style="--h:52%;--k:3"></i><i style="--h:66%;--k:4"></i><i style="--h:88%;--k:5"></i></div>
             <div class="cbl"><span>авг</span><span>сен</span><span>окт</span><span>ноя</span><span>дек</span><span>янв</span></div>
           </div>
-          <div class="insight"><span class="ii">💡</span><span><b>Сбережения 19% дохода</b> - выше цели 15%. Транспорт превысил план на <b>1 400 ₽</b> - проверь поездки на такси.</span></div>
+          <div class="insight"><span class="ii">💡</span><span><b>Сбережения 19% дохода</b> — выше цели 15%. Транспорт превысил план на <b>1 400 ₽</b> — проверь поездки на такси.</span></div>
         </div></div>
         <div class="tabsg"><span class="on">📊 Дашборд</span><span>Операции</span><span>Долги</span><span>Цели</span><span style="margin-left:auto">＋</span></div>
       </div>
@@ -827,7 +853,7 @@
     <div class="top">
       <span class="fire">🔥</span>
       <h3>Система дисциплины</h3>
-      <p>То, чего нет у мёртвых таблиц. Каждая галочка - монеты. Дни подряд - серия и множитель. Монеты растят уровень: от Новичка до Магната. Бросить на серии становится физически жалко - так дисциплина держится сама.</p>
+      <p>То, чего нет у мёртвых таблиц. Каждая галочка — монеты. Дни подряд — серия и множитель. Монеты растят уровень: от Новичка до Магната. Бросить на серии становится физически жалко — так дисциплина держится сама.</p>
     </div>
     <div class="ladder">
       <div class="lv" style="--i:0"><div class="em">🐣</div><div class="nm">Новичок</div><div class="cn">0 🪙</div></div>
@@ -848,7 +874,7 @@
   <div class="kicker rv">Всего 4 шага</div>
   <h2 class="rv uline">Как это играется</h2>
   <div class="steps">
-    <div class="glass step rv" style="--i:0"><div class="n">01</div><div class="ico">✅</div><h3>Отмечаешь день</h3><p>Сделал привычку - ставишь галочку в таблице.</p></div>
+    <div class="glass step rv" style="--i:0"><div class="n">01</div><div class="ico">✅</div><h3>Отмечаешь день</h3><p>Сделал привычку — ставишь галочку в таблице.</p></div>
     <div class="glass step rv" style="--i:1"><div class="n">02</div><div class="ico">🪙</div><h3>Капают монеты</h3><p>Каждая галочка приносит монеты. Формулы считают всё сами.</p></div>
     <div class="glass step rv" style="--i:2"><div class="n">03</div><div class="ico">🔥</div><h3>Серия множит доход</h3><p>Дни подряд дают множитель до x2. Бросить становится жалко.</p></div>
     <div class="glass step rv" style="--i:3"><div class="n">04</div><div class="ico">👑</div><h3>Растёшь до Магната</h3><p>Новичок, Стартапер, Предприниматель, Директор, Магнат.</p></div>
@@ -862,16 +888,16 @@
     <div class="vcol dead glass">
       <h3>💀 Мёртвая таблица</h3>
       <div class="vi">Пустые клетки без обратной связи</div>
-      <div class="vi">Бросаешь через неделю - ничего не держит</div>
+      <div class="vi">Бросаешь через неделю — ничего не держит</div>
       <div class="vi">Ноль аналитики: прогресса не видно</div>
-      <div class="vi">Открывать скучно, вести - обязанность</div>
+      <div class="vi">Открывать скучно, вести — обязанность</div>
     </div>
     <div class="vcol alive glass">
       <h3>🏛 Магнат</h3>
-      <div class="vi">Каждая галочка даёт монеты - мгновенная награда</div>
-      <div class="vi">Серия и множитель до x2 - жалко бросить</div>
+      <div class="vi">Каждая галочка даёт монеты — мгновенная награда</div>
+      <div class="vi">Серия и множитель до x2 — жалко бросить</div>
       <div class="vi">Дашборды: KPI, графики и инсайты недели</div>
-      <div class="vi">Уровни Новичок → Магнат - хочется вернуться</div>
+      <div class="vi">Уровни Новичок → Магнат — хочется вернуться</div>
     </div>
   </div>
 </div></section>
@@ -893,20 +919,20 @@
   <div>
     <div class="kicker rv">В подарок</div>
     <h2 class="rv uline">Приложение и Telegram-бот</h2>
-    <p class="sub rv">Таблица - твой штаб. А для быстрых отметок с телефона в бандле идут бонусы:</p>
+    <p class="sub rv">Таблица — твой штаб. А для быстрых отметок с телефона в бандле идут бонусы:</p>
     <ul class="blist">
-      <li class="rv" style="--i:0"><span class="plus">+</span><span><b>Веб-приложение «Магнат»</b> - та же игра иконкой на экране телефона: графики, магазин наград, город-империя.</span></li>
-      <li class="rv" style="--i:1"><span class="plus">+</span><span><b>Telegram-бот</b> <em style="color:var(--gold); font-style:normal; font-size:12px">скоро</em> - утренний пинг и отметки в один тап, серия и монеты те же.</span></li>
-      <li class="rv" style="--i:2"><span class="plus">+</span><span><b>Обновления набора</b> - новые листы и механики приходят бесплатно.</span></li>
+      <li class="rv" style="--i:0"><span class="plus">+</span><span><b>Веб-приложение «Магнат»</b> — та же игра иконкой на экране телефона: графики, магазин наград, город-империя.</span></li>
+      <li class="rv" style="--i:1"><span class="plus">+</span><span><b>Telegram-бот</b> <em style="color:var(--gold); font-style:normal; font-size:12px">скоро</em> — утренний пинг и отметки в один тап, серия и монеты те же.</span></li>
+      <li class="rv" style="--i:2"><span class="plus">+</span><span><b>Обновления набора</b> — новые листы и механики приходят бесплатно.</span></li>
     </ul>
     <a href="app.html" class="btn btn-g rv" style="--i:3; margin-top:20px" target="_blank" rel="noopener">▶ Попробовать демо приложения</a>
   </div>
 </div></div></section>
 
 <section id="price"><div class="wrap" style="text-align:center">
-  <div class="kicker rv" style="justify-content:center">Один раз - навсегда</div>
+  <div class="kicker rv" style="justify-content:center">Один раз — навсегда</div>
   <h2 class="rv uline">Твоё без подписок и продлений</h2>
-  <p class="sub rv" style="margin:16px auto 0">Приложения-планеры по подписке берут ~300 ₽ в месяц - это <b style="color:var(--ink)">3 600 ₽ каждый год</b>, снова и снова. «Магнат» - <b style="color:var(--emerald)">990 ₽ один раз</b> и навсегда твой.</p>
+  <p class="sub rv" style="margin:16px auto 0">Приложения-планеры по подписке берут ~300 ₽ в месяц — это <b style="color:var(--ink)">3 600 ₽ каждый год</b>, снова и снова. «Магнат» — <b style="color:var(--emerald)">990 ₽ один раз</b> и навсегда твой.</p>
   <div class="glass price rv" style="text-align:center">
     <div class="old">1 490 ₽</div>
     <div class="now">990 ₽</div>
@@ -914,7 +940,7 @@
     <ul>
       <li>5 Google-таблиц с игровой механикой</li>
       <li>Данные хранятся в твоём Google-аккаунте</li>
-      <li>Веб-приложение в подарок (Telegram-бот - скоро)</li>
+      <li>Веб-приложение в подарок (Telegram-бот — скоро)</li>
       <li>Все будущие обновления бесплатно</li>
       <li>Помощь по настройке на почте</li>
     </ul>
@@ -923,7 +949,7 @@
   </div>
   <div class="trustbar rv" style="max-width:560px;margin:22px auto 0;display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left">
     <div class="glass" style="padding:13px 15px;display:flex;gap:11px;align-items:flex-start"><span style="font-size:20px">🔒</span><span style="font-size:12.5px;color:var(--mut)"><b style="color:var(--ink)">Безопасная оплата</b><br>Робокасса · карта/СБП · чек по 54-ФЗ</span></div>
-    <div class="glass" style="padding:13px 15px;display:flex;gap:11px;align-items:flex-start"><span style="font-size:20px">☁️</span><span style="font-size:12.5px;color:var(--mut)"><b style="color:var(--ink)">Данные - твои</b><br>Таблицы живут в твоём Google-аккаунте</span></div>
+    <div class="glass" style="padding:13px 15px;display:flex;gap:11px;align-items:flex-start"><span style="font-size:20px">☁️</span><span style="font-size:12.5px;color:var(--mut)"><b style="color:var(--ink)">Данные — твои</b><br>Таблицы живут в твоём Google-аккаунте</span></div>
     <div class="glass" style="padding:13px 15px;display:flex;gap:11px;align-items:flex-start"><span style="font-size:20px">♾️</span><span style="font-size:12.5px;color:var(--mut)"><b style="color:var(--ink)">Доступ навсегда</b><br>Без подписок · обновления бесплатно</span></div>
     <div class="glass" style="padding:13px 15px;display:flex;gap:11px;align-items:flex-start"><span style="font-size:20px">✉️</span><span style="font-size:12.5px;color:var(--mut)"><b style="color:var(--ink)">Живая поддержка</b><br>Поможем с настройкой, разберём спорное</span></div>
   </div>
@@ -936,7 +962,7 @@
     <div class="glass h-step rv" style="--i:0"><div class="n">1</div><div><h4>Оплачиваешь</h4><p>Картой или СБП, займёт полминуты.</p></div></div>
     <div class="glass h-step rv" style="--i:1"><div class="n">2</div><div><h4>Получаешь письмо</h4><p>Ссылка на набор приходит на e-mail сразу после оплаты.</p></div></div>
     <div class="glass h-step rv" style="--i:2"><div class="n">3</div><div><h4>Открываешь в Google Таблицах</h4><p>На телефоне или компьютере, всё уже настроено.</p></div></div>
-    <div class="glass h-step rv" style="--i:3"><div class="n">4</div><div><h4>Копируешь шаблон себе</h4><p>Один клик - и планер твой навсегда, в твоём Google-аккаунте.</p></div></div>
+    <div class="glass h-step rv" style="--i:3"><div class="n">4</div><div><h4>Копируешь шаблон себе</h4><p>Один клик — и планер твой навсегда, в твоём Google-аккаунте.</p></div></div>
   </div>
 </div></section>
 
@@ -974,12 +1000,13 @@
   <div class="kicker rv" style="justify-content:center">Вопросы</div>
   <h2 class="rv uline">Коротко о главном</h2>
   <div class="faq" style="text-align:left">
-    <details class="glass qa rv" style="--i:0" open><summary>Мне нужно что-то уметь в таблицах?</summary><div class="a">Нет. Все формулы уже внутри, ты только ставишь галочки. Настройка своих привычек - на отдельном листе, по инструкции.</div></details>
-    <details class="glass qa rv" style="--i:1"><summary>Мои данные сохранятся?</summary><div class="a">Да. Таблица живёт в твоём Google-аккаунте: смена телефона, чистка кэша - ничего не теряется.</div></details>
-    <details class="glass qa rv" style="--i:2"><summary>Надо платить каждый месяц?</summary><div class="a">Нет. Платишь один раз - набор твой навсегда, включая будущие обновления.</div></details>
+    <details class="glass qa rv" style="--i:0" open><summary>Почему Google-таблицы, а не приложение?</summary><div class="a">Потому что данные принадлежат тебе, а не сервису: таблицы лежат в твоём Google-аккаунте и не исчезнут, если какой-то стартап закроется. Их можно настроить под себя до мелочей. А для быстрых отметок с телефона в наборе есть приложение «Магнат».</div></details>
+    <details class="glass qa rv" style="--i:1"><summary>Мне нужно что-то уметь в таблицах?</summary><div class="a">Нет. Все формулы уже внутри, ты только ставишь галочки. Настройка своих привычек — на отдельном листе, по инструкции.</div></details>
+    <details class="glass qa rv" style="--i:1"><summary>Мои данные сохранятся?</summary><div class="a">Да. Таблица живёт в твоём Google-аккаунте: смена телефона, чистка кэша — ничего не теряется.</div></details>
+    <details class="glass qa rv" style="--i:2"><summary>Надо платить каждый месяц?</summary><div class="a">Нет. Платишь один раз — набор твой навсегда, включая будущие обновления.</div></details>
     <details class="glass qa rv" style="--i:3"><summary>Это работает на телефоне?</summary><div class="a">Да, через бесплатное приложение Google Таблицы. Для быстрых отметок в бандле есть веб-приложение, а Telegram-бот добавим скоро.</div></details>
-    <details class="glass qa rv" style="--i:4"><summary>Чем это лучше бесплатных шаблонов?</summary><div class="a">Бесплатные шаблоны - пустые сетки без обратной связи. Здесь - игровая система (монеты, серия, множитель, 5 уровней), дашборды с KPI и инсайтами, автоформулы и приложение в подарок. Плюс все будущие обновления набора.</div></details>
-    <details class="glass qa rv" style="--i:5"><summary>Если что-то не получится?</summary><div class="a">Пиши на почту - поможем с настройкой. Условия возврата описаны в оферте.</div></details>
+    <details class="glass qa rv" style="--i:4"><summary>Чем это лучше бесплатных шаблонов?</summary><div class="a">Бесплатные шаблоны — пустые сетки без обратной связи. Здесь — игровая система (монеты, серия, множитель, 5 уровней), дашборды с KPI и инсайтами, автоформулы и приложение в подарок. Плюс все будущие обновления набора.</div></details>
+    <details class="glass qa rv" style="--i:5"><summary>Если что-то не получится?</summary><div class="a">Пиши на почту — поможем с настройкой. Условия возврата описаны в оферте.</div></details>
   </div>
 </div></section>
 
@@ -1009,7 +1036,7 @@
   <div class="modal">
     <div class="big">🏛</div>
     <h4>Забронируй по стартовой цене</h4>
-    <p>Приём оплаты картой и СБП подключается. Напиши на почту - забронируем набор по стартовой цене 990 ₽ и пришлём ссылку на оплату первыми.</p>
+    <p>Приём оплаты картой и СБП подключается. Напиши на почту — забронируем набор по стартовой цене 990 ₽ и пришлём ссылку на оплату первыми.</p>
     <div class="mailbox" id="mailTxt">shnireva1954@gmail.com</div>
     <button class="btn btn-p" id="copyBtn" type="button">📋 Скопировать адрес</button>
     <a class="maillink" id="mailBtn" href="#">или открыть почтовое приложение</a>
@@ -1029,7 +1056,7 @@ if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 })();
 
 /* ВСТАВЬ СЮДА платёжную ссылку Робокассы (напр. "https://auth.robokassa.ru/Merchant/Index.aspx?...").
-   Как только тут будет непустая строка - обе кнопки «Купить» поведут прямо на оплату,
+   Как только тут будет непустая строка — обе кнопки «Купить» поведут прямо на оплату,
    а модалка-бронь перестанет показываться. Это #1 фикс продаж. */
 var PAYMENT_URL = "";
 var RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1114,7 +1141,7 @@ function confettiBurst(x,y,n,colors){
         lv.textContent=LVL[ni][0];
         emp.forEach(function(e,k){ e.classList.toggle("on", k<=ni); });
         if(up){
-          /* промежуточные уровни - тихая радость (pop + здание); салют - ТОЛЬКО за финал */
+          /* промежуточные уровни — тихая радость (pop + здание); салют — ТОЛЬКО за финал */
           lv.classList.remove("pop"); void lv.offsetWidth; lv.classList.add("pop");
           var slot=emp[ni]; slot.classList.remove("pop"); void slot.offsetWidth; slot.classList.add("pop");
           if(ni===4){
@@ -1140,7 +1167,7 @@ function confettiBurst(x,y,n,colors){
 })();
 
 /* лист-таблица показывается ЦЕЛИКОМ: рендерим в удобной ширине и ужимаем под
-   карточку (как масштабированный скрин у конкурента) - таблица никогда не режется */
+   карточку (как масштабированный скрин у конкурента) — таблица никогда не режется */
 (function(){
   // оборачиваем каждый лист в бокс, который держит ужатую высоту
   document.querySelectorAll(".planner > .sheet").forEach(function(sh){
@@ -1216,7 +1243,7 @@ function confettiBurst(x,y,n,colors){
   setActive(0);
 })();
 
-/* появление при скролле - ОДИН раз (повторные прятки при скролле вверх = дёрганье) */
+/* появление при скролле — ОДИН раз (повторные прятки при скролле вверх = дёрганье) */
 (function(){
   var els=document.querySelectorAll(".rv, #disc");
   if(!("IntersectionObserver" in window) || RM){ els.forEach(function(e){e.classList.add("in")}); return; }
@@ -1294,7 +1321,7 @@ document.querySelectorAll(".hero h1 .w").forEach(function(w,i){ w.style.setPrope
   upd(); window.addEventListener("scroll", upd, {passive:true});
 })();
 
-/* покупка: есть ссылка Robokassa - идём платить; нет - модалка с почтой */
+/* покупка: есть ссылка Robokassa — идём платить; нет — модалка с почтой */
 (function(){
   var ovl=document.getElementById("buyOvl");
   var mail="mailto:shnireva1954@gmail.com?subject="+encodeURIComponent("Магнат: бронирую набор за 990")+"&body="+encodeURIComponent("Привет! Хочу набор «Магнат 5 в 1» за 990 руб. Напиши, как оплатить.");
@@ -1302,7 +1329,7 @@ document.querySelectorAll(".hero h1 .w").forEach(function(w,i){ w.style.setPrope
   var copyBtn=document.getElementById("copyBtn");
   copyBtn.addEventListener("click", function(){
     var addr="shnireva1954@gmail.com", done=function(){
-      copyBtn.textContent="✓ Скопировано - жду письмо!";
+      copyBtn.textContent="✓ Скопировано — жду письмо!";
       setTimeout(function(){copyBtn.textContent="📋 Скопировать адрес";}, 2200);
     };
     if(navigator.clipboard && navigator.clipboard.writeText){
