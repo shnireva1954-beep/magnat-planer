@@ -13,6 +13,8 @@
     --fd:Georgia,"Times New Roman",serif; --fb:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   }
   *{box-sizing:border-box; margin:0; padding:0}
+  ::selection{background:#2fe38f3d; color:var(--ink);}
+  :focus-visible{outline:2px solid var(--emerald); outline-offset:2px; border-radius:4px;}
   body{background:radial-gradient(1100px 620px at 82% -6%,#123044 0%,transparent 55%),radial-gradient(800px 560px at 6% 3%,#0f2a20 0%,transparent 55%),linear-gradient(180deg,var(--bg2),var(--bg));
     color:var(--ink); font-family:var(--fb); line-height:1.45; -webkit-font-smoothing:antialiased; min-height:100vh; padding-bottom:80px;}
   .wrap{max-width:1120px; margin:0 auto; padding:0 16px;}
@@ -226,6 +228,53 @@ const monthEntries=()=>S.finance.entries.filter(e=>e.date.slice(0,7)===CURMONTH)
 
 let toastT; function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),1900);}
 
+// ---- эмоции: конфетти, полёт монеты, празднование уровня ----
+const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+function confettiBurst(x,y,n,colors){
+  if(RM || !document.body.animate) return;
+  for(let i=0;i<n;i++){
+    const p=document.createElement("i"), s=4+Math.random()*5;
+    p.style.cssText=`position:fixed;z-index:80;pointer-events:none;font-style:normal;left:${x}px;top:${y}px;width:${s}px;height:${s}px;border-radius:${Math.random()<.4?"50%":"2px"};background:${colors[i%colors.length]}`;
+    document.body.appendChild(p);
+    const a=Math.random()*Math.PI*2, v=50+Math.random()*160,
+          dx=Math.cos(a)*v, dy=Math.sin(a)*v-90;
+    p.animate([
+      {transform:"translate(0,0) rotate(0deg)", opacity:1},
+      {transform:`translate(${dx}px,${dy+180}px) rotate(${(Math.random()*2-1)*540}deg)`, opacity:0}
+    ],{duration:950+Math.random()*500, easing:"cubic-bezier(.2,.6,.4,1)"}).onfinish=()=>p.remove();
+  }
+}
+function flyCoinToWallet(fromEl){
+  const w=document.getElementById("wallet"); if(RM||!w||!fromEl.animate) return;
+  const chip=w.closest(".chip"), r1=fromEl.getBoundingClientRect(), r2=chip.getBoundingClientRect();
+  const c=document.createElement("div"); c.textContent="🪙";
+  c.style.cssText=`position:fixed;z-index:80;pointer-events:none;font-size:15px;line-height:1;left:${r1.left+r1.width/2-8}px;top:${r1.top+r1.height/2-8}px;`;
+  document.body.appendChild(c);
+  const dx=(r2.left+r2.width/2)-(r1.left+r1.width/2), dy=(r2.top+r2.height/2)-(r1.top+r1.height/2);
+  c.animate([
+    {transform:"translate(0,0) scale(1)", opacity:1},
+    {transform:`translate(${dx*.45}px,${dy*.45-48}px) scale(1.3)`, offset:.55},
+    {transform:`translate(${dx}px,${dy}px) scale(.4)`, opacity:.3}
+  ],{duration:620, easing:"cubic-bezier(.25,.7,.3,1)"}).onfinish=()=>{
+    c.remove();
+    if(chip.animate) chip.animate([{transform:"scale(1)"},{transform:"scale(1.16)"},{transform:"scale(1)"}],{duration:260});
+  };
+}
+function celebrateLevel(li){
+  const [name,,emoji]=LEVELS[li];
+  const ovl=el(`<div class="ovl" style="z-index:70"><div class="modal" style="text-align:center;max-width:330px">
+    <div style="font-size:62px;line-height:1;filter:drop-shadow(0 0 20px #2fe38f77)">${emoji}</div>
+    <div style="color:var(--emerald);font-size:11px;letter-spacing:2.2px;text-transform:uppercase;margin-top:12px">Новый уровень</div>
+    <h4 style="font-size:25px;margin-top:2px">${name}</h4>
+    <p style="color:var(--mut);font-size:13.5px;margin:8px 0 0">Твоя империя стала больше. Дисциплина платит.</p>
+    <div class="btns"><button class="ok">Строим дальше 🚀</button></div></div></div>`);
+  document.body.appendChild(ovl);
+  confettiBurst(innerWidth/2, innerHeight*0.32, 64, ["#2fe38f","#f5c451","#35d0ff","#b06bff"]);
+  const close=()=>ovl.remove();
+  ovl.querySelector(".ok").onclick=close;
+  ovl.onclick=e=>{if(e.target===ovl)close();};
+}
+
 // ---- canvas helpers ----
 function setup(cv,h){const dpr=window.devicePixelRatio||1,w=cv.getBoundingClientRect().width||200;cv.width=w*dpr;cv.height=h*dpr;cv.style.height=h+"px";const c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);return{c,w,h};}
 function donut(cv,frac,color){const {c,w,h}=setup(cv,150);const cx=w/2,cy=h/2,r=Math.min(w,h)/2-9;c.lineWidth=15;c.lineCap="round";c.strokeStyle="#182230";c.beginPath();c.arc(cx,cy,r,0,7);c.stroke();if(frac>0){c.strokeStyle=color;c.shadowColor=color;c.shadowBlur=13;c.beginPath();c.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(1,frac));c.stroke();c.shadowBlur=0;}}
@@ -325,7 +374,7 @@ function vHome(root){
     chip.querySelector(".nm").textContent=`${h.ico} ${h.name}`;
     chip.addEventListener("click",()=>{
       const arr=checksOf(TODAY).slice(),i=arr.indexOf(h.id);
-      if(i>=0)arr.splice(i,1);else arr.push(h.id);
+      if(i>=0)arr.splice(i,1);else{arr.push(h.id);flyCoinToWallet(chip);}
       if(arr.length)S.checks[TODAY]=arr;else delete S.checks[TODAY];
       save();render();
     });
@@ -364,7 +413,8 @@ function vHabits(root){
   root.querySelectorAll(".hcell").forEach(c=>c.addEventListener("click",()=>{
     const ds=c.dataset.d; if(ds>TODAY){toast("Будущий день ещё не наступил 🙂");return;}
     const hid=+c.dataset.h,arr=checksOf(ds).slice(),i=arr.indexOf(hid);
-    if(i>=0)arr.splice(i,1);else arr.push(hid); if(arr.length)S.checks[ds]=arr;else delete S.checks[ds]; save(); render();
+    if(i>=0)arr.splice(i,1);else{arr.push(hid);flyCoinToWallet(c);}
+    if(arr.length)S.checks[ds]=arr;else delete S.checks[ds]; save(); render();
   }));
   root.querySelectorAll(".hedit").forEach(td=>td.addEventListener("click",()=>editHabit(+td.dataset.edit)));
   root.querySelector("#addHabit").addEventListener("click",addHabit);
@@ -512,7 +562,10 @@ function vShop(root){
   REWARDS.forEach(([ico,name,cost],idx)=>{
     const bought=S.bought.includes(idx);
     const it=el(`<div class="si${bought?" bought":(w>=cost?" afford":"")}"><div class="i">${ico}</div><div class="n">${bought?"Куплено ✓":name}</div><div class="pr">🪙 ${nf(cost)}</div></div>`);
-    it.addEventListener("click",()=>{ if(bought)return; if(wallet()<cost){toast("Не хватает монет 🪙");return;} S.bought.push(idx);S.spent+=cost;save();render();toast("Награда куплена! Отдыхай честно 🎉"); });
+    it.addEventListener("click",()=>{ if(bought)return; if(wallet()<cost){toast("Не хватает монет 🪙");return;}
+      const r=it.getBoundingClientRect();
+      confettiBurst(r.left+r.width/2, r.top+r.height/2, 30, ["#f5c451","#ffdf8e","#2fe38f","#35d0ff"]);
+      S.bought.push(idx);S.spent+=cost;save();render();toast("Награда куплена! Отдыхай честно 🎉"); });
     grid.appendChild(it);
   });
 }
@@ -614,6 +667,10 @@ let cur="home";
 const RENDER={home:vHome,habits:vHabits,tasks:vTasks,money:vMoney,body:vBody,shop:vShop};
 function render(){
   const xp=totalXP(),li=levelIdx(xp);
+  // празднуем пересечение уровня вверх (первый рендер - тихо запоминаем)
+  if(S.lastLvl==null) S.lastLvl=li;
+  else if(li>S.lastLvl){ S.lastLvl=li; save(); celebrateLevel(li); }
+  else if(li<S.lastLvl){ S.lastLvl=li; }
   document.getElementById("wallet").textContent=nf(wallet());
   document.getElementById("lvlChip").textContent=LEVELS[li][0];
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===cur));
