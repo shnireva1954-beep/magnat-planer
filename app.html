@@ -109,7 +109,7 @@
 
   /* reward shop */
   .shop{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px;}
-  .si{background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:14px 8px; text-align:center; cursor:pointer; transition:all .18s;}
+  .si{background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:14px 8px; text-align:center; cursor:pointer; transition:all .18s; position:relative;}
   .si .i{font-size:26px} .si .n{font-size:11.5px; color:var(--mut); margin:8px 0 6px; min-height:30px; display:flex; align-items:center; justify-content:center;}
   .si .pr{font-size:13px; color:#8a6f2e; font-weight:700; font-variant-numeric:tabular-nums;}
   .si.afford{border-color:#1c7a54; box-shadow:0 0 14px #2fe38f22;} .si.afford .pr{color:var(--emerald)}
@@ -117,6 +117,22 @@
 
   .sec-h{font-size:15px; margin:22px 2px 12px;}
   .ins-t b{color:var(--gold);}
+  /* плашка «это демо» */
+  .demobar{display:none; align-items:center; gap:10px; margin-top:10px; padding:9px 12px 9px 14px;
+    background:#1a140755; border:1px solid #6e5320; border-radius:12px; font-size:12px; color:var(--mut); line-height:1.4;}
+  .demobar.show{display:flex;}
+  .demobar b{color:var(--ink);}
+  .demobar a{color:var(--gold); font-weight:700; text-decoration:none; white-space:nowrap; margin-left:auto;}
+  .demobar button{background:none; border:none; color:var(--mut2); cursor:pointer; font-size:13px; padding:0 2px;}
+  /* заметка про демо-данные */
+  .demonote{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:13px; font-size:12.5px; color:var(--mut); padding:12px 14px;}
+  .demonote .ok2{padding:8px 12px; border-radius:10px; border:none; background:linear-gradient(180deg,var(--emerald),#17a768); color:#04120b; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;}
+  /* кликабельные сводки на Обзоре */
+  .card[data-go]{cursor:pointer;}
+  .card .go{color:var(--mut2); font-size:14px; font-weight:400;}
+  /* редактирование задачи и своя награда */
+  .ted{color:var(--mut2); font-size:13px; padding:0 3px; cursor:pointer;}
+  .si .rm{position:absolute; top:5px; right:8px; color:var(--mut2); font-size:11px; cursor:pointer;}
   /* аккуратная форма добавления (вместо системных prompt) */
   .ovl{position:fixed; inset:0; background:#000b; backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px;}
   .modal{width:100%; max-width:360px; background:linear-gradient(168deg,#16223a,#0f1520); border:1px solid var(--line2); border-radius:20px; padding:22px; box-shadow:0 20px 60px #000a;}
@@ -164,6 +180,11 @@
 </div></header>
 
 <main class="wrap">
+  <div class="demobar" id="demoBar">
+    <span>Это <b>бесплатное демо</b>. Набор «Магнат 5 в 1»: таблицы + приложение навсегда</span>
+    <a href="index.html#price">990 ₽ →</a>
+    <button id="demoBarX" aria-label="скрыть">✕</button>
+  </div>
   <div class="view" id="v-home"></div>
   <div class="view" id="v-habits"></div>
   <div class="view" id="v-tasks"></div>
@@ -423,6 +444,7 @@ function vHome(root){
   const w=body_curW();
   const ins=homeInsight();
   root.innerHTML=`
+   ${S.demoData?`<div class="glass demonote"><span>👀 Внутри - пример с демо-данными, чтобы всё пощупать.</span><button class="ok2" id="startOwn">🚀 Начать своё</button></div>`:""}
    <div class="glass hero">
      <div class="hero-row">
        <div><div class="lvl-tag">◆ уровень ${li+1}</div><div class="lvl-name">${lvl[0]}</div></div>
@@ -445,12 +467,12 @@ function vHome(root){
      <div style="display:flex;gap:10px;font-size:13.5px;color:var(--mut);line-height:1.55;align-items:flex-start"><span style="flex:none">💡</span><span class="ins-t">${ins}</span></div></div>`:""}
    <button class="share-btn" id="shareBtn">📤 Поделиться своей империей</button>
    <div class="grid" style="margin-top:13px">
-     <div class="glass card"><h3>Месяц выполнен</h3><div class="donut-wrap"><canvas id="hDonut"></canvas><div class="donut-c"><div class="p e" id="hDonutP">0%</div><div class="t">привычки</div></div></div></div>
-     <div class="glass card"><h3>Разгон · 14 дней</h3><canvas id="hSpark"></canvas><div style="margin-top:8px;font-size:12px;color:var(--mut)">🪙 сегодня: <b class="cy num" id="hToday">0</b></div></div>
-     <div class="glass card"><h3>Баланс месяца</h3><div class="stat"><div class="v ${inc-out>=0?'e':'dn'} num">${nf(inc-out)} ₽</div><div class="l">доход ${nf(inc)} · расход ${nf(out)}</div></div><canvas id="hMoney" style="margin-top:8px"></canvas></div>
-     <div class="glass card"><h3>Задачи</h3><div class="stat"><div class="v g num">${tOpen}</div><div class="l">открыто · ${S.tasks.filter(t=>t.done).length} готово</div></div></div>
-     <div class="glass card"><h3>Вес</h3><div class="stat"><div class="v cy num">${w?w+" кг":"-"}</div><div class="l">${S.body.goalW?"цель "+S.body.goalW+" кг":"запиши вес"}</div></div><canvas id="hBody" style="margin-top:8px"></canvas></div>
-     <div class="glass card"><h3>Империя</h3><canvas id="hCity" height="90"></canvas><div style="text-align:center;font-size:11px;color:var(--mut2);margin-top:6px">ты на <b class="e">${li+1} из 5</b></div></div>
+     <div class="glass card" data-go="habits"><h3>Месяц выполнен <span class="go">›</span></h3><div class="donut-wrap"><canvas id="hDonut"></canvas><div class="donut-c"><div class="p e" id="hDonutP">0%</div><div class="t">привычки</div></div></div></div>
+     <div class="glass card" data-go="habits"><h3>Разгон · 14 дней <span class="go">›</span></h3><canvas id="hSpark"></canvas><div style="margin-top:8px;font-size:12px;color:var(--mut)">🪙 сегодня: <b class="cy num" id="hToday">0</b></div></div>
+     <div class="glass card" data-go="money"><h3>Баланс месяца <span class="go">›</span></h3><div class="stat"><div class="v ${inc-out>=0?'e':'dn'} num">${nf(inc-out)} ₽</div><div class="l">доход ${nf(inc)} · расход ${nf(out)}</div></div><canvas id="hMoney" style="margin-top:8px"></canvas></div>
+     <div class="glass card" data-go="tasks"><h3>Задачи <span class="go">›</span></h3><div class="stat"><div class="v g num">${tOpen}</div><div class="l">открыто · ${S.tasks.filter(t=>t.done).length} готово</div></div></div>
+     <div class="glass card" data-go="body"><h3>Вес <span class="go">›</span></h3><div class="stat"><div class="v cy num">${w?w+" кг":"-"}</div><div class="l">${S.body.goalW?"цель "+S.body.goalW+" кг":"запиши вес"}</div></div><canvas id="hBody" style="margin-top:8px"></canvas></div>
+     <div class="glass card" data-go="shop"><h3>Империя <span class="go">›</span></h3><canvas id="hCity" height="90"></canvas><div style="text-align:center;font-size:11px;color:var(--mut2);margin-top:6px">ты на <b class="e">${li+1} из 5</b> · монеты ждут в наградах</div></div>
    </div>
    <div class="bkrow">
      <button class="bk" id="bkSave">💾 Скачать копию данных</button>
@@ -509,6 +531,9 @@ function vHome(root){
   });
   root.querySelector("#resetBtn").addEventListener("click",()=>{ if(confirm("Стереть весь прогресс (привычки, задачи, финансы, вес) и начать с чистого листа?")){S=freshStart();save();render();} });
   root.querySelector("#shareBtn").addEventListener("click",shareCard);
+  root.querySelectorAll(".card[data-go]").forEach(c=>c.addEventListener("click",()=>{cur=c.dataset.go;render();window.scrollTo(0,0);}));
+  const so=root.querySelector("#startOwn");
+  if(so) so.addEventListener("click",()=>{ if(confirm("Стереть демо-данные и начать своё с чистого листа?")){S=freshStart();save();render();} });
 }
 
 function vHabits(root){
@@ -557,6 +582,9 @@ function editHabit(hid){
   m.appendChild(el(`<span class="lab">Название (можно с эмодзи)</span>`));
   const inp=document.createElement("input"); inp.type="text"; inp.value=`${h.ico} ${h.name}`;
   m.appendChild(inp);
+  m.appendChild(el(`<span class="lab">Монет за выполнение 🪙</span>`));
+  const cin=document.createElement("input"); cin.type="number"; cin.inputMode="numeric"; cin.value=h.coin;
+  m.appendChild(cin);
   const btns=el(`<div class="btns"><button class="no" id="hDel" style="color:var(--danger);border-color:#5a2730">🗑 Удалить</button><button class="ok" id="hSv">Сохранить</button></div>`);
   m.appendChild(btns); ovl.appendChild(m); document.body.appendChild(ovl);
   setTimeout(()=>inp.focus(),50);
@@ -571,7 +599,9 @@ function editHabit(hid){
   btns.querySelector("#hSv").onclick=()=>{
     const v=inp.value.trim(); if(!v) return;
     let ico=h.ico,nm=v; const mm=v.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u); if(mm){ico=mm[1];nm=mm[2]||v;}
-    h.ico=ico; h.name=nm; save(); close(); render();
+    h.ico=ico; h.name=nm;
+    const cv=parseInt(cin.value,10); if(cv>0) h.coin=Math.min(200,cv);
+    save(); close(); render();
   };
 }
 
@@ -587,15 +617,20 @@ function vTasks(root){
     </div>
     <div class="sec-h">Мои задачи</div>
     <div id="taskList"></div>
-    <div class="addbtn" id="addTask">➕ Добавить задачу</div>`;
+    <div class="addbtn" id="addTask">➕ Добавить задачу</div>
+    ${S.tasks.some(t=>t.done)?'<button class="reset" id="clearDone">убрать выполненные из списка</button>':''}`;
   const list=root.querySelector("#taskList");
   const tg={hi:["hi","Высокий"],md:["md","Средний"],lo:["lo","Низкий"]};
   sorted.forEach(t=>{
     const late=!t.done&&t.due<TODAY;
     const q=el(`<div class="q${t.done?" done":""}"><div class="box">${t.done?"✓":""}</div>
-      <div class="nm">${esc(t.name)}<div class="meta">📅 ${t.due.slice(5)}${late?' · <span style="color:var(--danger)">просрочено</span>':''}</div></div>
-      <span class="tag ${tg[t.prio][0]}">${tg[t.prio][1]}</span><span class="del">✕</span></div>`);
-    q.addEventListener("click",e=>{ if(e.target.classList.contains("del")){S.tasks=S.tasks.filter(x=>x.id!==t.id);save();render();return;} t.done=!t.done;save();render(); });
+      <div class="nm">${esc(t.name)}<div class="meta">📅 ${fmtD(t.due)}${late?' · <span style="color:var(--danger)">просрочено</span>':''}</div></div>
+      <span class="tag ${tg[t.prio][0]}">${tg[t.prio][1]}</span><span class="ted" title="изменить">✏️</span><span class="del" title="удалить">✕</span></div>`);
+    q.addEventListener("click",e=>{
+      if(e.target.classList.contains("del")){S.tasks=S.tasks.filter(x=>x.id!==t.id);save();render();return;}
+      if(e.target.classList.contains("ted")){editTask(t);return;}
+      t.done=!t.done;save();render();
+    });
     list.appendChild(q);
   });
   if(!sorted.length) list.innerHTML='<div style="color:var(--mut2);text-align:center;padding:16px;font-size:13px">Задач пока нет - добавь первую кнопкой ниже 👇</div>';
@@ -609,6 +644,20 @@ function vTasks(root){
     const due=/^\d{4}-\d{2}-\d{2}$/.test(r.due)?r.due:TODAY;
     S.tasks.push({id:Date.now(),name:r.name,prio:r.prio,due,done:false}); save(); render();
   });
+  const cd=root.querySelector("#clearDone");
+  if(cd) cd.addEventListener("click",()=>{S.tasks=S.tasks.filter(t=>!t.done);save();render();});
+}
+
+async function editTask(t){
+  const r=await askModal("Задача",[
+    {name:"name",label:"Задача",value:t.name},
+    {name:"prio",label:"Приоритет",type:"select",options:[["hi","🔴 Высокий"],["md","🟡 Средний"],["lo","🔵 Низкий"]],value:t.prio},
+    {name:"due",label:"Срок",type:"date",value:t.due},
+  ]);
+  if(!r||!r.name) return;
+  t.name=r.name; t.prio=r.prio;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(r.due)) t.due=r.due;
+  save(); render();
 }
 
 function vMoney(root){
@@ -691,12 +740,19 @@ function vBody(root){
     </div>
     <div class="glass card" style="margin-top:13px"><h3>Динамика веса</h3><canvas id="bW" height="150"></canvas>
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mut2);margin-top:6px"><span>${fmtD(S.body.log[0].date)}</span><span>сегодня</span></div></div>
+    <div class="glass card" style="margin-top:13px"><h3>Последние записи</h3>
+      ${S.body.log.slice(-5).reverse().map(e=>`<div class="frow"><span class="cat" style="color:var(--mut)">${fmtD(e.date)}</span><span class="amt cy num">${e.w} кг</span><span class="del" data-wd="${e.date}" title="удалить запись">✕</span></div>`).join("")}
+    </div>
     <div class="row2" style="margin-top:13px">
       <div class="glass card" id="editCal" style="cursor:pointer"><h3>Норма калорий <span class="hedit2">✏️</span></h3><div class="stat"><div class="v g num">${nf(S.body.calGoal)}</div><div class="l">ккал / день</div></div></div>
       <div class="glass card" id="editWater" style="cursor:pointer"><h3>Норма воды <span class="hedit2">✏️</span></h3><div class="stat"><div class="v cy num">${(S.body.waterGoal/1000).toFixed(1)} л</div><div class="l">в день</div></div></div>
     </div>
     <div class="addbtn" id="addW" style="margin-top:13px">⚖️ Записать вес на сегодня</div>`;
   weightChart(root.querySelector("#bW"), S.body.log, goal);
+  root.querySelectorAll("[data-wd]").forEach(d=>d.addEventListener("click",()=>{
+    if(!confirm("Удалить запись за "+fmtD(d.dataset.wd)+"?")) return;
+    S.body.log=S.body.log.filter(x=>x.date!==d.dataset.wd); save(); render();
+  }));
   root.querySelector("#editGoal").addEventListener("click",async()=>{
     const r=await askModal("Цель веса",[{name:"g",label:"Цель, кг",type:"number",value:goal?String(goal):""}]);
     if(!r)return; const v=parseFloat(String(r.g).replace(",",".")); if(!v)return;
@@ -723,8 +779,10 @@ function vBody(root){
 
 function vShop(root){
   const w=wallet();
+  S.myRewards=S.myRewards||[]; S.boughtMy=S.boughtMy||{};
   root.innerHTML=`<div class="glass card"><h3>Кошелёк</h3><div class="stat"><div class="v g num">${nf(w)} 🪙</div><div class="l">заработано дисциплиной · трать на реальное</div></div></div>
-    <div class="sec-h">Награды</div><div class="shop" id="shopGrid"></div>`;
+    <div class="sec-h">Награды</div><div class="shop" id="shopGrid"></div>
+    <div class="addbtn" id="addReward" style="margin-top:13px">➕ Своя награда</div>`;
   const grid=root.querySelector("#shopGrid");
   // награды многоразовые: «Кино» можно покупать хоть каждую неделю
   REWARDS.forEach(([ico,name,cost],idx)=>{
@@ -732,6 +790,31 @@ function vShop(root){
     const it=el(`<div class="si${w>=cost?" afford":""}"><div class="i">${ico}</div><div class="n">${name}</div><div class="pr">🪙 ${nf(cost)}</div>${cnt?`<div class="cnt">куплено ×${cnt}</div>`:""}`+`</div>`);
     it.addEventListener("click",()=>{ if(wallet()<cost){toast("Не хватает монет 🪙");return;} S.bought.push(idx);S.spent+=cost;save();render();toast("Награда куплена! Отдыхай честно 🎉"); });
     grid.appendChild(it);
+  });
+  // свои награды - награды всегда личные
+  S.myRewards.forEach(rw=>{
+    const cnt=S.boughtMy[rw.id]||0;
+    const it=el(`<div class="si${w>=rw.cost?" afford":""}"><span class="rm" data-id="${rw.id}" title="удалить награду">✕</span><div class="i">${rw.ico}</div><div class="n"></div><div class="pr">🪙 ${nf(rw.cost)}</div>${cnt?`<div class="cnt">куплено ×${cnt}</div>`:""}</div>`);
+    it.querySelector(".n").textContent=rw.name;
+    it.addEventListener("click",e=>{
+      if(e.target.classList.contains("rm")){
+        if(confirm(`Удалить награду «${rw.name}»?`)){ S.myRewards=S.myRewards.filter(x=>x.id!==rw.id); save(); render(); }
+        return;
+      }
+      if(wallet()<rw.cost){toast("Не хватает монет 🪙");return;}
+      S.boughtMy[rw.id]=(S.boughtMy[rw.id]||0)+1; S.spent+=rw.cost; save(); render(); toast("Награда куплена! Отдыхай честно 🎉");
+    });
+    grid.appendChild(it);
+  });
+  root.querySelector("#addReward").addEventListener("click",async()=>{
+    const r=await askModal("Своя награда",[
+      {name:"n",label:"Название (можно с эмодзи)",placeholder:"🎣 Рыбалка"},
+      {name:"c",label:"Цена в монетах 🪙",type:"number",value:"500"},
+    ]);
+    if(!r||!r.n) return;
+    let ico="🎁",nm=r.n; const m=r.n.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u); if(m){ico=m[1];nm=m[2]||r.n;}
+    const cost=Math.max(1,parseInt(r.c,10)||500);
+    S.myRewards.push({id:Date.now(),ico,name:nm,cost}); save(); render();
   });
 }
 
@@ -770,10 +853,14 @@ function addFinance(type){
 }
 
 async function addHabit(){
-  const r=await askModal("Новая привычка",[{name:"name",label:"Название (можно с эмодзи)",placeholder:"🏃 Бег по утрам"}]);
+  const r=await askModal("Новая привычка",[
+    {name:"name",label:"Название (можно с эмодзи)",placeholder:"🏃 Бег по утрам"},
+    {name:"coin",label:"Монет за выполнение 🪙",type:"number",value:"15"},
+  ]);
   if(!r||!r.name) return;
   let ico="⭐",nm=r.name; const m=r.name.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u); if(m){ico=m[1];nm=m[2]||r.name;}
-  S.habits.push({id:Math.max(0,...S.habits.map(h=>h.id))+1,ico,name:nm,coin:15}); save(); render();  // монеты назначаются сами
+  const coin=Math.min(200,Math.max(1,parseInt(r.coin,10)||15));
+  S.habits.push({id:Math.max(0,...S.habits.map(h=>h.id))+1,ico,name:nm,coin}); save(); render();
 }
 function city(cv,level,total){const {c,w,h}=setup(cv,90);const emer=gv("--emerald"),gold=gv("--gold"),cyan=gv("--cyan"),labels=["🐣","🚀","💼","🏢","👑"];const gy=h-20,px=12,slot=(w-2*px)/total;
   c.strokeStyle=cyan;c.globalAlpha=.5;c.lineWidth=1.4;c.shadowColor=cyan;c.shadowBlur=7;c.beginPath();c.moveTo(px,gy+.5);c.lineTo(w-px,gy+.5);c.stroke();c.shadowBlur=0;c.globalAlpha=1;
@@ -847,6 +934,20 @@ const tabsEl=document.getElementById("tabs");
 TABS.forEach(([id,label])=>{const b=el(`<div class="tab" data-t="${id}">${label}</div>`);b.addEventListener("click",()=>{cur=id;render();window.scrollTo(0,0);});tabsEl.appendChild(b);});
 let rzT; window.addEventListener("resize",()=>{clearTimeout(rzT);rzT=setTimeout(render,150);});
 
+// кошелёк в шапке ведёт в награды (куда ещё тратить монеты?)
+(function(){
+  const cc=document.querySelector(".chip.coin"); if(!cc) return;
+  cc.style.cursor="pointer"; cc.title="Награды";
+  cc.addEventListener("click",()=>{cur="shop";render();window.scrollTo(0,0);});
+})();
+
+// плашка «это демо» - до покупки набора; прячется крестиком
+(function(){
+  const bar=document.getElementById("demoBar"); if(!bar) return;
+  if(!S.hideDemoBar) bar.classList.add("show");
+  document.getElementById("demoBarX").onclick=()=>{S.hideDemoBar=true;save();bar.classList.remove("show");};
+})();
+
 function showOnboarding(){
   const ovl=el(`<div class="ovl"></div>`);
   const m=el(`<div class="modal" style="max-width:380px">
@@ -859,7 +960,7 @@ function showOnboarding(){
     </div></div>`);
   ovl.appendChild(m); document.body.appendChild(ovl);
   m.querySelector("#obFresh").onclick=()=>{ S=freshStart(); save(); ovl.remove(); render(); };
-  m.querySelector("#obDemo").onclick=()=>{ save(); ovl.remove(); };
+  m.querySelector("#obDemo").onclick=()=>{ S.demoData=true; save(); ovl.remove(); render(); };
 }
 
 render();
