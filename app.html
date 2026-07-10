@@ -2,7 +2,11 @@
 <title>Магнат</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Магнат">
 <meta name="theme-color" content="#080b11">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%8F%9B%3C/text%3E%3C/svg%3E">
 <style>
   :root{
@@ -143,7 +147,10 @@
   .share-btn{width:100%; margin-top:13px; padding:15px; border-radius:14px; border:none; cursor:pointer; font-size:16px; font-weight:700;
     background:linear-gradient(180deg,var(--emerald),#17a768); color:#04120b; box-shadow:0 0 24px #2fe38f40; transition:transform .1s;}
   .share-btn:active{transform:scale(.99)}
-  .reset{display:block; margin:26px auto 0; background:none; border:none; color:var(--mut2); font-size:11px; text-decoration:underline; cursor:pointer;}
+  .reset{display:block; margin:20px auto 0; background:none; border:none; color:var(--mut2); font-size:11px; text-decoration:underline; cursor:pointer;}
+  .bkrow{display:flex; gap:10px; margin-top:22px;}
+  .bk{flex:1; padding:11px 8px; border-radius:11px; background:var(--panel); border:1px solid var(--line2); color:var(--mut); font-size:12.5px; cursor:pointer;}
+  .bknote{text-align:center; font-size:10.5px; color:var(--mut2); margin-top:8px; line-height:1.5;}
   @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -445,6 +452,11 @@ function vHome(root){
      <div class="glass card"><h3>Вес</h3><div class="stat"><div class="v cy num">${w?w+" кг":"-"}</div><div class="l">${S.body.goalW?"цель "+S.body.goalW+" кг":"запиши вес"}</div></div><canvas id="hBody" style="margin-top:8px"></canvas></div>
      <div class="glass card"><h3>Империя</h3><canvas id="hCity" height="90"></canvas><div style="text-align:center;font-size:11px;color:var(--mut2);margin-top:6px">ты на <b class="e">${li+1} из 5</b></div></div>
    </div>
+   <div class="bkrow">
+     <button class="bk" id="bkSave">💾 Скачать копию данных</button>
+     <button class="bk" id="bkLoad">📥 Восстановить из копии</button>
+   </div>
+   <p class="bknote">Данные живут в этом браузере. Копия - страховка при смене телефона или чистке кэша.</p>
    <button class="reset" id="resetBtn">сбросить всё и начать с чистого листа</button>`;
   // charts
   const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),diM=new Date(y,mo+1,0).getDate();
@@ -471,6 +483,29 @@ function vHome(root){
       save();render();
     });
     cw.appendChild(chip);
+  });
+  root.querySelector("#bkSave").addEventListener("click",()=>{
+    const blob=new Blob([JSON.stringify(S)],{type:"application/json"});
+    const url=URL.createObjectURL(blob), a=document.createElement("a");
+    a.href=url; a.download="magnat-backup-"+TODAY+".json"; a.click();
+    URL.revokeObjectURL(url); toast("Копия сохранена 💾");
+  });
+  root.querySelector("#bkLoad").addEventListener("click",()=>{
+    const inp=document.createElement("input"); inp.type="file"; inp.accept=".json,application/json";
+    inp.onchange=()=>{
+      const f=inp.files[0]; if(!f) return;
+      const rd=new FileReader();
+      rd.onload=()=>{
+        try{
+          const d=JSON.parse(rd.result);
+          if(!d || !Array.isArray(d.habits) || typeof d.checks!=="object") throw 0;
+          if(!confirm("Заменить текущие данные данными из копии?")) return;
+          S=d; save(); render(); toast("Данные восстановлены 📥");
+        }catch(e){ toast("Файл не похож на копию Магната 🤔"); }
+      };
+      rd.readAsText(f);
+    };
+    inp.click();
   });
   root.querySelector("#resetBtn").addEventListener("click",()=>{ if(confirm("Стереть весь прогресс (привычки, задачи, финансы, вес) и начать с чистого листа?")){S=freshStart();save();render();} });
   root.querySelector("#shareBtn").addEventListener("click",shareCard);
