@@ -104,6 +104,7 @@
   .si.bought{opacity:.5} .si.bought .pr{color:var(--emerald)}
 
   .sec-h{font-size:15px; margin:22px 2px 12px;}
+  .ins-t b{color:var(--gold);}
   /* аккуратная форма добавления (вместо системных prompt) */
   .ovl{position:fixed; inset:0; background:#000b; backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px;}
   .modal{width:100%; max-width:360px; background:linear-gradient(168deg,#16223a,#0f1520); border:1px solid var(--line2); border-radius:20px; padding:22px; box-shadow:0 20px 60px #000a;}
@@ -223,6 +224,46 @@ function totalXP(){let t=0;for(const d in S.checks)t+=coinsFor(d);return t;}
 function levelIdx(xp){let i=0;for(let k=0;k<LEVELS.length;k++)if(xp>=LEVELS[k][1])i=k;return i;}
 const curStreak=()=>dayComplete(TODAY)?streakEndingOn(TODAY):streakEndingOn(addDays(TODAY,-1));
 const wallet=()=>totalXP()-S.spent;
+
+// ---- честные инсайты: только из реальных локальных данных ----
+function recordStreak(){
+  const days=Object.keys(S.checks).filter(dayComplete).sort();
+  let best=0,run=0,prev=null;
+  for(const d of days){ run=(prev && addDays(prev,1)===d)?run+1:1; if(run>best)best=run; prev=d; }
+  return best;
+}
+function pctRange(fromAgo,toAgo){ // % выполнения за диапазон дней назад (включительно)
+  let dc=0,tp=0;
+  for(let k=fromAgo;k>=toAgo;k--){ dc+=checksOf(addDays(TODAY,-k)).length; tp+=S.habits.length; }
+  return tp?dc/tp:0;
+}
+function homeInsight(){
+  if(Object.keys(S.checks).length<7 || !S.habits.length) return null;
+  // 1) близкий рекорд серии
+  const rec=recordStreak(), st=curStreak();
+  if(st>0 && st<rec){
+    const n=rec-st+1;
+    if(n<=7){ const w=n===1?"день":(n<5?"дня":"дней");
+      return `Держи темп ещё <b>${n} ${w}</b> - побьёшь свой рекорд из <b>${rec} дн.</b>`; }
+  }
+  // 2) заметная дельта дисциплины неделя к неделе
+  const a=pctRange(6,0), b=pctRange(13,7);
+  if(b>0){
+    const d=Math.round((a-b)/b*100);
+    if(d>=10) return `За неделю дисциплина выросла на <b>+${d}%</b>. Отличный разгон.`;
+    if(d<=-10) return `Дисциплина просела на <b>${Math.abs(d)}%</b> за неделю - вернись в ритм сегодня.`;
+  }
+  // 3) слабый день недели за 30 дней
+  const wd=[0,0,0,0,0,0,0], wt=[0,0,0,0,0,0,0];
+  for(let k=0;k<30;k++){ const ds=addDays(TODAY,-k), w=parseYmd(ds).getDay(); wd[w]+=checksOf(ds).length; wt[w]+=S.habits.length; }
+  let wi=-1,wr=2;
+  for(let w=0;w<7;w++){ if(wt[w]>0){ const r=wd[w]/wt[w]; if(r<wr){wr=r;wi=w;} } }
+  if(wi>=0){
+    const nm=["воскресенье","понедельник","вторник","среду","четверг","пятницу","субботу"][wi];
+    return `Чаще всего пропускаешь <b>${nm}</b> - поставь на этот день минимум дел.`;
+  }
+  return null;
+}
 const CURMONTH=TODAY.slice(0,7);
 const monthEntries=()=>S.finance.entries.filter(e=>e.date.slice(0,7)===CURMONTH);
 
@@ -325,6 +366,7 @@ function vHome(root){
   const out=me.filter(e=>e.type==="out").reduce((s,e)=>s+e.amount,0);
   const tOpen=S.tasks.filter(t=>!t.done).length;
   const w=body_curW();
+  const ins=homeInsight();
   root.innerHTML=`
    <div class="glass hero">
      <div class="hero-row">
@@ -344,6 +386,8 @@ function vHome(root){
      <div class="donut-wrap"><canvas id="todayRing"></canvas><div class="donut-c"><div class="p e" id="todayP">0%</div><div class="t">выполнено</div></div></div>
      <div class="tchips" id="todayChips"></div>
    </div>
+   ${ins?`<div class="glass card" style="margin-top:13px"><h3>Инсайт недели</h3>
+     <div style="display:flex;gap:10px;font-size:13.5px;color:var(--mut);line-height:1.55;align-items:flex-start"><span style="flex:none">💡</span><span class="ins-t">${ins}</span></div></div>`:""}
    <button class="share-btn" id="shareBtn">📤 Поделиться своей империей</button>
    <div class="grid" style="margin-top:13px">
      <div class="glass card"><h3>Месяц выполнен</h3><div class="donut-wrap"><canvas id="hDonut"></canvas><div class="donut-c"><div class="p e" id="hDonutP">0%</div><div class="t">привычки</div></div></div></div>
@@ -562,10 +606,7 @@ function vShop(root){
   REWARDS.forEach(([ico,name,cost],idx)=>{
     const bought=S.bought.includes(idx);
     const it=el(`<div class="si${bought?" bought":(w>=cost?" afford":"")}"><div class="i">${ico}</div><div class="n">${bought?"Куплено ✓":name}</div><div class="pr">🪙 ${nf(cost)}</div></div>`);
-    it.addEventListener("click",()=>{ if(bought)return; if(wallet()<cost){toast("Не хватает монет 🪙");return;}
-      const r=it.getBoundingClientRect();
-      confettiBurst(r.left+r.width/2, r.top+r.height/2, 30, ["#f5c451","#ffdf8e","#2fe38f","#35d0ff"]);
-      S.bought.push(idx);S.spent+=cost;save();render();toast("Награда куплена! Отдыхай честно 🎉"); });
+    it.addEventListener("click",()=>{ if(bought)return; if(wallet()<cost){toast("Не хватает монет 🪙");return;} S.bought.push(idx);S.spent+=cost;save();render();toast("Награда куплена! Отдыхай честно 🎉"); });
     grid.appendChild(it);
   });
 }

@@ -455,8 +455,7 @@
   .final .skyline i:nth-child(2){font-size:26px}
   .final .skyline i:nth-child(3){font-size:32px}
   .final .skyline i:nth-child(4){font-size:39px}
-  .final .skyline i:nth-child(5){font-size:47px; opacity:1; filter:none; text-shadow:0 0 30px #f6c85a77; animation:crownf 4.5s ease-in-out infinite;}
-  @keyframes crownf{50%{transform:translateY(-6px)}}
+  .final .skyline i:nth-child(5){font-size:44px; opacity:1; filter:none; text-shadow:0 0 22px #f6c85a55;}
 
   footer{border-top:1px solid var(--line); padding:32px 0 36px; color:var(--mut2); font-size:12.5px; line-height:1.9; text-align:center;}
   footer .flinks{display:flex; flex-direction:column; gap:6px; margin-bottom:18px;}
@@ -1096,13 +1095,14 @@ function confettiBurst(x,y,n,colors){
         lv.textContent=LVL[ni][0];
         emp.forEach(function(e,k){ e.classList.toggle("on", k<=ni); });
         if(up){
+          /* промежуточные уровни - тихая радость (pop + здание); салют - ТОЛЬКО за финал */
           lv.classList.remove("pop"); void lv.offsetWidth; lv.classList.add("pop");
           var slot=emp[ni]; slot.classList.remove("pop"); void slot.offsetWidth; slot.classList.add("pop");
-          var r=slot.getBoundingClientRect();
-          confettiBurst(r.left+r.width/2, r.top+r.height/2, ni===4?70:26,
-            ni===4 ? ["#f6c85a","#ffdf8e","#fff3d1","#d8a63d"]
-                   : ["#34e39a","#f6c85a","#3dd6ff","#b98bff"]);
-          if(ni===4 && hint) hint.innerHTML="👑 <b style=\"color:var(--gold)\">Идеальная неделя!</b> Представь это чувство каждый вечер.";
+          if(ni===4){
+            var r=slot.getBoundingClientRect();
+            confettiBurst(r.left+r.width/2, r.top+r.height/2, 70, ["#f6c85a","#ffdf8e","#fff3d1","#d8a63d"]);
+            if(hint) hint.innerHTML="👑 <b style=\"color:var(--gold)\">Идеальная неделя!</b> Представь это чувство каждый вечер.";
+          }
         }
       }
     });
