@@ -1,7 +1,7 @@
 <meta charset="utf-8">
 <title>Магнат - планер, который играет с тобой</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Набор из 5 Google-таблиц с игровой механикой: привычки, задачи, фитнес, неделя, финансы. Галочки дают монеты, монеты растят уровень. 990 ₽ навсегда.">
+<meta name="description" content="5 живых дашбордов в Google-таблицах с игровой механикой: привычки, задачи, фитнес, неделя, финансы. KPI, графики, инсайты. Галочки дают монеты, монеты растят уровень. 990 ₽ навсегда.">
 <meta name="theme-color" content="#070a0f">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%8F%9B%3C/text%3E%3C/svg%3E">
 <!-- превью ссылки в Telegram/VK/WhatsApp -->
@@ -108,6 +108,10 @@
     background:linear-gradient(150deg,#123c2c,#0a1a24); border:1px solid var(--line2); box-shadow:0 0 16px #34e39a2e, inset 0 1px 0 #ffffff14;}
   nav .btn{padding:10px 19px; font-size:14px;}
   nav .btn-p::after{display:none}
+  nav .nl{display:flex; gap:26px; font-size:13.5px;}
+  nav .nl a{color:var(--mut); text-decoration:none; transition:color .2s;}
+  nav .nl a:hover{color:var(--ink);}
+  @media(max-width:860px){nav .nl{display:none}}
 
   /* hero */
   .hero{display:grid; grid-template-columns:1.06fr .94fr; gap:48px; align-items:center; padding:66px 0 40px;}
@@ -252,14 +256,45 @@
   .ring text{font-family:var(--fb); font-weight:800; fill:#212a36;}
   .ring .cap{fill:#8a97a8; font-weight:600;}
 
-  /* фитнес: группы мышц (вместо человечков) */
-  .mgroups{display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; margin:2px 0 4px;}
-  .mg{display:flex; align-items:center; gap:8px; font-size:10.5px;}
-  .mg .mn{width:56px; color:#2c3542; flex:none;}
-  .mg .mbar{flex:1; height:9px; border-radius:5px; background:#eef2f7; overflow:hidden;}
-  .mg .mbar i{display:block; height:100%; width:0; border-radius:5px; transition:width 1.1s var(--ease) calc(var(--k,0)*.08s + .25s);}
-  .planner.in .mg .mbar i{width:var(--w,60%);}
-  .mg .ms{width:28px; text-align:right; color:#8a97a8; font-variant-numeric:tabular-nums; flex:none;}
+  /* ====== премиум-дашборды внутри листов ====== */
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin-bottom:9px;}
+  .kpis.k3{grid-template-columns:repeat(3,1fr);}
+  .kpi{background:#fff; border:1px solid var(--s-grid); border-radius:9px; padding:7px 9px 8px; position:relative; overflow:hidden; min-width:0;}
+  .kpi::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--kc,var(--s-grn));}
+  .kpi .kl{font-size:7.5px; color:#8a97a8; text-transform:uppercase; letter-spacing:.5px; font-weight:700; white-space:nowrap;}
+  .kpi .kv{font-size:14px; font-weight:800; color:#212a36; font-variant-numeric:tabular-nums; margin-top:3px; white-space:nowrap;}
+  .kpi .kd{font-size:8px; font-weight:700; margin-top:4px; display:inline-block; padding:1.5px 6px; border-radius:99px; white-space:nowrap;}
+  .kd.up{background:var(--s-grnb); color:#0d7a4c;} .kd.dn{background:var(--s-redb); color:#c0344a;} .kd.nt{background:#eef2f7; color:#637184;}
+  /* инсайт-строка (аналитика считается формулами) */
+  .insight{display:flex; gap:7px; align-items:flex-start; background:linear-gradient(90deg,#fdf7e7,#fff); border:1px solid #f0e2b6; border-radius:8px; padding:7px 9px; margin-top:9px; font-size:9.5px; color:#5b6b82; line-height:1.5; text-align:left;}
+  .insight b{color:#212a36} .insight .ii{flex:none; font-size:12px; line-height:1.2;}
+  /* столбчатый мини-график */
+  .lab2{font-size:8.5px; color:#7d8a99; letter-spacing:.5px; text-transform:uppercase; font-weight:600; margin-bottom:4px; display:block;}
+  .cbars{display:flex; align-items:flex-end; justify-content:space-between; gap:4px; height:52px;}
+  .cbars i{flex:1; max-width:38px; border-radius:3px 3px 0 0; background:var(--cb,#12a565); height:4%; transition:height .9s var(--ease) calc(var(--k,0)*60ms + .2s); min-width:6px;}
+  .planner.in .cbars i{height:var(--h,50%);}
+  .cbl{display:flex; justify-content:space-between; gap:4px; margin-top:3px;}
+  .cbl span{flex:1; max-width:38px; text-align:center; font-size:7px; color:#a7b1c0; font-weight:700; text-transform:uppercase;}
+  /* прогресс уровня внутри листа */
+  .lvlrow{display:flex; align-items:center; gap:8px; margin-top:9px; font-size:9px; color:#5b6b82; white-space:nowrap;}
+  .lvlrow b{color:#212a36}
+  .lvlbar{flex:1; height:8px; border-radius:99px; background:#eef2f7; overflow:hidden; min-width:60px;}
+  .lvlbar i{display:block; height:100%; width:0; border-radius:99px; background:linear-gradient(90deg,#12a565,#0c7a4a); transition:width 1.2s var(--ease) .3s;}
+  .planner.in .lvlbar i{width:var(--w,50%);}
+  /* радар баланса мышц */
+  .radar{width:100%; height:auto; display:block;}
+  .radar .rgrid{fill:none; stroke:#e9edf3; stroke-width:1;}
+  .radar .rpoly{fill:#e0556a2b; stroke:#e0556a; stroke-width:1.6; stroke-linejoin:round; opacity:0; transition:opacity .8s ease .35s;}
+  .planner.in .radar .rpoly{opacity:1;}
+  .radar text{font-family:var(--fb); font-size:6.5px; fill:#8a97a8; font-weight:600;}
+  /* вкладки листов снизу - как в настоящих Google Таблицах */
+  .sheet .tabsg{display:flex; align-items:center; gap:3px; background:#f1f4f9; border-top:1px solid #e4e9f1; padding:4px 8px; font-size:8px; color:#7d8a99; white-space:nowrap;}
+  .sheet .tabsg span{padding:2.5px 9px; border-radius:5px;}
+  .sheet .tabsg span.on{background:#fff; color:#212a36; font-weight:700; border:1px solid #dfe5ee;}
+  /* фокус-цели недели */
+  .focus{display:flex; gap:6px; margin-top:9px; flex-wrap:wrap;}
+  .focus span{font-size:8.5px; padding:3.5px 8px; border-radius:99px; border:1px solid var(--s-grid); background:var(--s-alt); color:#5b6b82; font-weight:600;}
+  .focus span.dn2{background:var(--s-grnb); border-color:#bfe6d3; color:#0d7a4c;}
 
   /* компоновка листов */
   .row2{display:grid; grid-template-columns:1fr 120px; gap:12px; align-items:stretch;}
@@ -320,6 +355,25 @@
   .step .n{font-size:10px; color:var(--gold); letter-spacing:2px; font-weight:700; margin-bottom:6px;}
   .step h3{font-size:16px; margin:10px 0 6px;}
   .step p{font-size:13px; color:var(--mut);}
+
+  /* сравнение: мёртвая таблица vs магнат */
+  .vs{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:36px;}
+  .vcol{padding:24px 22px;}
+  .vcol h3{font-size:16.5px; margin-bottom:8px; display:flex; align-items:center; gap:9px;}
+  .vcol .vi{font-size:13px; color:var(--mut); padding:9px 0; border-top:1px solid var(--line); display:flex; gap:9px; align-items:flex-start;}
+  .vcol .vi::before{font-weight:800; flex:none;}
+  .vcol.dead{opacity:.85;} .vcol.dead .vi::before{content:"✕"; color:var(--rose);}
+  .vcol.alive{border-color:#1c7a54; box-shadow:0 0 46px -14px #34e39a33, var(--shadow);}
+  .vcol.alive .vi::before{content:"✓"; color:var(--emerald);}
+  .vcol.alive .vi{color:var(--ink);}
+  @media(max-width:700px){.vs{grid-template-columns:1fr}}
+
+  /* закреплённая кнопка на мобиле */
+  .mcta{position:fixed; left:0; right:0; bottom:0; z-index:25; padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    background:#070a0ff0; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-top:1px solid var(--line); display:none;}
+  .mcta .btn{width:100%; padding:13px;}
+  @media(max-width:640px){ .mcta.show{display:block; animation:mctain .35s var(--ease);} }
+  @keyframes mctain{from{transform:translateY(100%)}}
 
   /* бандл */
   .bundle{display:grid; grid-template-columns:.9fr 1.1fr; gap:48px; align-items:center;}
@@ -427,8 +481,9 @@
     .row2{grid-template-columns:minmax(0,1fr) 90px;}
     .donutwrap{max-width:86px;}
     .stat{min-width:0; padding:7px 6px;} .stat b{font-size:13px;} .totrow{gap:6px;}
-    .mgroups{grid-template-columns:1fr; gap:6px;}
-    .mg{font-size:10px;} .mg .mn{width:52px;} .mg .ms{width:24px;}
+    /* KPI в 2 колонки: лист становится уже -> scale-to-fit крупнее и читабельнее */
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    .kpis.k3{grid-template-columns:repeat(2,1fr);}
     .weekgrid{gap:3px;}
     .wd{padding:5px 1px;}
     .wd .ring{width:24px; height:24px;}
@@ -455,6 +510,12 @@
 
 <nav><div class="wrap">
   <div class="logo"><div class="c">🏛</div>Магнат</div>
+  <div class="nl">
+    <a href="#set">Что внутри</a>
+    <a href="#vs">Отличия</a>
+    <a href="#price">Цена</a>
+    <a href="#faq">FAQ</a>
+  </div>
   <a href="#price" class="btn btn-p">Получить</a>
 </div></nav>
 
@@ -462,7 +523,7 @@
   <div>
     <div class="kicker h-el">Планер · игра · тайкун</div>
     <h1 class="h-el"><span class="w">Планер,</span> <span class="w">который</span> <span class="hl w">играет</span> <span class="hl w">с</span> <span class="hl w">тобой</span></h1>
-    <p class="lead h-el">Набор из 5 Google-таблиц с механикой тайкуна: галочки дают монеты, монеты растят уровень. Дисциплина перестаёт быть скучной.</p>
+    <p class="lead h-el">Хватит бросать всё на третий день. 5 Google-таблиц с механикой тайкуна: галочки дают монеты, серия множит доход, монеты растят уровень - дисциплина затягивает, как игра.</p>
     <div class="cta h-el">
       <a href="#price" class="btn btn-p">🏛 Получить за 990 ₽</a>
       <a href="#set" class="btn btn-g">Что внутри</a>
@@ -491,8 +552,8 @@
 
 <section id="set"><div class="wrap">
   <div class="kicker rv">Набор 5 в 1</div>
-  <h2 class="rv uline">Пять живых таблиц, одна игра</h2>
-  <p class="sub rv">Не скучные списки, а полноценные Google-таблицы: автоформулы, графики, кривые прогресса и пончики - как у топовых планеров, только прошитые игрой. Листай -&gt;</p>
+  <h2 class="rv uline">Пять живых дашбордов, одна игра</h2>
+  <p class="sub rv">Не скучные списки, а полноценные дашборды в Google-таблицах: KPI-карточки, живые графики, инсайты и уровни, которые считаются сами. Как топовый SaaS - только твоё навсегда. Листай -&gt;</p>
 
   <div class="pcarousel rv">
    <button class="parrow l" id="arrPrev" aria-label="предыдущий">‹</button>
@@ -500,12 +561,18 @@
    <div class="planners" id="planners">
     <!-- 1. ПРИВЫЧКИ -->
     <article class="glass planner p1 rv">
-      <div class="p-head"><div class="ic">✅</div><div><h3>Планер привычек</h3><div class="st">бестселлер · система роста</div></div><span class="core">ядро</span></div>
-      <div class="sheet" data-cols="8" data-rows="11">
+      <div class="p-head"><div class="ic">✅</div><div><h3>Планер привычек</h3><div class="st">штаб дисциплины · ядро игры</div></div><span class="core">ядро</span></div>
+      <div class="sheet" data-cols="8" data-rows="13">
         <div class="win"><span class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span><span class="gi"></span><span class="fn">Магнат · Привычки.gsheet</span><span class="tools">▦ Σ ⌄</span></div>
         <div class="cols"></div>
         <div class="grip"><div class="rows"></div><div class="content">
-          <div class="ttl"><span class="sq"></span><b>ПРИВЫЧКИ · НЕДЕЛЯ</b><span class="pct">82%</span></div>
+          <div class="ttl"><span class="sq"></span><b>ШТАБ ДИСЦИПЛИНЫ</b><span class="pct">82%</span></div>
+          <div class="kpis">
+            <div class="kpi" style="--kc:#c98a12"><div class="kl">Серия</div><div class="kv">🔥 6 дней</div><span class="kd up">рекорд месяца</span></div>
+            <div class="kpi"><div class="kl">Множитель</div><div class="kv">×1.6</div><span class="kd nt">максимум ×2</span></div>
+            <div class="kpi" style="--kc:#c98a12"><div class="kl">Сегодня</div><div class="kv">+136 🪙</div><span class="kd up">+18% к вчера</span></div>
+            <div class="kpi" style="--kc:#7a52d0"><div class="kl">Уровень</div><div class="kv">💼 3 из 5</div><span class="kd nt">Предприниматель</span></div>
+          </div>
           <div class="row2">
             <div class="wavebox">
               <span class="lab">Кривая прогресса</span>
@@ -532,13 +599,15 @@
             <tr><td class="nm">🧊 Холодный душ</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="pcell">86%</td></tr>
             <tr><td class="nm">💧 Вода 2 литра</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="pcell">90%</td></tr>
           </table>
-          <div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:10px;color:#5b6b82">🔥 серия <b style="color:#c98a12">6</b> · x1.6 · сегодня <b style="color:#c98a12">+136&#160;🪙</b></div>
+          <div class="lvlrow"><b>💼 Предприниматель</b><span class="lvlbar"><i style="--w:28%"></i></span><span><b>2 480</b> / 5 000 🪙 до Директора</span></div>
+          <div class="insight"><span class="ii">💡</span><span><b>Пятница - твой сильный день: 94%.</b> Ещё 1 день серии - и множитель вырастет до <b>×1.7</b>.</span></div>
         </div></div>
+        <div class="tabsg"><span class="on">📊 Дашборд</span><span>Привычки</span><span>История</span><span>Настройки</span><span style="margin-left:auto">＋</span></div>
       </div>
       <div class="p-feats">
-        <div class="f"><b>Авторасчёт %</b> по привычкам</div>
-        <div class="f"><b>Кривая прогресса</b> недель</div>
-        <div class="f"><b>Серия</b> множит монеты до x2</div>
+        <div class="f"><b>KPI-дашборд</b> серия · монеты · уровень</div>
+        <div class="f"><b>Кривая прогресса</b> и % месяца</div>
+        <div class="f"><b>Инсайты недели</b> считаются сами</div>
         <div class="f"><b>Уровни</b> Новичок → Магнат</div>
       </div>
     </article>
@@ -546,15 +615,16 @@
     <!-- 2. ЗАДАЧИ -->
     <article class="glass planner p2 rv">
       <div class="p-head"><div class="ic">🎯</div><div><h3>Планер задач</h3><div class="st">приоритеты · сроки</div></div></div>
-      <div class="sheet" data-cols="7" data-rows="11">
+      <div class="sheet" data-cols="7" data-rows="13">
         <div class="win"><span class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span><span class="gi"></span><span class="fn">Магнат · Задачи.gsheet</span><span class="tools">▦ Σ ⌄</span></div>
         <div class="cols"></div>
         <div class="grip"><div class="rows"></div><div class="content">
-          <div class="ttl"><span class="sq" style="--ac:#e0a93a"></span><b>МОИ ЗАДАЧИ</b></div>
-          <div class="totrow" style="margin:0 0 9px">
-            <div class="stat gd"><b>6</b><span>всего</span></div>
-            <div class="stat r"><b>1</b><span>срочные</span></div>
-            <div class="stat g"><b>1</b><span>готово</span></div>
+          <div class="ttl"><span class="sq" style="--ac:#e0a93a"></span><b>ЦЕНТР ЗАДАЧ</b><span class="pct" style="color:#c98a12">84% в срок</span></div>
+          <div class="kpis">
+            <div class="kpi" style="--kc:#c98a12"><div class="kl">Открыто</div><div class="kv">5</div><span class="kd nt">2 на сегодня</span></div>
+            <div class="kpi" style="--kc:#e0556a"><div class="kl">Горит</div><div class="kv">⚠ 1</div><span class="kd dn">просрочка 1 дн.</span></div>
+            <div class="kpi"><div class="kl">За неделю</div><div class="kv">12 ✓</div><span class="kd up">+4 к прошлой</span></div>
+            <div class="kpi"><div class="kl">В срок</div><div class="kv">84%</div><span class="kd up">+6%</span></div>
           </div>
           <table class="grid">
             <tr><th style="text-align:left">Задача</th><th>Срок</th><th>Осталось</th><th>Приоритет</th><th>✓</th></tr>
@@ -563,35 +633,38 @@
             <tr><td class="nm strike">📚 Прочитать 20 страниц</td><td class="num strike">9 янв</td><td class="ck2 on">✓</td><td><span class="pill lo">Низкий</span></td><td class="ck2 on">✓</td></tr>
             <tr><td class="nm">💸 Оплатить кредитку</td><td class="num">8 янв</td><td class="neg">-1 дн.</td><td><span class="pill ur">Срочно</span></td><td class="ck2 off">☐</td></tr>
             <tr><td class="nm">📞 Позвонить маме</td><td class="num">14 янв</td><td class="num" style="color:#c98a12">3 дн.</td><td><span class="pill md">Средний</span></td><td class="ck2 off">☐</td></tr>
-            <tr><td class="nm">🏦 План на неделю</td><td class="num">13 янв</td><td class="num" style="color:#c98a12">2 дн.</td><td><span class="pill lo">Низкий</span></td><td class="ck2 off">☐</td></tr>
           </table>
+          <div class="cbx" style="margin-top:9px"><span class="lab2">Закрыто задач по дням</span>
+            <div class="cbars" style="--cb:#e0a93a"><i style="--h:55%;--k:0"></i><i style="--h:80%;--k:1"></i><i style="--h:60%;--k:2"></i><i style="--h:90%;--k:3"></i><i style="--h:70%;--k:4"></i><i style="--h:35%;--k:5"></i><i style="--h:18%;--k:6"></i></div>
+            <div class="cbl"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
+          </div>
+          <div class="insight"><span class="ii">💡</span><span><b>Пик продуктивности - четверг.</b> «Оплатить кредитку» просрочена на 1 день - закрой её первой.</span></div>
         </div></div>
+        <div class="tabsg"><span class="on">📊 Дашборд</span><span>Задачи</span><span>Архив</span><span style="margin-left:auto">＋</span></div>
       </div>
       <div class="p-feats">
+        <div class="f"><b>KPI-плитки</b> открыто · горит · в срок</div>
         <div class="f"><b>Авторасчёт</b> дней до срока</div>
-        <div class="f"><b>Цветные</b> приоритеты</div>
-        <div class="f"><b>Категории</b> и сортировка</div>
         <div class="f"><b>Просрочка</b> краснеет сама</div>
+        <div class="f"><b>График</b> закрытых по дням</div>
       </div>
     </article>
 
     <!-- 3. ФИТНЕС -->
     <article class="glass planner p3 rv">
       <div class="p-head"><div class="ic">💪</div><div><h3>Фитнес-планер</h3><div class="st">мышцы · вес · калории</div></div></div>
-      <div class="sheet" data-cols="7" data-rows="11">
+      <div class="sheet" data-cols="7" data-rows="13">
         <div class="win"><span class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span><span class="gi"></span><span class="fn">Магнат · Тело.gsheet</span><span class="tools">▦ Σ ⌄</span></div>
         <div class="cols"></div>
         <div class="grip"><div class="rows"></div><div class="content">
-          <div class="ttl"><span class="sq" style="--ac:#e0556a"></span><b>ТЕЛО · НАГРУЗКА ЗА НЕДЕЛЮ</b><span class="pct" style="color:#e0556a">4/7</span></div>
-          <div class="mgroups">
-            <div class="mg" style="--k:0"><span class="mn">Грудь</span><span class="mbar"><i style="--w:80%;background:linear-gradient(90deg,#e0556a,#f2889a)"></i></span><span class="ms">12</span></div>
-            <div class="mg" style="--k:1"><span class="mn">Спина</span><span class="mbar"><i style="--w:70%;background:linear-gradient(90deg,#e0556a,#f2889a)"></i></span><span class="ms">10</span></div>
-            <div class="mg" style="--k:2"><span class="mn">Ноги</span><span class="mbar"><i style="--w:95%;background:linear-gradient(90deg,#e0556a,#f2889a)"></i></span><span class="ms">14</span></div>
-            <div class="mg" style="--k:3"><span class="mn">Руки</span><span class="mbar"><i style="--w:60%;background:linear-gradient(90deg,#e0556a,#f2889a)"></i></span><span class="ms">8</span></div>
-            <div class="mg" style="--k:4"><span class="mn">Плечи</span><span class="mbar"><i style="--w:55%;background:linear-gradient(90deg,#e0556a,#f2889a)"></i></span><span class="ms">7</span></div>
-            <div class="mg" style="--k:5"><span class="mn">Пресс</span><span class="mbar"><i style="--w:85%;background:linear-gradient(90deg,#e0556a,#f2889a)"></i></span><span class="ms">13</span></div>
+          <div class="ttl"><span class="sq" style="--ac:#e0556a"></span><b>ПАНЕЛЬ ФОРМЫ</b><span class="pct" style="color:#12a565">−5.1 кг</span></div>
+          <div class="kpis">
+            <div class="kpi"><div class="kl">Вес</div><div class="kv">78.9 кг</div><span class="kd up">−5.1 за месяц</span></div>
+            <div class="kpi" style="--kc:#e0556a"><div class="kl">Тренировки</div><div class="kv">4 / 7</div><span class="kd nt">план 5</span></div>
+            <div class="kpi" style="--kc:#c98a12"><div class="kl">Калории</div><div class="kv">2 350</div><span class="kd nt">цель 2 400</span></div>
+            <div class="kpi" style="--kc:#2f8fd8"><div class="kl">Сон</div><div class="kv">7.5 ч</div><span class="kd up">+0.4 ч</span></div>
           </div>
-          <div class="row2" style="margin-top:10px">
+          <div class="row2">
             <div class="wavebox" style="background:linear-gradient(180deg,#fef2f4,#fff)">
               <span class="lab">Вес, кг</span>
               <svg class="wave" viewBox="0 0 300 60" preserveAspectRatio="none">
@@ -600,19 +673,33 @@
                 <path class="wline" stroke="#e0556a" d="M0,12 C40,16 60,18 96,22 S168,28 208,34 S268,44 300,48"/>
               </svg>
             </div>
-            <div class="rightcol"><div class="stat g" style="text-align:center"><b>-5.1</b><span>кг за месяц</span></div></div>
+            <div class="rightcol">
+              <svg class="radar" viewBox="0 0 120 102">
+                <polygon class="rgrid" points="60,19 88.6,35.5 88.6,68.5 60,85 31.4,68.5 31.4,35.5"/>
+                <polygon class="rgrid" points="60,30 79,41 79,63 60,74 41,63 41,41"/>
+                <polygon class="rgrid" points="60,41 69.5,46.5 69.5,57.5 60,63 50.5,57.5 50.5,46.5"/>
+                <path class="rgrid" d="M60,19 L60,85 M88.6,35.5 L31.4,68.5 M88.6,68.5 L31.4,35.5"/>
+                <polygon class="rpoly" points="60,25.6 80,40.5 87.1,67.7 60,71.8 44.3,61.1 35.7,38"/>
+                <text x="60" y="12" text-anchor="middle">Грудь</text>
+                <text x="91" y="33">Спина</text>
+                <text x="91" y="74">Ноги</text>
+                <text x="60" y="96" text-anchor="middle">Руки</text>
+                <text x="29" y="74" text-anchor="end">Плечи</text>
+                <text x="29" y="33" text-anchor="end">Пресс</text>
+              </svg>
+              <div style="text-align:center;font-size:7.5px;color:#8a97a8;letter-spacing:.5px;text-transform:uppercase;font-weight:600">Баланс мышц</div>
+            </div>
           </div>
-          <div class="totrow">
-            <div class="stat"><b>4/7</b><span>тренировок</span></div>
-            <div class="stat"><b>2 350</b><span>ккал/день</span></div>
-            <div class="stat"><b>7.5</b><span>часов сна</span></div>
-          </div>
+          <span class="lab2" style="margin:10px 0 0">Тренировки недели</span>
+          <div class="focus" style="margin-top:5px"><span class="dn2">пн ✓</span><span>вт</span><span class="dn2">ср ✓</span><span class="dn2">чт ✓</span><span>пт</span><span class="dn2">сб ✓</span><span>вс</span></div>
+          <div class="insight"><span class="ii">💡</span><span><b>Ноги и пресс в тонусе.</b> Плечи отстают - добавь один подход в среду, и радар выровняется.</span></div>
         </div></div>
+        <div class="tabsg"><span class="on">📊 Дашборд</span><span>Тренировки</span><span>Замеры</span><span style="margin-left:auto">＋</span></div>
       </div>
       <div class="p-feats">
-        <div class="f"><b>Нагрузка</b> по группам мышц</div>
+        <div class="f"><b>Баланс мышц</b> радаром</div>
         <div class="f"><b>Вес</b> живым графиком</div>
-        <div class="f"><b>Калории, вода, сон</b> по дням</div>
+        <div class="f"><b>KPI-плитки</b> ккал · сон · тренировки</div>
         <div class="f"><b>Настроение</b> и замеры</div>
       </div>
     </article>
@@ -620,44 +707,52 @@
     <!-- 4. НЕДЕЛЯ -->
     <article class="glass planner p4 rv">
       <div class="p-head"><div class="ic">📅</div><div><h3>Планер недели</h3><div class="st">дела · энергия · итог</div></div></div>
-      <div class="sheet" data-cols="8" data-rows="11">
+      <div class="sheet" data-cols="8" data-rows="14">
         <div class="win"><span class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span><span class="gi"></span><span class="fn">Магнат · Неделя.gsheet</span><span class="tools">▦ Σ ⌄</span></div>
         <div class="cols"></div>
         <div class="grip"><div class="rows"></div><div class="content">
-          <div class="ttl"><span class="sq" style="--ac:#7a52d0"></span><b>НЕДЕЛЯ · ЭНЕРГИЯ · НАСТРОЕНИЕ</b><span class="pct" style="color:#7a52d0">71%</span></div>
-          <div class="weekgrid" id="weekgrid"></div>
-          <div class="totrow">
-            <div class="stat v"><b>39</b><span>всего дел</span></div>
-            <div class="stat g"><b>25</b><span>выполнено</span></div>
-            <div class="stat r"><b>14</b><span>осталось</span></div>
+          <div class="ttl"><span class="sq" style="--ac:#7a52d0"></span><b>ПУЛЬТ НЕДЕЛИ</b><span class="pct" style="color:#7a52d0">64%</span></div>
+          <div class="kpis k3">
+            <div class="kpi" style="--kc:#7a52d0"><div class="kl">Выполнено</div><div class="kv">25 / 39</div><span class="kd up">64% недели</span></div>
+            <div class="kpi" style="--kc:#c98a12"><div class="kl">Энергия</div><div class="kv">⚡ 3.4 / 5</div><span class="kd up">пик - пятница</span></div>
+            <div class="kpi"><div class="kl">Фокус-цели</div><div class="kv">2 / 3</div><span class="kd nt">недели</span></div>
           </div>
+          <div class="weekgrid" id="weekgrid"></div>
+          <div class="focus"><span class="dn2">✓ Запустить сайт</span><span class="dn2">✓ 3 тренировки</span><span>○ Дочитать книгу</span></div>
+          <div class="insight"><span class="ii">💡</span><span><b>Энергия проседает к воскресенью.</b> Ставь лёгкие задачи на выходные - процент недели вырастет.</span></div>
         </div></div>
+        <div class="tabsg"><span class="on">📊 Дашборд</span><span>Неделя</span><span>Рефлексия</span><span style="margin-left:auto">＋</span></div>
       </div>
       <div class="p-feats">
         <div class="f"><b>3 главных дела</b> на день</div>
-        <div class="f"><b>Трекер энергии</b> ровной шкалой</div>
-        <div class="f"><b>Мини-привычки</b> недели</div>
-        <div class="f"><b>Круги прогресса</b> и итог</div>
+        <div class="f"><b>Трекер энергии</b> и настроения</div>
+        <div class="f"><b>Фокус-цели</b> недели</div>
+        <div class="f"><b>KPI и круги</b> прогресса</div>
       </div>
     </article>
 
     <!-- 5. ФИНАНСЫ -->
     <article class="glass planner p5 rv">
       <div class="p-head"><div class="ic">💰</div><div><h3>Финансовый планер</h3><div class="st">план · факт · долги</div></div></div>
-      <div class="sheet" data-cols="8" data-rows="11">
+      <div class="sheet" data-cols="8" data-rows="14">
         <div class="win"><span class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span><span class="gi"></span><span class="fn">Магнат · Финансы.gsheet</span><span class="tools">▦ Σ ⌄</span></div>
         <div class="cols"></div>
         <div class="grip"><div class="rows"></div><div class="content">
-          <div class="ttl"><span class="sq" style="--ac:#c98a12"></span><b>ФИНАНСЫ · МЕСЯЦ</b></div>
+          <div class="ttl"><span class="sq" style="--ac:#c98a12"></span><b>КАПИТАЛ · МЕСЯЦ</b><span class="pct" style="color:#12a565">+22 450 ₽</span></div>
+          <div class="kpis">
+            <div class="kpi"><div class="kl">Доход</div><div class="kv">118 400</div><span class="kd up">+12%</span></div>
+            <div class="kpi" style="--kc:#e0556a"><div class="kl">Расход</div><div class="kv">95 950</div><span class="kd dn">+4%</span></div>
+            <div class="kpi" style="--kc:#c98a12"><div class="kl">Сбережения</div><div class="kv">22 450</div><span class="kd up">19% дохода</span></div>
+            <div class="kpi" style="--kc:#2f8fd8"><div class="kl">Подушка</div><div class="kv">3.2 мес</div><span class="kd nt">цель - 6</span></div>
+          </div>
           <div class="fin3">
             <div class="donutwrap">
               <svg class="ring" viewBox="0 0 42 42">
                 <circle class="track" cx="21" cy="21" r="15.9" fill="none" stroke-width="5" pathLength="100"/>
-                <circle class="val" cx="21" cy="21" r="15.9" fill="none" stroke="#12a565" stroke-width="5" pathLength="100" stroke-dasharray="0 100" style="--v:34"/>
-                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#2f8fd8" stroke-width="5" pathLength="100" stroke-dasharray="21 100" stroke-dashoffset="-34" transform="rotate(-90 21 21)"/>
-                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#c98a12" stroke-width="5" pathLength="100" stroke-dasharray="17 100" stroke-dashoffset="-55" transform="rotate(-90 21 21)"/>
-                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#7a52d0" stroke-width="5" pathLength="100" stroke-dasharray="14 100" stroke-dashoffset="-72" transform="rotate(-90 21 21)"/>
-                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#e0556a" stroke-width="5" pathLength="100" stroke-dasharray="14 100" stroke-dashoffset="-86" transform="rotate(-90 21 21)"/>
+                <circle class="val" cx="21" cy="21" r="15.9" fill="none" stroke="#12a565" stroke-width="5" pathLength="100" stroke-dasharray="0 100" style="--v:40"/>
+                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#2f8fd8" stroke-width="5" pathLength="100" stroke-dasharray="25 100" stroke-dashoffset="-40" transform="rotate(-90 21 21)"/>
+                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#c98a12" stroke-width="5" pathLength="100" stroke-dasharray="20 100" stroke-dashoffset="-65" transform="rotate(-90 21 21)"/>
+                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#7a52d0" stroke-width="5" pathLength="100" stroke-dasharray="15 100" stroke-dashoffset="-85" transform="rotate(-90 21 21)"/>
               </svg>
             </div>
             <table class="grid">
@@ -665,21 +760,22 @@
               <tr><td class="nm">🍔 Еда</td><td class="num">40 000</td><td class="num">38 200</td><td><div class="hbar" style="--w:100%;--k:0"><i style="background:#12a565"></i></div></td></tr>
               <tr><td class="nm">🏠 Жильё</td><td class="num">25 000</td><td class="num">24 000</td><td><div class="hbar" style="--w:62%;--k:1"><i style="background:#2f8fd8"></i></div></td></tr>
               <tr><td class="nm">🚗 Транспорт</td><td class="num">18 000</td><td class="neg">19 400</td><td><div class="hbar" style="--w:50%;--k:2"><i style="background:#c98a12"></i></div></td></tr>
-              <tr><td class="nm">🎮 Досуг</td><td class="num">15 000</td><td class="num">15 800</td><td><div class="hbar" style="--w:41%;--k:3"><i style="background:#7a52d0"></i></div></td></tr>
+              <tr><td class="nm">🎮 Досуг</td><td class="num">15 000</td><td class="num">14 350</td><td><div class="hbar" style="--w:38%;--k:3"><i style="background:#7a52d0"></i></div></td></tr>
             </table>
           </div>
-          <div class="totrow">
-            <div class="stat g"><b>+118к</b><span>доход</span></div>
-            <div class="stat r"><b>-95.6к</b><span>расход</span></div>
-            <div class="stat gd"><b>22 450 ₽</b><span>осталось</span></div>
+          <div class="cbx" style="margin-top:9px"><span class="lab2">Копилка · 6 месяцев</span>
+            <div class="cbars" style="--cb:#c98a12"><i style="--h:26%;--k:0"></i><i style="--h:38%;--k:1"></i><i style="--h:34%;--k:2"></i><i style="--h:52%;--k:3"></i><i style="--h:66%;--k:4"></i><i style="--h:88%;--k:5"></i></div>
+            <div class="cbl"><span>авг</span><span>сен</span><span>окт</span><span>ноя</span><span>дек</span><span>янв</span></div>
           </div>
+          <div class="insight"><span class="ii">💡</span><span><b>Сбережения 19% дохода</b> - выше цели 15%. Транспорт превысил план на <b>1 400 ₽</b> - проверь поездки на такси.</span></div>
         </div></div>
+        <div class="tabsg"><span class="on">📊 Дашборд</span><span>Операции</span><span>Долги</span><span>Цели</span><span style="margin-left:auto">＋</span></div>
       </div>
       <div class="p-feats">
-        <div class="f"><b>Доходы, расходы, долги</b> в одном</div>
-        <div class="f"><b>Пончики</b> трат и поступлений</div>
+        <div class="f"><b>KPI-плитки</b> доход · расход · подушка</div>
+        <div class="f"><b>Пончик трат</b> по категориям</div>
         <div class="f"><b>План vs факт</b> с подсветкой</div>
-        <div class="f"><b>Автоитоги</b> и «Осталось»</div>
+        <div class="f"><b>Копилка растёт</b> графиком</div>
       </div>
     </article>
 
@@ -717,6 +813,27 @@
     <div class="glass step rv" style="--i:1"><div class="n">02</div><div class="ico">🪙</div><h3>Капают монеты</h3><p>Каждая галочка приносит монеты. Формулы считают всё сами.</p></div>
     <div class="glass step rv" style="--i:2"><div class="n">03</div><div class="ico">🔥</div><h3>Серия множит доход</h3><p>Дни подряд дают множитель до x2. Бросить становится жалко.</p></div>
     <div class="glass step rv" style="--i:3"><div class="n">04</div><div class="ico">👑</div><h3>Растёшь до Магната</h3><p>Новичок, Стартапер, Предприниматель, Директор, Магнат.</p></div>
+  </div>
+</div></section>
+
+<section id="vs"><div class="wrap">
+  <div class="kicker rv">Почувствуй разницу</div>
+  <h2 class="rv uline">Обычный планер против «Магната»</h2>
+  <div class="vs rv">
+    <div class="vcol dead glass">
+      <h3>💀 Мёртвая таблица</h3>
+      <div class="vi">Пустые клетки без обратной связи</div>
+      <div class="vi">Бросаешь через неделю - ничего не держит</div>
+      <div class="vi">Ноль аналитики: прогресса не видно</div>
+      <div class="vi">Открывать скучно, вести - обязанность</div>
+    </div>
+    <div class="vcol alive glass">
+      <h3>🏛 Магнат</h3>
+      <div class="vi">Каждая галочка даёт монеты - мгновенная награда</div>
+      <div class="vi">Серия и множитель до x2 - жалко бросить</div>
+      <div class="vi">Дашборды: KPI, графики и инсайты недели</div>
+      <div class="vi">Уровни Новичок → Магнат - хочется вернуться</div>
+    </div>
   </div>
 </div></section>
 
@@ -814,7 +931,7 @@
 </div></section>
      ============================================================ -->
 
-<section><div class="wrap" style="text-align:center">
+<section id="faq"><div class="wrap" style="text-align:center">
   <div class="kicker rv" style="justify-content:center">Вопросы</div>
   <h2 class="rv uline">Коротко о главном</h2>
   <div class="faq" style="text-align:left">
@@ -822,7 +939,8 @@
     <details class="glass qa rv" style="--i:1"><summary>Мои данные сохранятся?</summary><div class="a">Да. Таблица живёт в твоём Google-аккаунте: смена телефона, чистка кэша - ничего не теряется.</div></details>
     <details class="glass qa rv" style="--i:2"><summary>Надо платить каждый месяц?</summary><div class="a">Нет. Платишь один раз - набор твой навсегда, включая будущие обновления.</div></details>
     <details class="glass qa rv" style="--i:3"><summary>Это работает на телефоне?</summary><div class="a">Да, через бесплатное приложение Google Таблицы. Для быстрых отметок в бандле есть веб-приложение, а Telegram-бот добавим скоро.</div></details>
-    <details class="glass qa rv" style="--i:4"><summary>Если что-то не получится?</summary><div class="a">Пиши на почту - поможем с настройкой. Условия возврата описаны в оферте.</div></details>
+    <details class="glass qa rv" style="--i:4"><summary>Чем это лучше бесплатных шаблонов?</summary><div class="a">Бесплатные шаблоны - пустые сетки без обратной связи. Здесь - игровая система (монеты, серия, множитель, 5 уровней), дашборды с KPI и инсайтами, автоформулы и приложение в подарок. Плюс все будущие обновления набора.</div></details>
+    <details class="glass qa rv" style="--i:5"><summary>Если что-то не получится?</summary><div class="a">Пиши на почту - поможем с настройкой. Условия возврата описаны в оферте.</div></details>
   </div>
 </div></section>
 
@@ -842,6 +960,9 @@
   Почта: <a href="mailto:shnireva1954@gmail.com">shnireva1954@gmail.com</a><br>
   <span style="color:#3d4a5c">«Магнат» · планер как игра-тайкун</span>
 </div></footer>
+
+<!-- закреплённая кнопка на мобиле: появляется после hero, прячется у цены и финала -->
+<div class="mcta" id="mcta"><a href="#price" class="btn btn-p">🏛 Получить за 990 ₽</a></div>
 
 <!-- модалка покупки: показывается, пока не подключена онлайн-оплата -->
 <div class="ovl" id="buyOvl">
@@ -1009,14 +1130,31 @@ var RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
   setActive(0);
 })();
 
-/* появление при скролле - в ОБЕ стороны */
+/* появление при скролле - ОДИН раз (повторные прятки при скролле вверх = дёрганье) */
 (function(){
   var els=document.querySelectorAll(".rv, #disc");
   if(!("IntersectionObserver" in window) || RM){ els.forEach(function(e){e.classList.add("in")}); return; }
   var io=new IntersectionObserver(function(entries){
-    entries.forEach(function(e){ e.target.classList.toggle("in", e.isIntersecting); });
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } });
   },{threshold:.12, rootMargin:"0px 0px -6% 0px"});
   els.forEach(function(e){io.observe(e)});
+})();
+
+/* закреплённая CTA на мобиле: видна между hero и ценой, не дублирует кнопки на экране */
+(function(){
+  var bar=document.getElementById("mcta");
+  if(!bar || !("IntersectionObserver" in window)) return;
+  var vis={}, zones=[
+    ["hero", document.querySelector(".hero")],
+    ["price", document.getElementById("price")],
+    ["final", document.querySelector(".final")],
+    ["foot", document.querySelector("footer")]
+  ];
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){ vis[e.target.dataset.mk]=e.isIntersecting; });
+    bar.classList.toggle("show", !vis.hero && !vis.price && !vis.final && !vis.foot);
+  },{threshold:.05});
+  zones.forEach(function(z){ if(z[1]){ z[1].dataset.mk=z[0]; io.observe(z[1]); } });
 })();
 
 /* лёгкий 3D-наклон демо-карты (только мышь) */
