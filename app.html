@@ -36,9 +36,10 @@
   @media(max-width:520px){ .chip.lvl{display:none} }
 
   /* tabs */
-  .tabs{display:flex; gap:8px; overflow-x:auto; padding:11px 0 3px; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
+  .tabs{display:flex; gap:8px; overflow-x:auto; padding:11px 0 3px; -webkit-overflow-scrolling:touch; scrollbar-width:none;
+    mask-image:linear-gradient(90deg,#000 91%,transparent); -webkit-mask-image:linear-gradient(90deg,#000 91%,transparent);}
   .tabs::-webkit-scrollbar{display:none}
-  .tab{flex:none; padding:9px 15px; border-radius:11px; font-size:13.5px; color:var(--mut); background:var(--panel); border:1px solid var(--line); cursor:pointer; white-space:nowrap; transition:all .15s;}
+  .tab{flex:none; padding:8px 13px; border-radius:11px; font-size:13px; color:var(--mut); background:var(--panel); border:1px solid var(--line); cursor:pointer; white-space:nowrap; transition:all .15s;}
   .tab.on{color:#04120b; background:var(--emerald); border-color:var(--emerald); font-weight:700; box-shadow:0 0 16px #2fe38f44;}
 
   .view{padding:15px 0 30px; display:none;} .view.on{display:block;}
@@ -64,8 +65,11 @@
   .hscroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
   table.hg{border-collapse:collapse; font-size:11px; min-width:100%;}
   table.hg th,table.hg td{border:1px solid var(--line); padding:0; text-align:center;}
-  table.hg th{background:var(--panel2); color:var(--mut2); font-weight:600; padding:5px 4px; position:sticky;}
-  table.hg td.name{text-align:left; padding:6px 9px; white-space:nowrap; background:var(--panel); color:var(--ink); font-size:12.5px;}
+  table.hg th{background:var(--panel2); color:var(--mut2); font-weight:600; padding:5px 4px;}
+  table.hg th.tdy{color:var(--emerald); background:#0e2f22;}
+  table.hg td.name{text-align:left; padding:6px 9px; white-space:nowrap; background:var(--panel); color:var(--ink); font-size:12.5px;
+    position:sticky; left:0; z-index:2;}
+  table.hg th.name{position:sticky; left:0; z-index:3; background:var(--panel2);}
   .hcell{width:22px; height:26px; cursor:pointer; display:block;}
   .hcell.on{background:var(--emerald); box-shadow:inset 0 0 5px #0a3d28;}
   .hcell.on:after{content:"✓"; color:#04120b; font-weight:900; font-size:11px;}
@@ -91,6 +95,10 @@
   /* finance rows */
   .frow{display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--line); font-size:13.5px;}
   .frow:last-child{border:none} .frow .cat{flex:1} .frow .amt{font-variant-numeric:tabular-nums; font-weight:700;}
+  .frow .fdt{font-size:10.5px; color:var(--mut2); font-variant-numeric:tabular-nums;}
+  .hedit2{color:var(--emerald); font-size:10.5px; cursor:pointer; text-transform:none; letter-spacing:0; font-weight:600;}
+  .si .cnt{font-size:9.5px; color:var(--emerald); margin-top:4px;}
+  .modal input[type=date]{color-scheme:dark;}
   .month-cells{display:grid; grid-template-columns:repeat(11,1fr); gap:4px;}
   .mc{aspect-ratio:1; border-radius:5px; background:#0c141d; border:1px solid var(--line);}
   .mc.l1{background:#12402e}.mc.l2{background:#1a7a52}.mc.l3{background:var(--emerald);box-shadow:0 0 6px #2fe38f66}.mc.today{outline:2px solid var(--cyan)}
@@ -174,6 +182,7 @@ const pad=x=>String(x).padStart(2,"0");
 const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const parseYmd=s=>{const[y,m,dd]=s.split("-").map(Number);return new Date(y,m-1,dd);};
 const addDays=(s,n)=>{const d=parseYmd(s);d.setDate(d.getDate()+n);return ymd(d);};
+const fmtD=s=>s.slice(8,10)+"."+s.slice(5,7);
 const TODAY=ymd(new Date());
 
 let FIRST_RUN=false;
@@ -321,6 +330,42 @@ function setup(cv,h){const dpr=window.devicePixelRatio||1,w=cv.getBoundingClient
 function donut(cv,frac,color){const {c,w,h}=setup(cv,150);const cx=w/2,cy=h/2,r=Math.min(w,h)/2-9;c.lineWidth=15;c.lineCap="round";c.strokeStyle="#182230";c.beginPath();c.arc(cx,cy,r,0,7);c.stroke();if(frac>0){c.strokeStyle=color;c.shadowColor=color;c.shadowBlur=13;c.beginPath();c.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(1,frac));c.stroke();c.shadowBlur=0;}}
 function line(cv,data,color){const {c,w,h}=setup(cv,110);if(data.length<2)data=[data[0]??0,data[0]??0];const mn=Math.min(...data),mx=Math.max(...data,mn+1),pd=8;const X=i=>pd+i*(w-2*pd)/(data.length-1),Y=v=>h-pd-(v-mn)/(mx-mn)*(h-2*pd);const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,color+"55");g.addColorStop(1,color+"00");c.beginPath();c.moveTo(X(0),Y(data[0]));data.forEach((v,i)=>c.lineTo(X(i),Y(v)));c.lineTo(X(data.length-1),h-pd);c.lineTo(X(0),h-pd);c.closePath();c.fillStyle=g;c.fill();c.beginPath();c.moveTo(X(0),Y(data[0]));data.forEach((v,i)=>c.lineTo(X(i),Y(v)));c.strokeStyle=color;c.lineWidth=2.4;c.lineJoin="round";c.shadowColor=color;c.shadowBlur=9;c.stroke();c.shadowBlur=0;c.beginPath();c.arc(X(data.length-1),Y(data[data.length-1]),3.5,0,7);c.fillStyle=color;c.fill();}
 function bars(cv,data,color){const {c,w,h}=setup(cv,120);const mx=Math.max(...data,1),n=data.length,bw=(w)/n*0.6,gap=(w)/n;data.forEach((v,i)=>{const bh=(v/mx)*(h-14),x=i*gap+(gap-bw)/2,y=h-bh-2;c.fillStyle=color;c.shadowColor=color;c.shadowBlur=7;c.beginPath();c.rect(x,y,bw,bh);c.fill();c.shadowBlur=0;});}
+// график веса: старт, текущее значение и пунктирная цель
+function weightChart(cv,log,goal){
+  const {c,w,h}=setup(cv,150);
+  const data=log.map(x=>x.w); if(data.length===1) data.push(data[0]);
+  const vals=goal?[...data,goal]:[...data];
+  let mn=Math.min(...vals), mx=Math.max(...vals);
+  if(mx-mn<0.8){mx+=0.5;mn-=0.5;}
+  const padL=10,padR=58,padY=16;
+  const X=i=>padL+i*(w-padL-padR)/(data.length-1);
+  const Y=v=>h-padY-(v-mn)/(mx-mn)*(h-2*padY);
+  const cy=gv("--cyan"), gold=gv("--gold");
+  if(goal){
+    const gy=Y(goal);
+    c.setLineDash([5,4]); c.strokeStyle=gold; c.globalAlpha=.65; c.lineWidth=1.4;
+    c.beginPath(); c.moveTo(padL,gy); c.lineTo(w-padR+6,gy); c.stroke();
+    c.setLineDash([]); c.globalAlpha=1;
+    c.fillStyle=gold; c.font="600 10px system-ui"; c.textAlign="left";
+    c.fillText("цель "+goal, w-padR+9, gy+3.5);
+  }
+  const g=c.createLinearGradient(0,0,0,h); g.addColorStop(0,cy+"55"); g.addColorStop(1,cy+"00");
+  c.beginPath(); c.moveTo(X(0),Y(data[0])); data.forEach((v,i)=>c.lineTo(X(i),Y(v)));
+  c.lineTo(X(data.length-1),h-padY); c.lineTo(X(0),h-padY); c.closePath(); c.fillStyle=g; c.fill();
+  c.beginPath(); c.moveTo(X(0),Y(data[0])); data.forEach((v,i)=>c.lineTo(X(i),Y(v)));
+  c.strokeStyle=cy; c.lineWidth=2.4; c.lineJoin="round"; c.shadowColor=cy; c.shadowBlur=9; c.stroke(); c.shadowBlur=0;
+  if(log.length>1){ // стартовая точка есть смысл только при истории
+    c.beginPath(); c.arc(X(0),Y(data[0]),3.2,0,7); c.fillStyle="#5f7288"; c.fill();
+    c.fillStyle="#93a6bd"; c.font="600 10px system-ui"; c.textAlign="left";
+    c.fillText(String(log[0].w), X(0)+3, Y(data[0])-8);
+  }
+  const li=data.length-1;
+  c.beginPath(); c.arc(X(li),Y(data[li]),4,0,7); c.fillStyle=cy; c.shadowColor=cy; c.shadowBlur=8; c.fill(); c.shadowBlur=0;
+  let ly=Y(data[li])+3.5;
+  if(goal && Math.abs(Y(goal)-Y(data[li]))<13) ly=Y(goal)+(Y(data[li])>=Y(goal)?15:-11);
+  c.fillStyle=cy; c.font="700 11px system-ui"; c.textAlign="left";
+  c.fillText(String(log[log.length-1].w), w-padR+9, ly);
+}
 function pie(cv,parts){const {c,w,h}=setup(cv,150);const cx=w/2,cy=h/2,r=Math.min(w,h)/2-6;let a=-Math.PI/2;const tot=parts.reduce((s,p)=>s+p.v,0)||1;parts.forEach(p=>{const ang=p.v/tot*Math.PI*2;c.beginPath();c.moveTo(cx,cy);c.arc(cx,cy,r,a,a+ang);c.closePath();c.fillStyle=p.color;c.fill();a+=ang;});c.beginPath();c.arc(cx,cy,r*0.55,0,7);c.fillStyle=gv("--panel");c.fill();}
 
 // ---- views ----
@@ -354,7 +399,10 @@ function askModal(title, fields){
     btns.querySelector(".no").onclick=()=>close(null);
     btns.querySelector(".ok").onclick=()=>{const r={};fields.forEach(f=>{const v=inputs[f.name].value;r[f.name]=typeof v==="string"?v.trim():v;});close(r);};
     ovl.onclick=e=>{if(e.target===ovl)close(null);};
-    m.addEventListener("keydown",e=>{if(e.key==="Enter"&&inputs[fields[0].name].tagName!=="SELECT")btns.querySelector(".ok").click();});
+    m.addEventListener("keydown",e=>{
+      if(e.key==="Escape") close(null);
+      if(e.key==="Enter"&&inputs[fields[0].name].tagName!=="SELECT")btns.querySelector(".ok").click();
+    });
   });
 }
 
@@ -431,7 +479,7 @@ function vHome(root){
 function vHabits(root){
   const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),diM=new Date(y,mo+1,0).getDate();
   let head="<tr><th class='name' style='text-align:left'>Привычка</th>";
-  for(let d=1;d<=diM;d++) head+=`<th>${d}</th>`; head+="<th>%</th></tr>";
+  for(let d=1;d<=diM;d++) head+=`<th${d===now.getDate()?' class="tdy"':''}>${d}</th>`; head+="<th>%</th></tr>";
   let rows="";
   const elapsed=Math.min(diM,now.getDate());
   S.habits.forEach(h=>{
@@ -454,6 +502,9 @@ function vHabits(root){
     </div>
     <div class="addbtn" id="addHabit" style="margin-top:13px">➕ Добавить привычку</div>`;
   bars(root.querySelector("#hbWeeks"),wk,gv("--emerald"));
+  // календарь открывается на сегодняшнем дне, а не на 1-м числе
+  const hs=root.querySelector(".hscroll"), tdy=root.querySelector("th.tdy");
+  if(hs&&tdy) hs.scrollLeft=Math.max(0, tdy.offsetLeft-130);
   root.querySelectorAll(".hcell").forEach(c=>c.addEventListener("click",()=>{
     const ds=c.dataset.d; if(ds>TODAY){toast("Будущий день ещё не наступил 🙂");return;}
     const hid=+c.dataset.h,arr=checksOf(ds).slice(),i=arr.indexOf(hid);
@@ -475,6 +526,7 @@ function editHabit(hid){
   m.appendChild(btns); ovl.appendChild(m); document.body.appendChild(ovl);
   setTimeout(()=>inp.focus(),50);
   const close=()=>ovl.remove(); ovl.onclick=e=>{if(e.target===ovl)close();};
+  m.addEventListener("keydown",e=>{if(e.key==="Escape")close();});
   btns.querySelector("#hDel").onclick=()=>{
     if(!confirm(`Удалить «${h.name}»? Отметки этой привычки пропадут.`)) return;
     S.habits=S.habits.filter(x=>x.id!==hid);
@@ -516,10 +568,11 @@ function vTasks(root){
     const r=await askModal("Новая задача",[
       {name:"name",label:"Задача",placeholder:"Смонтировать ролик"},
       {name:"prio",label:"Приоритет",type:"select",options:[["hi","🔴 Высокий"],["md","🟡 Средний"],["lo","🔵 Низкий"]],value:"md"},
-      {name:"days",label:"Срок: через сколько дней (0 = сегодня)",type:"number",value:"0"},
+      {name:"due",label:"Срок",type:"date",value:TODAY},
     ]);
     if(!r||!r.name) return;
-    S.tasks.push({id:Date.now(),name:r.name,prio:r.prio,due:addDays(TODAY,parseInt(r.days,10)||0),done:false}); save(); render();
+    const due=/^\d{4}-\d{2}-\d{2}$/.test(r.due)?r.due:TODAY;
+    S.tasks.push({id:Date.now(),name:r.name,prio:r.prio,due,done:false}); save(); render();
   });
 }
 
@@ -544,7 +597,7 @@ function vMoney(root){
         <div style="margin-top:10px">${parts.map(p=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;margin-bottom:4px"><span style="width:9px;height:9px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:var(--mut)">${p.cat}</span><b class="num">${nf(p.v)}</b></div>`).join("")}</div></div>
     </div>
     <div class="sec-h">Операции месяца</div>
-    <div class="glass card">${me.slice().reverse().map(e=>`<div class="frow"><span class="cat">${e.cat}</span><span class="del" data-id="${e.id}">✕</span><span class="amt ${e.type==='in'?'e':'dn'}">${e.type==='in'?'+':'-'}${nf(e.amount)} ₽</span></div>`).join("")}</div>
+    <div class="glass card">${me.slice().reverse().map(e=>`<div class="frow"><span class="cat">${e.cat}</span><span class="fdt">${fmtD(e.date)}</span><span class="del" data-id="${e.id}">✕</span><span class="amt ${e.type==='in'?'e':'dn'}">${e.type==='in'?'+':'-'}${nf(e.amount)} ₽</span></div>`).join("")}</div>
     `:`
     <div class="glass card" style="text-align:center;padding:30px 18px;margin-top:13px">
       <div style="font-size:40px">💰</div>
@@ -574,27 +627,62 @@ function vBody(root){
     });
     return;
   }
-  const w=body_curW(),start=S.body.log[0]?.w||w,lost=(start-w).toFixed(1);
+  const w=body_curW(), start=S.body.log[0].w, goal=S.body.goalW, lost=start-w;
   const workouts=(()=>{let c=0;for(let k=0;k<30;k++){const ds=addDays(TODAY,-k);const h=S.habits.find(h=>/трениров|зал|спорт/i.test(h.name));if(h&&isDone(h.id,ds))c++;}return c;})();
+  // прогресс до цели: направление-независимый (работает и на сброс, и на набор)
+  let prog=null, left=null, reached=false;
+  if(goal && start!==goal){
+    prog=Math.round((start-w)/(start-goal)*100);
+    reached=prog>=100;
+    prog=Math.max(0,Math.min(100,prog));
+    left=Math.abs(w-goal);
+  }
   root.innerHTML=`
-    <div class="grid">
-      <div class="glass card"><div class="stat"><div class="v cy num">${w} кг</div><div class="l">текущий вес</div></div></div>
-      <div class="glass card"><div class="stat"><div class="v e num">-${lost} кг</div><div class="l">сброшено с начала</div></div></div>
-      <div class="glass card"><div class="stat"><div class="v g num">${S.body.goalW} кг</div><div class="l">цель</div></div></div>
-      <div class="glass card"><div class="stat"><div class="v or num">${workouts}</div><div class="l">тренировок за 30 дней</div></div></div>
+    <div class="glass card">
+      <h3>Путь к цели <span class="hedit2" id="editGoal">✏️ изменить цель</span></h3>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+        <div><div class="num" style="font-size:26px;font-weight:700;font-family:var(--fd);color:var(--cyan)">${w} кг</div><div style="font-size:11px;color:var(--mut2)">сейчас</div></div>
+        <div style="text-align:right"><div class="num" style="font-size:20px;font-weight:700;color:var(--gold)">${goal?goal+" кг":"—"}</div><div style="font-size:11px;color:var(--mut2)">цель</div></div>
+      </div>
+      ${prog!=null?`
+      <div class="bar-t" style="margin-top:12px"><span style="width:${prog}%"></span></div>
+      <div class="bar-m"><span>${reached?"🎉 цель достигнута - задай новую":"осталось <b>"+left.toFixed(1)+" кг</b>"}</span><span><b>${prog}%</b> пути</span></div>`
+      :`<div style="font-size:12px;color:var(--mut2);margin-top:10px">Задай цель - появится прогресс до неё.</div>`}
+    </div>
+    <div class="grid" style="margin-top:13px;grid-template-columns:repeat(3,1fr)">
+      <div class="glass card"><div class="stat"><div class="v e num">${Math.abs(lost)<0.05?"0.0":(lost>0?"−":"+")+Math.abs(lost).toFixed(1)}</div><div class="l">кг с ${fmtD(S.body.log[0].date)}</div></div></div>
+      <div class="glass card"><div class="stat"><div class="v g num">${prog!=null?prog+"%":"—"}</div><div class="l">пути пройдено</div></div></div>
+      <div class="glass card"><div class="stat"><div class="v or num">${workouts}</div><div class="l">тренировок · 30 дн</div></div></div>
     </div>
     <div class="glass card" style="margin-top:13px"><h3>Динамика веса</h3><canvas id="bW" height="150"></canvas>
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mut2);margin-top:6px"><span>${S.body.log[0].date.slice(5)}</span><span>сегодня</span></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mut2);margin-top:6px"><span>${fmtD(S.body.log[0].date)}</span><span>сегодня</span></div></div>
     <div class="row2" style="margin-top:13px">
-      <div class="glass card"><h3>Норма калорий</h3><div class="stat"><div class="v g num">${nf(S.body.calGoal)}</div><div class="l">ккал / день</div></div></div>
-      <div class="glass card"><h3>Норма воды</h3><div class="stat"><div class="v cy num">${(S.body.waterGoal/1000).toFixed(1)} л</div><div class="l">в день</div></div></div>
+      <div class="glass card" id="editCal" style="cursor:pointer"><h3>Норма калорий <span class="hedit2">✏️</span></h3><div class="stat"><div class="v g num">${nf(S.body.calGoal)}</div><div class="l">ккал / день</div></div></div>
+      <div class="glass card" id="editWater" style="cursor:pointer"><h3>Норма воды <span class="hedit2">✏️</span></h3><div class="stat"><div class="v cy num">${(S.body.waterGoal/1000).toFixed(1)} л</div><div class="l">в день</div></div></div>
     </div>
     <div class="addbtn" id="addW" style="margin-top:13px">⚖️ Записать вес на сегодня</div>`;
-  line(root.querySelector("#bW"),S.body.log.map(x=>x.w),gv("--cyan"));
+  weightChart(root.querySelector("#bW"), S.body.log, goal);
+  root.querySelector("#editGoal").addEventListener("click",async()=>{
+    const r=await askModal("Цель веса",[{name:"g",label:"Цель, кг",type:"number",value:goal?String(goal):""}]);
+    if(!r)return; const v=parseFloat(String(r.g).replace(",",".")); if(!v)return;
+    S.body.goalW=v; save(); render();
+  });
+  root.querySelector("#editCal").addEventListener("click",async()=>{
+    const r=await askModal("Норма калорий",[{name:"c",label:"Ккал в день",type:"number",value:String(S.body.calGoal)}]);
+    if(!r)return; const v=parseInt(r.c,10); if(!v)return;
+    S.body.calGoal=v; save(); render();
+  });
+  root.querySelector("#editWater").addEventListener("click",async()=>{
+    const r=await askModal("Норма воды",[{name:"m",label:"Миллилитров в день",type:"number",value:String(S.body.waterGoal)}]);
+    if(!r)return; const v=parseInt(r.m,10); if(!v)return;
+    S.body.waterGoal=v; save(); render();
+  });
   root.querySelector("#addW").addEventListener("click",async()=>{
     const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",value:String(w)}]);
     if(!r)return; const v=parseFloat(String(r.w).replace(",",".")); if(!v)return;
-    S.body.log.push({date:TODAY,w:v});save();render();
+    const last=S.body.log[S.body.log.length-1];
+    if(last && last.date===TODAY) last.w=v; else S.body.log.push({date:TODAY,w:v});
+    save();render();
   });
 }
 
@@ -603,10 +691,11 @@ function vShop(root){
   root.innerHTML=`<div class="glass card"><h3>Кошелёк</h3><div class="stat"><div class="v g num">${nf(w)} 🪙</div><div class="l">заработано дисциплиной · трать на реальное</div></div></div>
     <div class="sec-h">Награды</div><div class="shop" id="shopGrid"></div>`;
   const grid=root.querySelector("#shopGrid");
+  // награды многоразовые: «Кино» можно покупать хоть каждую неделю
   REWARDS.forEach(([ico,name,cost],idx)=>{
-    const bought=S.bought.includes(idx);
-    const it=el(`<div class="si${bought?" bought":(w>=cost?" afford":"")}"><div class="i">${ico}</div><div class="n">${bought?"Куплено ✓":name}</div><div class="pr">🪙 ${nf(cost)}</div></div>`);
-    it.addEventListener("click",()=>{ if(bought)return; if(wallet()<cost){toast("Не хватает монет 🪙");return;} S.bought.push(idx);S.spent+=cost;save();render();toast("Награда куплена! Отдыхай честно 🎉"); });
+    const cnt=S.bought.filter(i=>i===idx).length;
+    const it=el(`<div class="si${w>=cost?" afford":""}"><div class="i">${ico}</div><div class="n">${name}</div><div class="pr">🪙 ${nf(cost)}</div>${cnt?`<div class="cnt">куплено ×${cnt}</div>`:""}`+`</div>`);
+    it.addEventListener("click",()=>{ if(wallet()<cost){toast("Не хватает монет 🪙");return;} S.bought.push(idx);S.spent+=cost;save();render();toast("Награда куплена! Отдыхай честно 🎉"); });
     grid.appendChild(it);
   });
 }
@@ -636,6 +725,7 @@ function addFinance(type){
   const close=()=>ovl.remove();
   btns.querySelector(".no").onclick=close;
   ovl.onclick=e=>{if(e.target===ovl)close();};
+  m.addEventListener("keydown",e=>{if(e.key==="Escape")close();});
   btns.querySelector(".ok").onclick=()=>{
     const a=parseInt(amt.value,10)||0; if(!a){amt.focus();return;}
     const [ic,nm]=cats[sel];
