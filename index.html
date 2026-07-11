@@ -324,6 +324,30 @@
   .focus{display:flex; gap:6px; margin-top:9px; flex-wrap:wrap;}
   .focus span{font-size:8.5px; padding:3.5px 8px; border-radius:99px; border:1px solid var(--s-grid); background:var(--s-alt); color:#5b6b82; font-weight:600;}
   .focus span.dn2{background:var(--s-grnb); border-color:#bfe6d3; color:#0d7a4c;}
+  /* тепловая карта месяца (в Sheets: условное форматирование «шкала цвета») */
+  .heat{margin-top:9px;}
+  .heat .hdays{display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin:4px 0 3px;}
+  .heat .hdays span{text-align:center; font-size:6.5px; color:#a7b1c0; font-weight:700; text-transform:uppercase; letter-spacing:.4px;}
+  .heatgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:3px;}
+  .heatgrid i{height:11px; border-radius:3px; background:#eef2f7; opacity:0; transition:opacity .5s ease calc(var(--k,0)*14ms + .2s);}
+  .planner.in .heatgrid i{opacity:1;}
+  .heatgrid i.h1{background:#d9f0e4} .heatgrid i.h2{background:#a9e0c6}
+  .heatgrid i.h3{background:#5ec392} .heatgrid i.h4{background:#12a565}
+  .heatgrid i.tod{outline:1.5px solid #c98a12; outline-offset:1px;}
+  .heatgrid i.fut{background:transparent; border:1px dashed #dfe6ef;}
+  .heatleg{display:flex; align-items:center; gap:4px; justify-content:flex-end; margin-top:5px;
+    font-size:6.5px; color:#a7b1c0; font-weight:600; text-transform:uppercase; letter-spacing:.4px;}
+  .heatleg i{width:8px; height:8px; border-radius:2px; background:#eef2f7; flex:none;}
+  .heatleg i.h2{background:#a9e0c6} .heatleg i.h4{background:#12a565}
+  /* волна в row2 растягивается на высоту колонки — без пустых полос */
+  .row2 .wavebox{display:flex; flex-direction:column; padding:8px 8px 4px;}
+  .row2 .wavebox .lab{position:static; margin-bottom:2px;}
+  .row2 .wave{flex:1; height:auto; min-height:56px;}
+  /* мини-легенда пончика (в Sheets — легенда диаграммы) */
+  .dleg{display:flex; flex-direction:column; gap:3px; margin-top:7px; font-size:7.5px; color:#5b6b82; font-weight:600;}
+  .dleg span{display:flex; align-items:center; gap:5px; white-space:nowrap;}
+  .dleg i{width:7px; height:7px; border-radius:2px; flex:none;}
+  .dleg b{margin-left:auto; color:#212a36; font-variant-numeric:tabular-nums;}
 
   /* компоновка листов */
   .row2{display:grid; grid-template-columns:1fr 120px; gap:12px; align-items:stretch;}
@@ -648,6 +672,12 @@
               </svg>
             </div>
           </div>
+          <div class="heat">
+            <span class="lab2" style="margin:0">Карта активности · месяц</span>
+            <div class="hdays"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
+            <div class="heatgrid" id="heatgrid"></div>
+            <div class="heatleg"><span>пропуск</span><i></i><i class="h2"></i><i class="h4"></i><span>идеальный день</span></div>
+          </div>
           <table class="grid" style="margin-top:9px">
             <tr><th style="text-align:left">Привычка</th><th>пн</th><th>вт</th><th>ср</th><th>чт</th><th>пт</th><th>сб</th><th>вс</th><th>%</th></tr>
             <tr><td class="nm">🏋️ Тренировка</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="pcell">86%</td></tr>
@@ -663,7 +693,7 @@
       </div>
       <div class="p-feats">
         <div class="f"><b>KPI-дашборд</b> серия · монеты · уровень</div>
-        <div class="f"><b>Кривая прогресса</b> и % месяца</div>
+        <div class="f"><b>Тепловая карта</b> месяца + кривая</div>
         <div class="f"><b>Инсайты недели</b> считаются сами</div>
         <div class="f"><b>Уровни</b> Новичок → Магнат</div>
       </div>
@@ -688,12 +718,32 @@
             <tr><td class="nm">🎬 Смонтировать ролик</td><td class="num">10 янв</td><td class="num" style="color:#12a565">сегодня</td><td><span class="pill hi">Высокий</span></td><td class="ck2 off">☐</td></tr>
             <tr><td class="nm">✍️ Написать 5 сценариев</td><td class="num">11 янв</td><td class="num" style="color:#c98a12">1 дн.</td><td><span class="pill md">Средний</span></td><td class="ck2 off">☐</td></tr>
             <tr><td class="nm strike">📚 Прочитать 20 страниц</td><td class="num strike">9 янв</td><td class="ck2 on">✓</td><td><span class="pill lo">Низкий</span></td><td class="ck2 on">✓</td></tr>
-            <tr><td class="nm">💸 Оплатить кредитку</td><td class="num">8 янв</td><td class="neg">-1 дн.</td><td><span class="pill ur">Срочно</span></td><td class="ck2 off">☐</td></tr>
-            <tr><td class="nm">📞 Позвонить маме</td><td class="num">14 янв</td><td class="num" style="color:#c98a12">3 дн.</td><td><span class="pill md">Средний</span></td><td class="ck2 off">☐</td></tr>
+            <tr><td class="nm">💸 Оплатить кредитку</td><td class="num">9 янв</td><td class="neg">-1 дн.</td><td><span class="pill ur">Срочно</span></td><td class="ck2 off">☐</td></tr>
+            <tr><td class="nm">📞 Позвонить маме</td><td class="num">13 янв</td><td class="num" style="color:#c98a12">3 дн.</td><td><span class="pill md">Средний</span></td><td class="ck2 off">☐</td></tr>
           </table>
-          <div class="cbx" style="margin-top:9px"><span class="lab2">Закрыто задач по дням</span>
-            <div class="cbars" style="--cb:#e0a93a"><i style="--h:55%;--k:0"></i><i style="--h:80%;--k:1"></i><i style="--h:60%;--k:2"></i><i style="--h:90%;--k:3"></i><i style="--h:70%;--k:4"></i><i style="--h:35%;--k:5"></i><i style="--h:18%;--k:6"></i></div>
-            <div class="cbl"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
+          <div class="row2" style="margin-top:9px">
+            <div class="cbx"><span class="lab2">Закрыто по дням · 12 за неделю</span>
+              <div class="cbars" style="--cb:#e0a93a"><i style="--h:25%;--k:0"></i><i style="--h:75%;--k:1"></i><i style="--h:50%;--k:2"></i><i style="--h:100%;--k:3"></i><i style="--h:25%;--k:4"></i><i style="--h:25%;--k:5"></i><i style="--h:4%;--k:6"></i></div>
+              <div class="cbl"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
+            </div>
+            <div>
+              <span class="lab2">Приоритеты</span>
+              <div class="donutwrap" style="max-width:72px;margin:2px auto 0">
+                <svg class="ring" viewBox="0 0 42 42">
+                  <circle class="track" cx="21" cy="21" r="15.9" fill="none" stroke-width="5" pathLength="100"/>
+                  <circle class="val" cx="21" cy="21" r="15.9" fill="none" stroke="#e0556a" stroke-width="5" pathLength="100" stroke-dasharray="0 100" style="--v:40"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#c98a12" stroke-width="5" pathLength="100" stroke-dasharray="40 100" stroke-dashoffset="-40" transform="rotate(-90 21 21)"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#2f8fd8" stroke-width="5" pathLength="100" stroke-dasharray="20 100" stroke-dashoffset="-80" transform="rotate(-90 21 21)"/>
+                  <text x="21" y="20.5" text-anchor="middle" font-size="10">5</text>
+                  <text x="21" y="27" text-anchor="middle" font-size="3.3" class="cap">ОТКРЫТО</text>
+                </svg>
+              </div>
+              <div class="dleg">
+                <span><i style="background:#e0556a"></i>срочно + выс.<b>2</b></span>
+                <span><i style="background:#c98a12"></i>средний<b>2</b></span>
+                <span><i style="background:#2f8fd8"></i>низкий<b>1</b></span>
+              </div>
+            </div>
           </div>
           <div class="insight"><span class="ii">💡</span><span><b>Пик продуктивности — четверг.</b> «Оплатить кредитку» просрочена на 1 день — закрой её первой.</span></div>
         </div></div>
@@ -703,7 +753,7 @@
         <div class="f"><b>KPI-плитки</b> открыто · горит · в срок</div>
         <div class="f"><b>Авторасчёт</b> дней до срока</div>
         <div class="f"><b>Просрочка</b> краснеет сама</div>
-        <div class="f"><b>График</b> закрытых по дням</div>
+        <div class="f"><b>Графики</b> закрытий и приоритетов</div>
       </div>
     </article>
 
@@ -728,6 +778,8 @@
                 <defs><linearGradient id="wg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0556a" stop-opacity=".26"/><stop offset="1" stop-color="#e0556a" stop-opacity="0"/></linearGradient></defs>
                 <path class="warea" fill="url(#wg3)" d="M0,12 C40,16 60,18 96,22 S168,28 208,34 S268,44 300,48 L300,60 L0,60 Z"/>
                 <path class="wline" stroke="#e0556a" d="M0,12 C40,16 60,18 96,22 S168,28 208,34 S268,44 300,48"/>
+                <path stroke="#c98a12" stroke-width="1.3" stroke-dasharray="5 4" fill="none" d="M0,55 L300,55"/>
+                <text x="297" y="52" text-anchor="end" font-size="7" fill="#c98a12" font-weight="700">цель 76</text>
               </svg>
             </div>
             <div class="rightcol">
@@ -747,6 +799,12 @@
               <div style="text-align:center;font-size:7.5px;color:#8a97a8;letter-spacing:.5px;text-transform:uppercase;font-weight:600">Баланс мышц</div>
             </div>
           </div>
+          <div class="lvlrow"><b>🎯 Путь к цели</b><span class="lvlbar"><i style="--w:64%;background:linear-gradient(90deg,#e0556a,#c98a12)"></i></span><span><b>84 → 78.9 → 76 кг</b> · пройдено 64%</span></div>
+          <div class="totrow">
+            <div class="stat r"><b>17</b><span>тренировок · 30 дн</span></div>
+            <div class="stat g"><b>5 дн</b><span>лучшая серия</span></div>
+            <div class="stat gd"><b>79.1</b><span>ср. вес недели</span></div>
+          </div>
           <span class="lab2" style="margin:10px 0 0">Тренировки недели</span>
           <div class="focus" style="margin-top:5px"><span class="dn2">пн ✓</span><span>вт</span><span class="dn2">ср ✓</span><span class="dn2">чт ✓</span><span>пт</span><span class="dn2">сб ✓</span><span>вс</span></div>
           <div class="insight"><span class="ii">💡</span><span><b>Ноги и пресс в тонусе.</b> Плечи отстают — добавь один подход в среду, и радар выровняется.</span></div>
@@ -757,7 +815,7 @@
         <div class="f"><b>Баланс мышц</b> радаром</div>
         <div class="f"><b>Вес</b> живым графиком</div>
         <div class="f"><b>KPI-плитки</b> ккал · сон · тренировки</div>
-        <div class="f"><b>Настроение</b> и замеры</div>
+        <div class="f"><b>Путь к цели</b> и статистика</div>
       </div>
     </article>
 
@@ -769,10 +827,11 @@
         <div class="cols"></div>
         <div class="grip"><div class="rows"></div><div class="content">
           <div class="ttl"><span class="sq" style="--ac:#7a52d0"></span><b>ПУЛЬТ НЕДЕЛИ</b><span class="pct" style="color:#7a52d0">64%</span></div>
-          <div class="kpis k3">
+          <div class="kpis">
             <div class="kpi" style="--kc:#7a52d0"><div class="kl">Выполнено</div><div class="kv">25 / 39</div><span class="kd up">64% недели</span></div>
             <div class="kpi" style="--kc:#c98a12"><div class="kl">Энергия</div><div class="kv">⚡ 3.4 / 5</div><span class="kd up">пик — пятница</span></div>
             <div class="kpi"><div class="kl">Фокус-цели</div><div class="kv">2 / 3</div><span class="kd nt">недели</span></div>
+            <div class="kpi" style="--kc:#c98a12"><div class="kl">Монеты</div><div class="kv">+610 🪙</div><span class="kd up">за неделю</span></div>
           </div>
           <div class="weekgrid" id="weekgrid"></div>
           <div class="wavebox" style="background:linear-gradient(180deg,#f7f3fd,#fff);margin-top:9px">
@@ -782,6 +841,7 @@
               <path class="warea" fill="url(#wg4)" d="M0,30 C17,34 33,42 50,42 S83,30 100,30 S133,50 150,50 S183,12 200,12 S233,30 250,30 S283,44 300,44 L300,60 L0,60 Z"/>
               <path class="wline" stroke="#7a52d0" d="M0,30 C17,34 33,42 50,42 S83,30 100,30 S133,50 150,50 S183,12 200,12 S233,30 250,30 S283,44 300,44"/>
             </svg>
+            <div class="cbl" style="margin:2px 0 4px"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
           </div>
           <div class="focus"><span class="dn2">✓ Запустить сайт</span><span class="dn2">✓ 3 тренировки</span><span>○ Дочитать книгу</span></div>
           <div class="insight"><span class="ii">💡</span><span><b>Энергия проседает к воскресенью.</b> Ставь лёгкие задачи на выходные — процент недели вырастет.</span></div>
@@ -811,14 +871,24 @@
             <div class="kpi" style="--kc:#2f8fd8"><div class="kl">Подушка</div><div class="kv">3.2 мес</div><span class="kd nt">цель — 6</span></div>
           </div>
           <div class="fin3">
-            <div class="donutwrap">
-              <svg class="ring" viewBox="0 0 42 42">
-                <circle class="track" cx="21" cy="21" r="15.9" fill="none" stroke-width="5" pathLength="100"/>
-                <circle class="val" cx="21" cy="21" r="15.9" fill="none" stroke="#12a565" stroke-width="5" pathLength="100" stroke-dasharray="0 100" style="--v:40"/>
-                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#2f8fd8" stroke-width="5" pathLength="100" stroke-dasharray="25 100" stroke-dashoffset="-40" transform="rotate(-90 21 21)"/>
-                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#c98a12" stroke-width="5" pathLength="100" stroke-dasharray="20 100" stroke-dashoffset="-65" transform="rotate(-90 21 21)"/>
-                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#7a52d0" stroke-width="5" pathLength="100" stroke-dasharray="15 100" stroke-dashoffset="-85" transform="rotate(-90 21 21)"/>
-              </svg>
+            <div>
+              <div class="donutwrap">
+                <svg class="ring" viewBox="0 0 42 42">
+                  <circle class="track" cx="21" cy="21" r="15.9" fill="none" stroke-width="5" pathLength="100"/>
+                  <circle class="val" cx="21" cy="21" r="15.9" fill="none" stroke="#12a565" stroke-width="5" pathLength="100" stroke-dasharray="0 100" style="--v:40"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#2f8fd8" stroke-width="5" pathLength="100" stroke-dasharray="25 100" stroke-dashoffset="-40" transform="rotate(-90 21 21)"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#c98a12" stroke-width="5" pathLength="100" stroke-dasharray="20 100" stroke-dashoffset="-65" transform="rotate(-90 21 21)"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#7a52d0" stroke-width="5" pathLength="100" stroke-dasharray="15 100" stroke-dashoffset="-85" transform="rotate(-90 21 21)"/>
+                  <text x="21" y="20" text-anchor="middle" font-size="7">95 950</text>
+                  <text x="21" y="26.5" text-anchor="middle" font-size="3.3" class="cap">РАСХОД ₽</text>
+                </svg>
+              </div>
+              <div class="dleg">
+                <span><i style="background:#12a565"></i>еда<b>40%</b></span>
+                <span><i style="background:#2f8fd8"></i>жильё<b>25%</b></span>
+                <span><i style="background:#c98a12"></i>транспорт<b>20%</b></span>
+                <span><i style="background:#7a52d0"></i>досуг<b>15%</b></span>
+              </div>
             </div>
             <table class="grid">
               <tr><th style="text-align:left">Категория</th><th>План</th><th>Факт</th><th style="width:46px"></th></tr>
@@ -832,6 +902,7 @@
             <div class="cbars" style="--cb:#c98a12"><i style="--h:26%;--k:0"></i><i style="--h:38%;--k:1"></i><i style="--h:34%;--k:2"></i><i style="--h:52%;--k:3"></i><i style="--h:66%;--k:4"></i><i style="--h:88%;--k:5"></i></div>
             <div class="cbl"><span>авг</span><span>сен</span><span>окт</span><span>ноя</span><span>дек</span><span>янв</span></div>
           </div>
+          <div class="lvlrow"><b>🛡️ Подушка 3.2 / 6 мес</b><span class="lvlbar"><i style="--w:53%;background:linear-gradient(90deg,#2f8fd8,#7a52d0)"></i></span><span>темп +22 450 ₽/мес → цель через <b>~12 мес</b></span></div>
           <div class="insight"><span class="ii">💡</span><span><b>Сбережения 19% дохода</b> — выше цели 15%. Транспорт превысил план на <b>1 400 ₽</b> — проверь поездки на такси.</span></div>
         </div></div>
         <div class="tabsg"><span class="on">📊 Дашборд</span><span>Операции</span><span>Долги</span><span>Цели</span><span style="margin-left:auto">＋</span></div>
@@ -840,7 +911,7 @@
         <div class="f"><b>KPI-плитки</b> доход · расход · подушка</div>
         <div class="f"><b>Пончик трат</b> по категориям</div>
         <div class="f"><b>План vs факт</b> с подсветкой</div>
-        <div class="f"><b>Копилка растёт</b> графиком</div>
+        <div class="f"><b>Копилка и прогноз</b> подушки</div>
       </div>
     </article>
 
@@ -1072,6 +1143,17 @@ var RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
     {d:"СБ",tasks:[1,1,0],en:3,mo:"🙂",p:66},
     {d:"ВС",tasks:[0,0,0],en:2,mo:"😴",p:0}
   ];
+  /* тепловая карта месяца в Привычках: 0 — пропуск, 1..4 — интенсивность дня,
+     null — будущие дни. Сегодня — 27-й день; последние 6 дней зачтены = серия 6 */
+  var hm=[3,2,4,3,1,4,3, 0,2,3,4,3,2,4, 3,4,2,3,4,1,0, 4,3,4,4,3,4, null,null,null,null];
+  var hg=document.getElementById("heatgrid");
+  if(hg){
+    hg.innerHTML=hm.map(function(v,i){
+      var cls=v===null?"fut":(v?("h"+v):"");
+      if(i===26) cls+=" tod";
+      return '<i class="'+cls+'" style="--k:'+i+'"></i>';
+    }).join("");
+  }
   var wg=document.getElementById("weekgrid");
   if(wg){
     wg.innerHTML=wk.map(function(x){
