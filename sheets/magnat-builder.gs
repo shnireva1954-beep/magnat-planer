@@ -70,7 +70,9 @@ function colA1(n) {
 // Новый файл таблицы: локаль ru, один служебный лист (удалим в конце)
 function newSpreadsheet_(title, folder) {
   var ss = SpreadsheetApp.create(title);
-  ss.setSpreadsheetLocale('ru_RU');
+  // ВАЖНО: пока строим — локаль en_US, иначе формулы с запятыми не парсятся.
+  // На русскую локаль каждый билдер переключает файл в самом конце.
+  ss.setSpreadsheetLocale('en_US');
   try { DriveApp.getFileById(ss.getId()).moveTo(folder); } catch (e) { folder.addFile(DriveApp.getFileById(ss.getId())); }
   return ss;
 }
@@ -549,6 +551,7 @@ function buildHabits(demo, folder) {
   protectWarn_(calc, 'Служебные формулы');
   calc.hideSheet();
   ss.setActiveSheet(dash);
+  ss.setSpreadsheetLocale('ru_RU'); // формулы уже сохранены — теперь можно
   SpreadsheetApp.flush();
   return 'Привычки: ' + ss.getUrl();
 }
@@ -661,7 +664,7 @@ function buildTasks(demo, folder) {
     df: '=IF(\'_calc\'!$B$3=0,"просрочек нет","старейшая — "&\'_calc\'!$B$10&" дн.")', deltaColor: C.red });
   kpiTile_(dash, 4, 8, 3,  { label: 'Закрыто за 7 дней', accent: C.green,
     f: "='_calc'!$B$5&\" ✓\"",
-    df: '=IF(\'_calc\'!$B$6=0,"прошлая неделя — 0",TEXT(\'_calc\'!$B$5-\'_calc\'!$B$6,"+0;−0;0")&" к прошлой неделе")' });
+    df: '=IF(\'_calc\'!$B$6=0,"прошлая неделя — 0",TEXT(\'_calc\'!$B$5-\'_calc\'!$B$6,"+0;-0;0")&" к прошлой неделе")' });
   kpiTile_(dash, 4, 11, 3, { label: 'В срок', accent: C.blue,
     f: '=IF(\'_calc\'!$B$7="","—",TEXT(\'_calc\'!$B$7,"0%"))',
     dv: 'из закрытых со сроком' });
@@ -775,6 +778,7 @@ function buildTasks(demo, folder) {
   protectWarn_(calc, 'Служебные формулы');
   calc.hideSheet();
   ss.setActiveSheet(dash);
+  ss.setSpreadsheetLocale('ru_RU'); // формулы уже сохранены — теперь можно
   SpreadsheetApp.flush();
   return 'Задачи: ' + ss.getUrl();
 }
@@ -863,7 +867,7 @@ function buildFitness(demo, folder) {
     ['отстающая группа', '=IF(SUM($K$2:$K$7)=0,"",INDEX($J$2:$J$7,MATCH(MIN($K$2:$K$7),$K$2:$K$7,0)))'],
     ['сильная группа',  '=IF(SUM($K$2:$K$7)=0,"",INDEX($J$2:$J$7,MATCH(MAX($K$2:$K$7),$K$2:$K$7,0)))'],
     ['настроение недели','=IFERROR(TEXTJOIN(" ",TRUE,FILTER(' + DN + '$H$2:$H$400,' + DN + '$H$2:$H$400<>"",' + DN + '$A$2:$A$400>=TODAY()-6)),"")'],
-    ['инсайт', '=IF(COUNT(' + DN + '$B$2:$B$400)=0,"💡 Внеси первую запись в «📓 Дневник» — график веса, радар мышц и прогноз оживут.","💡 "&IF($B$4="","",("За 30 дней "&TEXT($B$4,"+0.0;−0.0;0")&" кг. "))&IF($B$16="","",IF($B$16="цель достигнута 🎉","Цель достигнута — удерживай результат! ","Таким темпом цель "&TEXT($B$6,"0.0")&" кг будет достигнута к "&$B$16&". "))&IF($B$17="","",IF($B$17=$B$18,"",$B$18&" — твоя сильная сторона, а вот "&$B$17&" отстают: добавь один подход. ")))']
+    ['инсайт', '=IF(COUNT(' + DN + '$B$2:$B$400)=0,"💡 Внеси первую запись в «📓 Дневник» — график веса, радар мышц и прогноз оживут.","💡 "&IF($B$4="","",("За 30 дней "&TEXT($B$4,"+0.0;-0.0;0")&" кг. "))&IF($B$16="","",IF($B$16="цель достигнута 🎉","Цель достигнута — удерживай результат! ","Таким темпом цель "&TEXT($B$6,"0.0")&" кг будет достигнута к "&$B$16&". "))&IF($B$17="","",IF($B$17=$B$18,"",$B$18&" — твоя сильная сторона, а вот "&$B$17&" отстают: добавь один подход. ")))']
   ];
   for (var i = 1; i < FK.length; i++) {
     calc.getRange(i + 1, 1).setValue(FK[i][0]);
@@ -885,13 +889,13 @@ function buildFitness(demo, folder) {
   dashCanvas_(dash, 14, 64);
   dash.setRowHeight(1, 10);
   dashTitle_(dash, 2, 2, 14, 'ПАНЕЛЬ ФОРМЫ', C.red,
-    '=IF(\'_calc\'!$B$4="","",TEXT(\'_calc\'!$B$4,"+0.0;−0.0;0")&" кг за месяц")', C.green);
+    '=IF(\'_calc\'!$B$4="","",TEXT(\'_calc\'!$B$4,"+0.0;-0.0;0")&" кг за месяц")', C.green);
   dash.setRowHeight(3, 8);
 
   kpiRowHeights_(dash, 4);
   kpiTile_(dash, 4, 2, 3,  { label: 'Вес', accent: C.red,
     f: '=IF(\'_calc\'!$B$2="","—",TEXT(\'_calc\'!$B$2,"0.0")&" кг")',
-    df: '=IF(\'_calc\'!$B$4="","добавь замеры",TEXT(\'_calc\'!$B$4,"+0.0;−0.0;0")&" кг за 30 дней")' });
+    df: '=IF(\'_calc\'!$B$4="","добавь замеры",TEXT(\'_calc\'!$B$4,"+0.0;-0.0;0")&" кг за 30 дней")' });
   kpiTile_(dash, 4, 5, 3,  { label: 'Тренировки за неделю', accent: C.green,
     f: '=\'_calc\'!$B$10&" / "&\'⚙️ Настройки\'!$B$6',
     df: '="за 30 дней — "&\'_calc\'!$B$9' });
@@ -900,7 +904,7 @@ function buildFitness(demo, folder) {
     df: '="норма — "&\'⚙️ Настройки\'!$B$4' });
   kpiTile_(dash, 4, 11, 3, { label: 'Сон · 7 дней', accent: C.blue,
     f: '=IF(\'_calc\'!$B$11="","—",TEXT(\'_calc\'!$B$11,"0.0")&" ч")',
-    df: '=IF(OR(\'_calc\'!$B$11="",\'_calc\'!$B$12=""),"считаю по неделе",TEXT(\'_calc\'!$B$11-\'_calc\'!$B$12,"+0.0;−0.0;0")&" ч к прошлой неделе")' });
+    df: '=IF(OR(\'_calc\'!$B$11="",\'_calc\'!$B$12=""),"считаю по неделе",TEXT(\'_calc\'!$B$11-\'_calc\'!$B$12,"+0.0;-0.0;0")&" ч к прошлой неделе")' });
   kpiTile_(dash, 4, 14, 2, { label: 'Вода', accent: C.blue,
     f: '=IF(\'_calc\'!$B$14="","—",TEXT(\'_calc\'!$B$14,"0.0")&" л")',
     df: '="норма — "&TEXT(\'⚙️ Настройки\'!$B$5,"0.0")&" л"' });
@@ -977,6 +981,7 @@ function buildFitness(demo, folder) {
   protectWarn_(calc, 'Служебные формулы');
   calc.hideSheet();
   ss.setActiveSheet(dash);
+  ss.setSpreadsheetLocale('ru_RU'); // формулы уже сохранены — теперь можно
   SpreadsheetApp.flush();
   return 'Тело: ' + ss.getUrl();
 }
@@ -1109,7 +1114,7 @@ function buildWeek(demo, folder) {
     f: "='_calc'!$B$17&\" / \"&'_calc'!$B$18",
     dv: 'главные цели недели' });
   kpiTile_(dash, 4, 11, 3, { label: 'К прошлой неделе', accent: C.blue,
-    f: '=IF(\'_calc\'!$B$19="","—",TEXT(\'_calc\'!$B$13-\'_calc\'!$B$19,"+0%;−0%;0%"))',
+    f: '=IF(\'_calc\'!$B$19="","—",TEXT(\'_calc\'!$B$13-\'_calc\'!$B$19,"+0%;-0%;0%"))',
     df: '=IF(\'_calc\'!$B$19="","появится после первой записи в Рефлексии","прошлая — "&TEXT(\'_calc\'!$B$19,"0%"))' });
   kpiTile_(dash, 4, 14, 2, { label: 'Сегодня', accent: C.gold,
     f: '=IFERROR(INDEX(\'_calc\'!$D$2:$D$8,MATCH(TODAY(),\'_calc\'!$B$2:$B$8,0))&" / "&INDEX(\'_calc\'!$E$2:$E$8,MATCH(TODAY(),\'_calc\'!$B$2:$B$8,0)),"—")',
@@ -1199,6 +1204,7 @@ function buildWeek(demo, folder) {
   protectWarn_(calc, 'Служебные формулы');
   calc.hideSheet();
   ss.setActiveSheet(dash);
+  ss.setSpreadsheetLocale('ru_RU'); // формулы уже сохранены — теперь можно
   SpreadsheetApp.flush();
   return 'Неделя: ' + ss.getUrl();
 }
@@ -1284,7 +1290,7 @@ function buildFinance(demo, folder) {
     pl.getRange(prow, 6).setFormula('=IF(OR($A' + prow + '="",$B' + prow + '=""),"",$C' + prow + '-$B' + prow + ')');
   }
   pl.getRange('B2:D13').setNumberFormat('#,##0');
-  pl.getRange('F2:F13').setNumberFormat('+#,##0;−#,##0;0').setFontColor(C.dim).setFontSize(9);
+  pl.getRange('F2:F13').setNumberFormat('+#,##0;-#,##0;0').setFontColor(C.dim).setFontSize(9);
   boxBorder_(pl.getRange(1, 1, 13, 6));
   var plRules = [];
   plRules.push(cfRule_(pl, '=AND($B2<>"",$C2>$B2)', C.redSoft, C.red, [pl.getRange(2, 3, 12, 2)]));
@@ -1347,16 +1353,16 @@ function buildFinance(demo, folder) {
   dashCanvas_(dash, 14, 64);
   dash.setRowHeight(1, 10);
   dashTitle_(dash, 2, 2, 14, 'КАПИТАЛ', C.gold,
-    '=IF(\'_calc\'!$B$11=0,"",TEXT(\'_calc\'!$B$11,"+#,##0;−#,##0;0")&" ₽ за месяц")', C.green);
+    '=IF(\'_calc\'!$B$11=0,"",TEXT(\'_calc\'!$B$11,"+#,##0;-#,##0;0")&" ₽ за месяц")', C.green);
   dash.setRowHeight(3, 8);
 
   kpiRowHeights_(dash, 4);
   kpiTile_(dash, 4, 2, 3,  { label: 'Доход · месяц', accent: C.green,
     f: '=TEXT(\'_calc\'!$B$9,"#,##0")',
-    df: '=IF(\'_calc\'!$C$6=0,"прошлый месяц — нет данных",TEXT(\'_calc\'!$C$7/\'_calc\'!$C$6-1,"+0%;−0%;0%")&" к прошлому месяцу")' });
+    df: '=IF(\'_calc\'!$C$6=0,"прошлый месяц — нет данных",TEXT(\'_calc\'!$C$7/\'_calc\'!$C$6-1,"+0%;-0%;0%")&" к прошлому месяцу")' });
   kpiTile_(dash, 4, 5, 3,  { label: 'Расход · месяц', accent: C.red,
     f: '=TEXT(\'_calc\'!$B$10,"#,##0")',
-    df: '=IF(\'_calc\'!$D$6=0,"прошлый месяц — нет данных",TEXT(\'_calc\'!$D$7/\'_calc\'!$D$6-1,"+0%;−0%;0%")&" к прошлому месяцу")' });
+    df: '=IF(\'_calc\'!$D$6=0,"прошлый месяц — нет данных",TEXT(\'_calc\'!$D$7/\'_calc\'!$D$6-1,"+0%;-0%;0%")&" к прошлому месяцу")' });
   kpiTile_(dash, 4, 8, 3,  { label: 'Сбережения', accent: C.gold, valueColor: C.gold,
     f: '=TEXT(\'_calc\'!$B$11,"#,##0")',
     df: '=IF(\'_calc\'!$B$12="","доход пока 0",TEXT(\'_calc\'!$B$12,"0%")&" дохода · цель "&TEXT(\'⚙️ Настройки\'!$B$3,"0%"))' });
@@ -1479,6 +1485,7 @@ function buildFinance(demo, folder) {
   protectWarn_(calc, 'Служебные формулы');
   calc.hideSheet();
   ss.setActiveSheet(dash);
+  ss.setSpreadsheetLocale('ru_RU'); // формулы уже сохранены — теперь можно
   SpreadsheetApp.flush();
   return 'Финансы: ' + ss.getUrl();
 }
