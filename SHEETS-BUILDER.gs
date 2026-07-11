@@ -203,7 +203,7 @@ function buildHabits_(folder) {
   dhead.push('%');
   header_(data, 1, 1, dhead);
   for (var h = 0; h < 5; h++) {
-    data.getRange(2 + h, 1).setFormula('=IFERROR(Настройки!A' + (11 + h) + ',"")');
+    data.getRange(2 + h, 1).setFormula('=IF(Настройки!A' + (11 + h) + '="","",Настройки!A' + (11 + h) + ')');
     data.getRange(2 + h, 33).setFormula('=IFERROR(COUNTIF(B' + (2 + h) + ':AF' + (2 + h) + ',TRUE)/MAX(1,MIN(DAY(TODAY()),31)),0)')
       .setNumberFormat('0%').setFontWeight('bold').setFontColor(PAL.vio);
   }
@@ -336,7 +336,7 @@ function buildHabits_(folder) {
   dash.getRange('C28:I28').setValues([DAYS_RU]).setFontSize(8)
     .setFontColor(PAL.mut2).setFontWeight('bold').setHorizontalAlignment('center');
   for (var wh = 0; wh < 5; wh++) {
-    dash.getRange(29 + wh, 2).setFormula('=IFERROR(INDEX(HABIT_NAMES,' + (wh + 1) + '),"")').setFontSize(10);
+    dash.getRange(29 + wh, 2).setFormula('=IF(INDEX(HABIT_NAMES,' + (wh + 1) + ')="","",INDEX(HABIT_NAMES,' + (wh + 1) + '))').setFontSize(10);
     for (var wc = 1; wc <= 7; wc++) {
       var dExpr = MONDAY + '+' + wc;
       dash.getRange(29 + wh, 2 + wc).setFormula(
@@ -478,7 +478,7 @@ function buildTasks_(folder) {
     'B13': '=IFERROR((SUMPRODUCT((Задачи!$E$2:$E$500<>"")*(Задачи!$B$2:$B$500<>"")*(Задачи!$E$2:$E$500<=Задачи!$B$2:$B$500))+SUMPRODUCT((Архив!$E$2:$E$500<>"")*(Архив!$B$2:$B$500<>"")*(Архив!$E$2:$E$500<=Архив!$B$2:$B$500)))/MAX(1,COUNTIF(Задачи!$E$2:$E$500,"<>")+COUNTIF(Архив!$E$2:$E$500,"<>")),0)',
     'B14': '=IFERROR(INDEX(A2:A8,MATCH(MAX(B2:B8),B2:B8,0)),"—")',
     'B15': '=IFERROR(INDEX(Задачи!A:A,MATCH(MINIFS(Задачи!B2:B500,Задачи!D2:D500,FALSE,Задачи!B2:B500,"<"&TODAY()),Задачи!B:B,0)),"")',
-    'B16': '=IF(B10+B12=0,"Добавь задачи со сроками — аналитика появится сама","Пик продуктивности — "&B14&"."&IF(B11>0," «"&B15&"» просрочена — закрой её первой."," Просрочек нет — так держать!"))',
+    'B16': '=IF(B10+B12=0,"Добавь задачи со сроками — аналитика появится сама",IF(B12>0,"Пик продуктивности — "&B14&". ","")&IF(B11>0,"«"&B15&"» просрочена — закрой её первой.","Просрочек нет — так держать!"))',
     'B17': '=COUNTIFS(Задачи!B2:B500,TODAY(),Задачи!D2:D500,FALSE)',
     'E2': '=COUNTIFS(Задачи!C2:C500,"Срочно",Задачи!D2:D500,FALSE,Задачи!A2:A500,"<>")+COUNTIFS(Задачи!C2:C500,"Высокий",Задачи!D2:D500,FALSE,Задачи!A2:A500,"<>")',
     'E3': '=COUNTIFS(Задачи!C2:C500,"Средний",Задачи!D2:D500,FALSE,Задачи!A2:A500,"<>")',
@@ -581,8 +581,8 @@ function buildBody_(folder) {
     var date = new Date(t.getFullYear(), t.getMonth(), t.getDate() - 29 + i);
     var weight = (i % 7 === 2) ? '' : Math.round((80.3 - 1.4 * (i / 29) + (((i * 7) % 3) - 1) * 0.1) * 10) / 10;
     var kcal = 2250 + ((i * 37) % 250);
-    var water = 1.2 + ((i * 13) % 10) / 10;
-    var sleep = 6.8 + ((i * 17) % 14) / 10;
+    var water = Math.round(12 + ((i * 13) % 10)) / 10;
+    var sleep = Math.round(68 + ((i * 17) % 14)) / 10;
     var trained = [0, 2, 3, 5].indexOf(i % 7) !== -1;
     var group = '';
     if (trained) { group = (gi === 10) ? 'Плечи' : GROUPS[[0, 1, 2, 3, 5][gi % 5]]; gi++; }
@@ -662,7 +662,7 @@ function buildBody_(folder) {
   kpi_(dash, 3, 6, 'Калории', '=_calc!B7', '="цель "&TEXT(KCAL_GOAL,"#,##0")', PAL.gold, PAL.gray, PAL.mut);
   kpi_(dash, 3, 8, 'Сон', '=_calc!B8&" ч"', 'среднее за 7 дней', PAL.blu, PAL.gray, PAL.mut);
 
-  label_(dash, 'B7', 'Вес, кг · пунктир — цель');
+  label_(dash, 'B7', 'Вес, кг · линия цели');
   label_(dash, 'H7', 'Баланс мышц · 30 дней');
   chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.AREA)
     .addRange(calc.getRange('M2:O121'))
@@ -947,7 +947,7 @@ function buildFinance_(folder) {
   // категории месяца
   for (var c = 0; c < 5; c++) {
     var rc = 2 + c;
-    calc.getRange(rc, 1).setFormula('=Цели!A' + (11 + c));
+    calc.getRange(rc, 1).setFormula('=IF(Цели!A' + (11 + c) + '="","",Цели!A' + (11 + c) + ')');
     calc.getRange(rc, 2).setFormula(
       '=SUMIFS(Операции!$D$2:$D$1000,Операции!$C$2:$C$1000,$A' + rc + ',Операции!$B$2:$B$1000,"Расход",Операции!$A$2:$A$1000,">="&EOMONTH(TODAY(),-1)+1)');
     calc.getRange(rc, 3).setFormula('=Цели!B' + (11 + c));
@@ -968,10 +968,10 @@ function buildFinance_(folder) {
     'B9': '=SUMIFS(Операции!$D$2:$D$1000,Операции!$B$2:$B$1000,"Расход",Операции!$A$2:$A$1000,">="&EOMONTH(TODAY(),-1)+1)',
     'B10': '=B8-B9',
     'B11': '=IF(B8=0,0,B10/B8)',
-    'B12': '=IFERROR(MAX(1,AVERAGE(I5:I7)),1)',
+    'B12': '=IF(SUM(I2:I7)=0,0,MAX(1,AVERAGE(I5:I7)))',
     'B13': '=IFERROR(AVERAGE(G5:G7),0)',
     'B14': '=PILLOW_START+SUMIF(Операции!B2:B1000,"Доход",Операции!D2:D1000)-SUMIF(Операции!B2:B1000,"Расход",Операции!D2:D1000)',
-    'B15': '=IFERROR(MAX(0,B14)/B12,0)',
+    'B15': '=IF(B12=0,0,IFERROR(MAX(0,B14)/B12,0))',
     'B16': '=IF(B15>=PILLOW_GOAL,"цель достигнута — держи уровень!",IF(B13<=0,"начни откладывать — прогноз появится","темп +"&TEXT(B13,"#,##0")&" ₽/мес → цель "&PILLOW_GOAL&" мес через ~"&MAX(1,ROUNDUP((PILLOW_GOAL*B12-B14)/B13,0))&" мес"))',
     'B17': '=ARRAYFORMULA(IFERROR(IF(MAX(B2:B6-C2:C6)>0,INDEX(A2:A6,MATCH(MAX(B2:B6-C2:C6),B2:B6-C2:C6,0)),""),""))',
     'B18': '=ARRAYFORMULA(IFERROR(MAX(B2:B6-C2:C6),0))',
