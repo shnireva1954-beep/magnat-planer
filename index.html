@@ -193,12 +193,13 @@
 
   /* ====== планеры: КАРУСЕЛЬ карточек с рамкой «настоящей Google-таблицы» ====== */
   .pcarousel{position:relative; margin-top:34px;}
-  /* proximity, а не mandatory: последние карточки шире остатка прокрутки и не могут
-     дойти до snap-start — mandatory их силой дёргал («криво листаются») */
-  .planners{display:flex; gap:16px; overflow-x:auto; scroll-snap-type:x proximity;
+  .planners{display:flex; gap:16px; overflow-x:auto; scroll-snap-type:x mandatory;
     scroll-padding-left:2px; padding:4px 2px 10px; scrollbar-width:none; -ms-overflow-style:none; -webkit-overflow-scrolling:touch;}
   .planners::-webkit-scrollbar{display:none;}
   .planner{flex:0 0 min(86%, 550px); scroll-snap-align:start; padding:16px 16px 18px; position:relative; overflow:hidden;}
+  /* последняя карточка шире остатка прокрутки и не может встать в начало —
+     привязываем её по правому краю, иначе mandatory дёргал у конца (десктоп и мобайл) */
+  .planner:last-child{scroll-snap-align:end;}
   .planner::before{content:""; position:absolute; inset:0 0 auto 0; height:2px; opacity:.9;
     background:linear-gradient(90deg,transparent,var(--ac,var(--emerald)),transparent);}
   .p1{--ac:var(--emerald)} .p2{--ac:var(--amber)} .p3{--ac:var(--rose)} .p4{--ac:var(--violet)} .p5{--ac:var(--gold)}
@@ -1309,24 +1310,37 @@ function confettiBurst(x,y,n,colors){
     track.scrollBy({left:d, behavior: RM ? "auto" : "smooth"});
   }
   function go(i){ i=Math.max(0,Math.min(cards.length-1,i)); scrollToCard(i); }
+  /* шаг = расстояние между карточками (ширина + gap) */
+  function step(){ return cards.length>1
+    ? (cards[1].getBoundingClientRect().left - cards[0].getBoundingClientRect().left)
+    : cards[0].getBoundingClientRect().width; }
   function setActive(i){
     if(i===cur) return; cur=i;
     dots.forEach(function(d,k){ d.classList.toggle("on",k===i); });
-    if(prev) prev.disabled=(i===0);
-    if(next) next.disabled=(i===cards.length-1);
   }
-  if(prev) prev.addEventListener("click",function(){ go(cur-1); });
-  if(next) next.addEventListener("click",function(){ go(cur+1); });
+  /* стрелки листают ОТ ТЕКУЩЕЙ прокрутки на одну карточку (scrollBy), а не по
+     индексу активной карточки: у последних карточек snap-точка недостижима,
+     и листание «по индексу» дёргалось на месте. Кнопки гасим у краёв — по
+     фактической прокрутке, а не по «активной» карточке. */
+  function edge(){
+    var max=track.scrollWidth-track.clientWidth;
+    if(prev) prev.disabled=(track.scrollLeft<=2);
+    if(next) next.disabled=(track.scrollLeft>=max-2);
+  }
+  if(prev) prev.addEventListener("click",function(){ track.scrollBy({left:-step(), behavior: RM?"auto":"smooth"}); });
+  if(next) next.addEventListener("click",function(){ track.scrollBy({left: step(), behavior: RM?"auto":"smooth"}); });
   var raf;
   track.addEventListener("scroll",function(){
     if(raf) cancelAnimationFrame(raf);
     raf=requestAnimationFrame(function(){
       var tr=track.getBoundingClientRect(), center=tr.left+tr.width/2, best=0, bd=1e9;
       cards.forEach(function(c,i){ var r=c.getBoundingClientRect(), cc=r.left+r.width/2, dd=Math.abs(cc-center); if(dd<bd){bd=dd;best=i;} });
-      setActive(best);
+      setActive(best); edge();
     });
   },{passive:true});
-  setActive(0);
+  setActive(0); edge();
+  window.addEventListener("resize", edge);
+  window.addEventListener("load", edge);
 })();
 
 /* появление при скролле — ОДИН раз (повторные прятки при скролле вверх = дёрганье) */

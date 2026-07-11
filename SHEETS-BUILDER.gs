@@ -49,12 +49,24 @@ function getFolder_(name) {
 /** Создаёт файл с нужными листами (все листы сразу, чтобы ссылки между ними не давали #REF!). */
 function makeFile_(name, folder, sheetNames) {
   var ss = SpreadsheetApp.create(name);
-  try { ss.setSpreadsheetLocale('ru_RU'); } catch (e) {}
+  // КРИТИЧНО: формулы пишутся с запятыми (международный вид), поэтому на время
+  // сборки файл держим в локали en_US, где запятая — разделитель аргументов.
+  // Под ru_RU setFormula парсит запятую как ДЕСЯТИЧНЫЙ разделитель и все формулы
+  // с аргументами превращаются в #ERROR!. В конце сборки finishFile_ переключает
+  // файл на ru_RU: формулы хранятся канонически и не ломаются, а отображение
+  // становится русским (запятая-десятичный, «40 000 ₽», «15 янв»).
+  try { ss.setSpreadsheetLocale('en_US'); } catch (e) {}
   var first = ss.getSheets()[0];
   first.setName(sheetNames[0]);
   for (var i = 1; i < sheetNames.length; i++) ss.insertSheet(sheetNames[i]);
   try { DriveApp.getFileById(ss.getId()).moveTo(folder); } catch (e) { Logger.log('Не удалось перенести в папку: ' + e); }
   return ss;
+}
+
+/** Финал сборки файла: переключить на русскую локаль (формулы уже записаны и не ломаются). */
+function finishFile_(ss) {
+  SpreadsheetApp.flush();
+  try { ss.setSpreadsheetLocale('ru_RU'); } catch (e) { Logger.log('Локаль ru_RU: ' + e); }
 }
 
 /** Оформление дашборда: без сетки, узкая колонка A, контентные B..I. */
@@ -363,6 +375,7 @@ function buildHabits_(folder) {
   protectWarn_(data, ['B2:AF6']);
   protectWarn_(set, ['A11:B15', 'B17']);
   protectWarn_(hist, ['A2:D100']);
+  finishFile_(ss);
   Logger.log('Привычки: ' + ss.getUrl());
   return 'Привычки: ' + ss.getUrl();
 }
@@ -534,6 +547,7 @@ function buildTasks_(folder) {
   protectWarn_(data, ['A2:E200']);
   protectWarn_(arch, ['A2:E500']);
   protectWarn_(set, []);
+  finishFile_(ss);
   Logger.log('Задачи: ' + ss.getUrl());
   return 'Задачи: ' + ss.getUrl();
 }
@@ -710,6 +724,7 @@ function buildBody_(folder) {
   protectWarn_(data, ['A2:H400']);
   protectWarn_(meas, ['A2:E200']);
   protectWarn_(set, ['B11:B15']);
+  finishFile_(ss);
   Logger.log('Тело: ' + ss.getUrl());
   return 'Тело: ' + ss.getUrl();
 }
@@ -850,6 +865,7 @@ function buildWeek_(folder) {
   protectWarn_(data, ['A2:A8', 'C2:J8', 'A11:B13']);
   protectWarn_(refl, ['A2:D100']);
   protectWarn_(set, ['B10']);
+  finishFile_(ss);
   Logger.log('Неделя: ' + ss.getUrl());
   return 'Неделя: ' + ss.getUrl();
 }
@@ -1032,6 +1048,7 @@ function buildFinance_(folder) {
   protectWarn_(ops, ['A2:D1000']);
   protectWarn_(debt, ['A2:C30']);
   protectWarn_(goal, ['A11:B15', 'B17:B19']);
+  finishFile_(ss);
   Logger.log('Финансы: ' + ss.getUrl());
   return 'Финансы: ' + ss.getUrl();
 }
