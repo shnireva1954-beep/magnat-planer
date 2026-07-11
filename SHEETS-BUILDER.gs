@@ -76,6 +76,10 @@ function dashBase_(sh, tabColor) {
   sh.setColumnWidth(1, 16);
   sh.setColumnWidths(2, 8, 112);
   sh.setRowHeight(1, 34);
+  // убираем пустоту справа и снизу: дашборд живёт в A..I и до ~45 строки,
+  // остальное скрываем — лист не тянется белым полем, выглядит цельно
+  try { sh.hideColumns(10, sh.getMaxColumns() - 9); } catch (e) {}
+  try { sh.hideRows(46, sh.getMaxRows() - 45); } catch (e) {}
 }
 
 /** Заголовок дашборда: B1 название, H1:I1 показатель справа. */
@@ -332,9 +336,11 @@ function buildHabits_(folder) {
     heatF.push(rowF);
   }
   var heat = dash.getRange('C20:I25');
-  heat.setFormulas(heatF).setNumberFormat(';;;')
+  // светло-серый фон всей сетки: пустые/будущие дни — часть календаря (стиль
+  // GitHub-графика), а не белая дыра. Активные дни красит шкала цвета сверху.
+  heat.setFormulas(heatF).setNumberFormat(';;;').setBackground(PAL.gray)
     .setBorder(true, true, true, true, true, true, '#ffffff', SpreadsheetApp.BorderStyle.SOLID_THICK);
-  for (var hrr = 20; hrr <= 25; hrr++) dash.setRowHeight(hrr, 18);
+  for (var hrr = 20; hrr <= 25; hrr++) dash.setRowHeight(hrr, 16);
   // «сегодня» — светло-золотая заливка (правило выше шкалы цвета)
   addRule_(dash, SpreadsheetApp.newConditionalFormatRule()
     .whenFormulaSatisfied('=AND(C20<>"",(ROW(C20)-20)*7+COLUMN(C20)-2-' + offExpr + '=DAY(TODAY()))')
