@@ -194,7 +194,7 @@
   /* ====== планеры: КАРУСЕЛЬ карточек с рамкой «настоящей Google-таблицы» ====== */
   .pcarousel{position:relative; margin-top:34px;}
   .planners{display:flex; gap:16px; overflow-x:auto; scroll-snap-type:x mandatory;
-    scroll-padding-left:2px; padding:4px 2px 10px; scrollbar-width:none; -ms-overflow-style:none; -webkit-overflow-scrolling:touch;}
+    padding:4px 0 10px; scrollbar-width:none; -ms-overflow-style:none; -webkit-overflow-scrolling:touch;}
   .planners::-webkit-scrollbar{display:none;}
   .planner{flex:0 0 min(86%, 550px); scroll-snap-align:start; padding:16px 16px 18px; position:relative; overflow:hidden;}
   /* последняя карточка шире остатка прокрутки и не может встать в начало —
@@ -1324,8 +1324,10 @@ function confettiBurst(x,y,n,colors){
      фактической прокрутке, а не по «активной» карточке. */
   function edge(){
     var max=track.scrollWidth-track.clientWidth;
-    if(prev) prev.disabled=(track.scrollLeft<=2);
-    if(next) next.disabled=(track.scrollLeft>=max-2);
+    if(prev) prev.disabled=(track.scrollLeft<=4);
+    /* терпимость к суб-пиксельному остатку снапа (дробная ширина карточек),
+       иначе стрелка «вперёд» не гаснет на последней карточке */
+    if(next) next.disabled=(track.scrollLeft>=max-16);
   }
   if(prev) prev.addEventListener("click",function(){ track.scrollBy({left:-step(), behavior: RM?"auto":"smooth"}); });
   if(next) next.addEventListener("click",function(){ track.scrollBy({left: step(), behavior: RM?"auto":"smooth"}); });
