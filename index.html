@@ -115,6 +115,9 @@
   .rv.in{opacity:1; transform:none;}
   @media(prefers-reduced-motion:reduce){
     .rv{opacity:1; transform:none; transition:none}
+    /* hero оживает анимацией из opacity:0 — под reduced-motion анимация выключена,
+       поэтому возвращаем видимость явно, иначе весь первый экран пустой */
+    .hero .h-el, .hero .demo-wrap, .hero h1 .w{opacity:1!important; transform:none!important;}
     *{animation:none!important; transition-duration:.001s!important}
     html{scroll-behavior:auto}
   }
@@ -190,8 +193,10 @@
 
   /* ====== планеры: КАРУСЕЛЬ карточек с рамкой «настоящей Google-таблицы» ====== */
   .pcarousel{position:relative; margin-top:34px;}
-  .planners{display:flex; gap:16px; overflow-x:auto; scroll-snap-type:x mandatory;
-    padding:4px 2px 10px; scrollbar-width:none; -ms-overflow-style:none; -webkit-overflow-scrolling:touch;}
+  /* proximity, а не mandatory: последние карточки шире остатка прокрутки и не могут
+     дойти до snap-start — mandatory их силой дёргал («криво листаются») */
+  .planners{display:flex; gap:16px; overflow-x:auto; scroll-snap-type:x proximity;
+    scroll-padding-left:2px; padding:4px 2px 10px; scrollbar-width:none; -ms-overflow-style:none; -webkit-overflow-scrolling:touch;}
   .planners::-webkit-scrollbar{display:none;}
   .planner{flex:0 0 min(86%, 550px); scroll-snap-align:start; padding:16px 16px 18px; position:relative; overflow:hidden;}
   .planner::before{content:""; position:absolute; inset:0 0 auto 0; height:2px; opacity:.9;
