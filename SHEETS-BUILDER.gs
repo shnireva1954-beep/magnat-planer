@@ -876,146 +876,47 @@ function buildWeek_(folder) {
 /* ==================== 5. ФИНАНСЫ — «КАПИТАЛ» ==================== */
 
 function buildFinance_(folder) {
-  // 2 видимые вкладки: «📊 Финансы» (дашборд + ввод операций на одном листе)
-  // и «⚙️ Настройки» (категории/цели/долги/инструкция). Плюс скрытый _calc.
-  var ss = makeFile_('Магнат · Финансы', folder, ['📊 Финансы', '⚙️ Настройки', '_calc']);
-  var main = ss.getSheetByName('📊 Финансы'),
-      aux  = ss.getSheetByName('⚙️ Настройки'),
+  var ss = makeFile_('Магнат · Финансы', folder, ['📊 Дашборд', 'Операции', 'Долги', 'Цели', '_calc']);
+  var dash = ss.getSheetByName('📊 Дашборд'),
+      ops  = ss.getSheetByName('Операции'),
+      debt = ss.getSheetByName('Долги'),
+      goal = ss.getSheetByName('Цели'),
       calc = ss.getSheetByName('_calc');
-  var SETN = "'⚙️ Настройки'";            // имя вкладки настроек для формул
-  var MQ = "'📊 Финансы'!", OROW = 35;    // операции живут на главном листе с 35-й строки
-  var AMT = MQ + '$E$' + OROW + ':$E$2000',
-      TYP = MQ + '$C$' + OROW + ':$C$2000',
-      CAT = MQ + '$D$' + OROW + ':$D$2000',
-      DAT = MQ + '$B$' + OROW + ':$B$2000';
+  var CATS = ['🍔 Еда', '🏠 Жильё', '🚗 Транспорт', '🎮 Досуг', '📦 Другое'];
+  var ALL_CATS = ['💼 Зарплата'].concat(CATS);
 
-  /* ---- ⚙️ Настройки: инструкция + категории + цели + долги ---- */
-  aux.setTabColor(PAL.mut2);
-  aux.getRange('A1').setValue('⚙️ Настройки Финансов').setFontWeight('bold').setFontSize(13);
-  starterBlock_(aux, 3, [
-    'Записывай операции прямо на листе «📊 Финансы» — таблица внизу, под графиками.',
-    'Как впишешь — KPI и диаграммы над таблицей пересчитаются сами.',
-    'Категории (ниже) меняй под себя — список в операциях подтянется.',
-    'Цель подушки и «уже отложено» — тоже здесь. Долги — в самом низу.',
+  /* ---- Цели (+ инструкция) ---- */
+  goal.setTabColor(PAL.mut2);
+  goal.getRange('A1').setValue('🎯 Цели и планы').setFontWeight('bold').setFontSize(13);
+  starterBlock_(goal, 3, [
+    'Записывай операции на листе «Операции»: дата, тип, категория, сумма.',
+    'Планы по категориям на месяц — в таблице ниже.',
+    'Подушка = накопления в месяцах жизни. Впиши, сколько уже отложено.',
+    'Долги — на отдельном листе, прогресс закрытия считается сам.',
     'Не редактируй серые ячейки — в них формулы.'
   ]);
-  header_(aux, 10, 1, ['Категория (меняй под себя)', 'План на месяц, ₽']);
-  aux.getRange('A11:B15').setValues([
+  header_(goal, 10, 1, ['Категория (меняй под себя)', 'План на месяц, ₽']);
+  goal.getRange('A11:B15').setValues([
     ['🍔 Еда', 40000], ['🏠 Жильё', 25000], ['🚗 Транспорт', 18000],
     ['🎮 Досуг', 15000], ['📦 Другое', 8000]
   ]);
-  aux.getRange('A16').setValue('💼 Зарплата').setNote('Категория доходов. Переименуй/добавь свои — список в операциях обновится сам.');
-  aux.getRange('A10').setNote('Твои категории: переименовывай, удаляй, добавляй. Первые 5 (расходы) — на дашборде, «Другое» ловит остальное.');
-  aux.getRange('A17').setValue('Цель: доля дохода в сбережения');
-  aux.getRange('B17').setValue(0.15).setNumberFormat('0%');
-  aux.getRange('A18').setValue('Цель подушки, месяцев');
-  aux.getRange('B18').setValue(6);
-  aux.getRange('A19').setValue('Уже отложено (стартовая подушка), ₽');
-  aux.getRange('B19').setValue(200000);
-  // долги — здесь же, отдельной вкладки больше нет
-  header_(aux, 22, 1, ['Долг: кому / что', 'Всего, ₽', 'Выплачено, ₽', 'Осталось, ₽', 'Прогресс']);
-  aux.getRange('A23:C24').setValues([['Кредитная карта', 45000, 20000], ['Брату за ноутбук', 30000, 18000]]);
-  var df = [];
-  for (var dr = 23; dr <= 40; dr++) {
-    df.push([
-      '=IF($A' + dr + '="","",$B' + dr + '-$C' + dr + ')',
-      '=IF($A' + dr + '="","",IFERROR(SPARKLINE($C' + dr + ',{"charttype","bar";"max",MAX(1,$B' + dr + ');"color1","#12a565"}),""))'
-    ]);
-  }
-  aux.getRange(23, 4, 18, 2).setFormulas(df);
-  aux.getRange('B23:D40').setNumberFormat('#,##0" ₽"');
-  aux.setColumnWidth(1, 280); aux.setColumnWidth(2, 140); aux.setColumnWidth(5, 150);
-  ss.setNamedRange('SAVE_GOAL', aux.getRange('B17'));
-  ss.setNamedRange('PILLOW_GOAL', aux.getRange('B18'));
-  ss.setNamedRange('PILLOW_START', aux.getRange('B19'));
+  // категория дохода — тоже редактируемая, попадает в выпадающий список «Операций»
+  goal.getRange('A16').setValue('💼 Зарплата').setNote('Категория доходов. Переименуй/добавь свои категории прямо здесь — список в «Операциях» обновится сам.');
+  goal.getRange('A10').setNote('Это твои категории. Переименовывай, удаляй, добавляй строки — выпадающий список в «Операциях» берётся отсюда. Первые 5 (расходы) показываются на дашборде, «Другое» — всё остальное.');
+  goal.getRange('A17').setValue('Цель: доля дохода в сбережения');
+  goal.getRange('B17').setValue(0.15).setNumberFormat('0%');
+  goal.getRange('A18').setValue('Цель подушки, месяцев');
+  goal.getRange('B18').setValue(6);
+  goal.getRange('A19').setValue('Уже отложено (стартовая подушка), ₽');
+  goal.getRange('B19').setValue(200000);
+  goal.setColumnWidth(1, 280); goal.setColumnWidth(2, 140);
+  ss.setNamedRange('SAVE_GOAL', goal.getRange('B17'));
+  ss.setNamedRange('PILLOW_GOAL', goal.getRange('B18'));
+  ss.setNamedRange('PILLOW_START', goal.getRange('B19'));
 
-  /* ---- _calc (читает операции с главного листа) ---- */
-  for (var c = 0; c < 5; c++) {
-    var rc = 2 + c;
-    calc.getRange(rc, 1).setFormula('=IF(' + SETN + '!A' + (11 + c) + '="","",' + SETN + '!A' + (11 + c) + ')');
-    calc.getRange(rc, 2).setFormula(
-      '=SUMIFS(' + AMT + ',' + CAT + ',$A' + rc + ',' + TYP + ',"Расход",' + DAT + ',">="&EOMONTH(TODAY(),-1)+1)');
-    calc.getRange(rc, 3).setFormula('=' + SETN + '!B' + (11 + c));
-  }
-  for (var m2 = 0; m2 < 6; m2++) {
-    var rm = 2 + m2;
-    calc.getRange(rm, 8).setFormula('=EOMONTH(TODAY(),' + (m2 - 6) + ')+1');
-    calc.getRange(rm, 5).setFormula('=TEXT(H' + rm + ',"MMM")');
-    calc.getRange(rm, 6).setFormula(
-      '=SUMIFS(' + AMT + ',' + TYP + ',"Доход",' + DAT + ',">="&H' + rm + ',' + DAT + ',"<="&EOMONTH(H' + rm + ',0))');
-    calc.getRange(rm, 9).setFormula(
-      '=SUMIFS(' + AMT + ',' + TYP + ',"Расход",' + DAT + ',">="&H' + rm + ',' + DAT + ',"<="&EOMONTH(H' + rm + ',0))');
-    calc.getRange(rm, 7).setFormula('=F' + rm + '-I' + rm);
-  }
-  var F = {
-    'B8': '=SUMIFS(' + AMT + ',' + TYP + ',"Доход",' + DAT + ',">="&EOMONTH(TODAY(),-1)+1)',
-    'B9': '=SUMIFS(' + AMT + ',' + TYP + ',"Расход",' + DAT + ',">="&EOMONTH(TODAY(),-1)+1)',
-    'B10': '=B8-B9',
-    'B11': '=IF(B8=0,0,B10/B8)',
-    'B12': '=IF(SUM(I2:I7)=0,0,MAX(1,AVERAGE(I5:I7)))',
-    'B13': '=IFERROR(AVERAGE(G5:G7),0)',
-    'B14': '=PILLOW_START+SUMIF(' + TYP + ',"Доход",' + AMT + ')-SUMIF(' + TYP + ',"Расход",' + AMT + ')',
-    'B15': '=IF(B12=0,0,IFERROR(MAX(0,B14)/B12,0))',
-    'B16': '=IF(B15>=PILLOW_GOAL,"цель достигнута — держи уровень!",IF(B13<=0,"начни откладывать — прогноз появится","темп +"&TEXT(B13,"#,##0")&" ₽/мес → цель "&PILLOW_GOAL&" мес через ~"&MAX(1,ROUNDUP((PILLOW_GOAL*B12-B14)/B13,0))&" мес"))',
-    'B17': '=ARRAYFORMULA(IFERROR(IF(MAX(B2:B6-C2:C6)>0,INDEX(A2:A6,MATCH(MAX(B2:B6-C2:C6),B2:B6-C2:C6,0)),""),""))',
-    'B18': '=ARRAYFORMULA(IFERROR(MAX(B2:B6-C2:C6),0))',
-    'B19': '=IF(B8+B9=0,"Добавь операции — аналитика появится сама","Сбережения "&TEXT(B11,"0%")&" дохода"&IF(B18>0," · "&B17&" превысила план на "&TEXT(B18,"#,##0")&" ₽ — проверь её первой",IF(B11>=SAVE_GOAL," — выше цели "&TEXT(SAVE_GOAL,"0%")&", так держать!"," — цель "&TEXT(SAVE_GOAL,"0%")&", чуть поднажми")))'
-  };
-  for (var a1 in F) calc.getRange(a1).setFormula(F[a1]);
-
-  /* ---- 📊 Финансы: дашборд сверху (KPI закреплены) + операции снизу ---- */
-  dashBase_(main, PAL.gold);
-  dashTitle_(main, '💰 КАПИТАЛ · МЕСЯЦ', PAL.gold, '=TEXT(_calc!B10,"+#,##0;-#,##0")&" ₽"', PAL.grn);
-  kpi_(main, 3, 2, 'Доход', '=TEXT(_calc!B8,"#,##0")', 'за текущий месяц', PAL.grn, PAL.grnb, '#0d7a4c');
-  kpi_(main, 3, 4, 'Расход', '=TEXT(_calc!B9,"#,##0")', 'за текущий месяц', PAL.red, PAL.redb, '#c0344a');
-  kpi_(main, 3, 6, 'Сбережения', '=TEXT(_calc!B10,"#,##0")', '=TEXT(_calc!B11,"0%")&" дохода"', PAL.gold, PAL.grnb, '#0d7a4c');
-  kpi_(main, 3, 8, 'Подушка', '=TEXT(_calc!B15,"0.0")&" мес"', '="цель — "&PILLOW_GOAL&" мес"', PAL.blu, PAL.gray, PAL.mut);
-  main.setFrozenRows(6);  // KPI видны, пока вводишь операции ниже
-
-  label_(main, 'B7', 'Расходы месяца');
-  label_(main, 'F7', 'План против факта');
-  chartSafe_(main, main.newChart().setChartType(Charts.ChartType.PIE)
-    .addRange(calc.getRange('A2:B6'))
-    .setPosition(8, 2, 0, 6)
-    .setOption('width', 380).setOption('height', 200)
-    .setOption('pieHole', 0.6)
-    .setOption('colors', [PAL.grn, PAL.blu, PAL.gold, PAL.vio, '#9aa6b4'])
-    .setOption('legend', { position: 'right' }).setOption('pieSliceText', 'percentage'), 'Пончик расходов');
-  main.getRange('F8:I8').setValues([['Категория', 'План', 'Факт', '']])
-    .setBackground(PAL.head).setFontColor(PAL.mut).setFontWeight('bold').setFontSize(9);
-  for (var pc = 0; pc < 5; pc++) {
-    var pr = 9 + pc, cr2 = 2 + pc;
-    main.getRange(pr, 6).setFormula('=_calc!A' + cr2).setFontSize(10);
-    main.getRange(pr, 7).setFormula('=_calc!C' + cr2).setNumberFormat('#,##0');
-    main.getRange(pr, 8).setFormula('=_calc!B' + cr2).setNumberFormat('#,##0');
-    main.getRange(pr, 9).setFormula(
-      '=IFERROR(SPARKLINE(_calc!B' + cr2 + ',{"charttype","bar";"max",MAX(1,_calc!B' + cr2 + ',_calc!C' + cr2 + ');"color1",IF(_calc!B' + cr2 + '>_calc!C' + cr2 + ',"#e0556a","#12a565")}),"")');
-  }
-  addRule_(main, SpreadsheetApp.newConditionalFormatRule()
-    .whenFormulaSatisfied('=AND(ISNUMBER(H9),H9>G9)').setFontColor(PAL.red)
-    .setRanges([main.getRange('H9:H13')]).build());
-  for (var rr = 8; rr <= 17; rr++) main.setRowHeight(rr, 20);
-
-  label_(main, 'B19', 'Копилка · 6 месяцев');
-  chartSafe_(main, main.newChart().setChartType(Charts.ChartType.COLUMN)
-    .addRange(calc.getRange('E2:E7')).addRange(calc.getRange('G2:G7'))
-    .setPosition(20, 2, 0, 6)
-    .setOption('width', 760).setOption('height', 170)
-    .setOption('colors', [PAL.gold]).setOption('legend', { position: 'none' }), 'Копилка');
-  for (var kr = 20; kr <= 27; kr++) main.setRowHeight(kr, 20);
-
-  main.getRange('B29').setValue('🛡️ ПОДУШКА').setFontWeight('bold').setFontSize(10);
-  main.getRange('C29:E29').merge().setFormula(
-    '=IFERROR(SPARKLINE(_calc!B15,{"charttype","bar";"max",MAX(1,PILLOW_GOAL);"color1","#2f8fd8"}),"")');
-  main.getRange('F29:I29').merge().setFormula('=TEXT(_calc!B15,"0.0")&" / "&PILLOW_GOAL&" мес · "&_calc!B16')
-    .setFontSize(9).setFontColor(PAL.mut);
-
-  insight_(main, 31, '="💡 "&_calc!B19');
-
-  /* ---- операции прямо на этом же листе (ниже дашборда) ---- */
-  main.getRange('B33').setValue('✍️ ОПЕРАЦИИ — записывай сюда, графики выше обновятся сами')
-    .setFontWeight('bold').setFontSize(11).setFontColor(PAL.ink);
-  header_(main, 34, 2, ['Дата', 'Тип', 'Категория', 'Сумма, ₽']);
+  /* ---- Операции (демо 6 месяцев) ---- */
+  ops.setTabColor(PAL.gold);
+  header_(ops, 1, 1, ['Дата', 'Тип', 'Категория', 'Сумма, ₽']);
   var t = new Date();
   var rows = [];
   for (var m = 5; m >= 0; m--) {
@@ -1023,7 +924,7 @@ function buildFinance_(folder) {
     var maxDay = (m === 0) ? t.getDate() : 28;
     function od(day) { return new Date(y, mo, Math.min(day, maxDay)); }
     rows.push([od(1), 'Доход', '💼 Зарплата', 100000 + (5 - m) * 3500]);
-    if (m >= 2) rows.push([od(15), 'Доход', '💼 Зарплата', 8000]);
+    if (m >= 2) rows.push([od(15), 'Доход', '💼 Зарплата', 8000]); // подработка в старых месяцах
     rows.push([od(2), 'Расход', '🏠 Жильё', 24000]);
     [5, 12, 19, 26].forEach(function (day, k) {
       if (day <= maxDay) rows.push([od(day), 'Расход', '🍔 Еда', 8900 + ((m * 4 + k) % 5) * 350]);
@@ -1035,20 +936,126 @@ function buildFinance_(folder) {
     if (23 <= maxDay) rows.push([od(23), 'Расход', '🎮 Досуг', 5400]);
     if (17 <= maxDay) rows.push([od(17), 'Расход', '📦 Другое', 3300 + (m % 2) * 700]);
   }
-  main.getRange(OROW, 2, rows.length, 4).setValues(rows);
-  main.getRange('C' + OROW + ':C2000').setDataValidation(
+  ops.getRange(2, 1, rows.length, 4).setValues(rows);
+  var lastOp = rows.length + 1;
+  ops.getRange('B2:B1000').setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(['Доход', 'Расход'], true).setAllowInvalid(false).build());
-  main.getRange('D' + OROW + ':D2000').setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInRange(aux.getRange('A11:A16'), true).setAllowInvalid(true).build());
-  main.getRange('B' + OROW + ':B2000').setNumberFormat('d MMM yyyy');
-  main.getRange('E' + OROW + ':E2000').setNumberFormat('#,##0" ₽"');
-  addRule_(main, SpreadsheetApp.newConditionalFormatRule()
-    .whenFormulaSatisfied('=$C' + OROW + '="Доход"').setFontColor('#0d7a4c')
-    .setRanges([main.getRange('E' + OROW + ':E2000')]).build());
+  // категории берём ИЗ листа «Цели» (редактируемый список), плюс разрешаем
+  // вписать свою вручную (allowInvalid). Так можно менять/удалять/добавлять категории.
+  ops.getRange('C2:C1000').setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInRange(goal.getRange('A11:A16'), true).setAllowInvalid(true).build());
+  ops.getRange('A2:A1000').setNumberFormat('d MMM yyyy');
+  ops.getRange('D2:D1000').setNumberFormat('#,##0" ₽"');
+  ops.setFrozenRows(1);
+  ops.setColumnWidths(1, 4, 130);
+  addRule_(ops, SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=$B2="Доход"').setFontColor('#0d7a4c')
+    .setRanges([ops.getRange('D2:D1000')]).build());
+
+  /* ---- Долги ---- */
+  debt.setTabColor(PAL.mut2);
+  header_(debt, 1, 1, ['Кому / что', 'Всего, ₽', 'Выплачено, ₽', 'Осталось, ₽', 'Прогресс']);
+  debt.getRange('A2:C3').setValues([['Кредитная карта', 45000, 20000], ['Брату за ноутбук', 30000, 18000]]);
+  var df = [];
+  for (var dr = 2; dr <= 30; dr++) {
+    df.push([
+      '=IF($A' + dr + '="","",$B' + dr + '-$C' + dr + ')',
+      '=IF($A' + dr + '="","",IFERROR(SPARKLINE($C' + dr + ',{"charttype","bar";"max",MAX(1,$B' + dr + ');"color1","#12a565"}),""))'
+    ]);
+  }
+  debt.getRange(2, 4, 29, 2).setFormulas(df);
+  debt.getRange('B2:D30').setNumberFormat('#,##0" ₽"');
+  debt.setColumnWidth(1, 220); debt.setColumnWidth(5, 160);
+
+  /* ---- _calc ---- */
+  // категории месяца
+  for (var c = 0; c < 5; c++) {
+    var rc = 2 + c;
+    calc.getRange(rc, 1).setFormula('=IF(Цели!A' + (11 + c) + '="","",Цели!A' + (11 + c) + ')');
+    calc.getRange(rc, 2).setFormula(
+      '=SUMIFS(Операции!$D$2:$D$1000,Операции!$C$2:$C$1000,$A' + rc + ',Операции!$B$2:$B$1000,"Расход",Операции!$A$2:$A$1000,">="&EOMONTH(TODAY(),-1)+1)');
+    calc.getRange(rc, 3).setFormula('=Цели!B' + (11 + c));
+  }
+  // 6 месяцев: H старт · E имя · F доход · I расход · G сбережения
+  for (var m2 = 0; m2 < 6; m2++) {
+    var rm = 2 + m2;
+    calc.getRange(rm, 8).setFormula('=EOMONTH(TODAY(),' + (m2 - 6) + ')+1');
+    calc.getRange(rm, 5).setFormula('=TEXT(H' + rm + ',"MMM")');
+    calc.getRange(rm, 6).setFormula(
+      '=SUMIFS(Операции!$D$2:$D$1000,Операции!$B$2:$B$1000,"Доход",Операции!$A$2:$A$1000,">="&H' + rm + ',Операции!$A$2:$A$1000,"<="&EOMONTH(H' + rm + ',0))');
+    calc.getRange(rm, 9).setFormula(
+      '=SUMIFS(Операции!$D$2:$D$1000,Операции!$B$2:$B$1000,"Расход",Операции!$A$2:$A$1000,">="&H' + rm + ',Операции!$A$2:$A$1000,"<="&EOMONTH(H' + rm + ',0))');
+    calc.getRange(rm, 7).setFormula('=F' + rm + '-I' + rm);
+  }
+  var F = {
+    'B8': '=SUMIFS(Операции!$D$2:$D$1000,Операции!$B$2:$B$1000,"Доход",Операции!$A$2:$A$1000,">="&EOMONTH(TODAY(),-1)+1)',
+    'B9': '=SUMIFS(Операции!$D$2:$D$1000,Операции!$B$2:$B$1000,"Расход",Операции!$A$2:$A$1000,">="&EOMONTH(TODAY(),-1)+1)',
+    'B10': '=B8-B9',
+    'B11': '=IF(B8=0,0,B10/B8)',
+    'B12': '=IF(SUM(I2:I7)=0,0,MAX(1,AVERAGE(I5:I7)))',
+    'B13': '=IFERROR(AVERAGE(G5:G7),0)',
+    'B14': '=PILLOW_START+SUMIF(Операции!B2:B1000,"Доход",Операции!D2:D1000)-SUMIF(Операции!B2:B1000,"Расход",Операции!D2:D1000)',
+    'B15': '=IF(B12=0,0,IFERROR(MAX(0,B14)/B12,0))',
+    'B16': '=IF(B15>=PILLOW_GOAL,"цель достигнута — держи уровень!",IF(B13<=0,"начни откладывать — прогноз появится","темп +"&TEXT(B13,"#,##0")&" ₽/мес → цель "&PILLOW_GOAL&" мес через ~"&MAX(1,ROUNDUP((PILLOW_GOAL*B12-B14)/B13,0))&" мес"))',
+    'B17': '=ARRAYFORMULA(IFERROR(IF(MAX(B2:B6-C2:C6)>0,INDEX(A2:A6,MATCH(MAX(B2:B6-C2:C6),B2:B6-C2:C6,0)),""),""))',
+    'B18': '=ARRAYFORMULA(IFERROR(MAX(B2:B6-C2:C6),0))',
+    'B19': '=IF(B8+B9=0,"Добавь операции — аналитика появится сама","Сбережения "&TEXT(B11,"0%")&" дохода"&IF(B18>0," · "&B17&" превысила план на "&TEXT(B18,"#,##0")&" ₽ — проверь её первой",IF(B11>=SAVE_GOAL," — выше цели "&TEXT(SAVE_GOAL,"0%")&", так держать!"," — цель "&TEXT(SAVE_GOAL,"0%")&", чуть поднажми")))'
+  };
+  for (var a1 in F) calc.getRange(a1).setFormula(F[a1]);
+
+  /* ---- Дашборд ---- */
+  dashBase_(dash, PAL.gold);
+  dashTitle_(dash, '💰 КАПИТАЛ · МЕСЯЦ', PAL.gold, '=TEXT(_calc!B10,"+#,##0;-#,##0")&" ₽"', PAL.grn);
+  kpi_(dash, 3, 2, 'Доход', '=TEXT(_calc!B8,"#,##0")', 'за текущий месяц', PAL.grn, PAL.grnb, '#0d7a4c');
+  kpi_(dash, 3, 4, 'Расход', '=TEXT(_calc!B9,"#,##0")', 'за текущий месяц', PAL.red, PAL.redb, '#c0344a');
+  kpi_(dash, 3, 6, 'Сбережения', '=TEXT(_calc!B10,"#,##0")', '=TEXT(_calc!B11,"0%")&" дохода"', PAL.gold, PAL.grnb, '#0d7a4c');
+  kpi_(dash, 3, 8, 'Подушка', '=TEXT(_calc!B15,"0.0")&" мес"', '="цель — "&PILLOW_GOAL&" мес"', PAL.blu, PAL.gray, PAL.mut);
+
+  label_(dash, 'B7', 'Расходы месяца');
+  label_(dash, 'F7', 'План против факта');
+  chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.PIE)
+    .addRange(calc.getRange('A2:B6'))
+    .setPosition(8, 2, 0, 6)
+    .setOption('width', 380).setOption('height', 200)
+    .setOption('pieHole', 0.6)
+    .setOption('colors', [PAL.grn, PAL.blu, PAL.gold, PAL.vio, '#9aa6b4'])
+    .setOption('legend', { position: 'right' }).setOption('pieSliceText', 'percentage'), 'Пончик расходов');
+  dash.getRange('F8:I8').setValues([['Категория', 'План', 'Факт', '']])
+    .setBackground(PAL.head).setFontColor(PAL.mut).setFontWeight('bold').setFontSize(9);
+  for (var pc = 0; pc < 5; pc++) {
+    var pr = 9 + pc, cr = 2 + pc;
+    dash.getRange(pr, 6).setFormula('=_calc!A' + cr).setFontSize(10);
+    dash.getRange(pr, 7).setFormula('=_calc!C' + cr).setNumberFormat('#,##0');
+    dash.getRange(pr, 8).setFormula('=_calc!B' + cr).setNumberFormat('#,##0');
+    dash.getRange(pr, 9).setFormula(
+      '=IFERROR(SPARKLINE(_calc!B' + cr + ',{"charttype","bar";"max",MAX(1,_calc!B' + cr + ',_calc!C' + cr + ');"color1",IF(_calc!B' + cr + '>_calc!C' + cr + ',"#e0556a","#12a565")}),"")');
+  }
+  addRule_(dash, SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=AND(ISNUMBER(H9),H9>G9)').setFontColor(PAL.red)
+    .setRanges([dash.getRange('H9:H13')]).build());
+  for (var rr = 8; rr <= 17; rr++) dash.setRowHeight(rr, 20);
+
+  label_(dash, 'B19', 'Копилка · 6 месяцев');
+  chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.COLUMN)
+    .addRange(calc.getRange('E2:E7')).addRange(calc.getRange('G2:G7'))
+    .setPosition(20, 2, 0, 6)
+    .setOption('width', 760).setOption('height', 170)
+    .setOption('colors', [PAL.gold]).setOption('legend', { position: 'none' }), 'Копилка');
+  for (var kr = 20; kr <= 27; kr++) dash.setRowHeight(kr, 20);
+
+  dash.getRange('B29').setValue('🛡️ ПОДУШКА').setFontWeight('bold').setFontSize(10);
+  dash.getRange('C29:E29').merge().setFormula(
+    '=IFERROR(SPARKLINE(_calc!B15,{"charttype","bar";"max",MAX(1,PILLOW_GOAL);"color1","#2f8fd8"}),"")');
+  dash.getRange('F29:I29').merge().setFormula('=TEXT(_calc!B15,"0.0")&" / "&PILLOW_GOAL&" мес · "&_calc!B16')
+    .setFontSize(9).setFontColor(PAL.mut);
+
+  insight_(dash, 31, '="💡 "&_calc!B19');
 
   finishCalc_(calc);
-  protectWarn_(main, ['B' + OROW + ':E2000']);   // редактируется только таблица операций
-  protectWarn_(aux, ['A11:B16', 'B17:B19', 'A23:C40']);
+  protectWarn_(dash, null);
+  protectWarn_(ops, ['A2:D1000']);
+  protectWarn_(debt, ['A2:C30']);
+  protectWarn_(goal, ['A11:B16', 'B17:B19']);
   finishFile_(ss);
   Logger.log('Финансы: ' + ss.getUrl());
   return 'Финансы: ' + ss.getUrl();

@@ -193,13 +193,12 @@
 
   /* ====== планеры: КАРУСЕЛЬ карточек с рамкой «настоящей Google-таблицы» ====== */
   .pcarousel{position:relative; margin-top:34px;}
-  .planners{display:flex; gap:16px; overflow-x:auto; scroll-snap-type:x mandatory;
+  /* snap не через CSS, а точным JS-доводом до карточки — так последняя встаёт
+     ровно в край, без «лишнего хода вправо» на любом экране */
+  .planners{display:flex; gap:16px; overflow-x:auto;
     padding:4px 0 10px; scrollbar-width:none; -ms-overflow-style:none; -webkit-overflow-scrolling:touch;}
   .planners::-webkit-scrollbar{display:none;}
-  .planner{flex:0 0 min(86%, 550px); scroll-snap-align:start; padding:16px 16px 18px; position:relative; overflow:hidden;}
-  /* последняя карточка шире остатка прокрутки и не может встать в начало —
-     привязываем её по правому краю, иначе mandatory дёргал у конца (десктоп и мобайл) */
-  .planner:last-child{scroll-snap-align:end;}
+  .planner{flex:0 0 min(86%, 550px); padding:16px 16px 18px; position:relative; overflow:hidden;}
   .planner::before{content:""; position:absolute; inset:0 0 auto 0; height:2px; opacity:.9;
     background:linear-gradient(90deg,transparent,var(--ac,var(--emerald)),transparent);}
   .p1{--ac:var(--emerald)} .p2{--ac:var(--amber)} .p3{--ac:var(--rose)} .p4{--ac:var(--violet)} .p5{--ac:var(--gold)}
@@ -446,8 +445,12 @@
   .mcta{position:fixed; left:0; right:0; bottom:0; z-index:25; padding:10px 14px calc(10px + env(safe-area-inset-bottom));
     background:#070a0ff0; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-top:1px solid var(--line); display:none;}
   .mcta .btn{width:100%; padding:13px;}
-  @media(max-width:640px){ .mcta.show{display:block; animation:mctain .35s var(--ease);} }
-  @keyframes mctain{from{transform:translateY(100%)}}
+  /* плашка плавно выезжает снизу и так же плавно уезжает — без резкого всплытия */
+  @media(max-width:640px){
+    .mcta{display:block; transform:translateY(130%); opacity:0; will-change:transform;
+      transition:transform .5s var(--ease), opacity .4s ease;}
+    .mcta.show{transform:translateY(0); opacity:1;}
+  }
 
   /* бандл */
   .bundle{display:grid; grid-template-columns:.9fr 1.1fr; gap:48px; align-items:center;}
@@ -1306,57 +1309,60 @@ function confettiBurst(x,y,n,colors){
   });
 })();
 
-/* карусель планеров: точки-индикаторы + стрелки + активный слайд */
+/* карусель планеров: точный JS-довод до карточки (без CSS-snap).
+   Последняя карточка всегда встаёт ровно в правый край — «лишнего хода
+   вправо» нет ни на каком экране; стрелки и точки листают по одной. */
 (function(){
   var track=document.getElementById("planners"); if(!track) return;
   var cards=[].slice.call(track.querySelectorAll(".planner"));
   var dotsBox=document.getElementById("pdots");
   var prev=document.getElementById("arrPrev"), next=document.getElementById("arrNext");
-  var cur=-1;
+  var cur=0;
   cards.forEach(function(_,i){
     var b=document.createElement("button"); b.type="button"; b.setAttribute("aria-label","планер "+(i+1));
-    b.addEventListener("click",function(){ go(i); });
+    b.addEventListener("click",function(){ goTo(i); });
     dotsBox.appendChild(b);
   });
   var dots=[].slice.call(dotsBox.children);
-  function scrollToCard(i){
+  var lock=false, lockTmr, snapTmr, raf;
+  function maxSL(){ return Math.max(0, track.scrollWidth - track.clientWidth); }
+  /* scrollLeft, приводящий карточку i к левому краю, ОБРЕЗАННЫЙ по [0,max]:
+     для последних карточек упирается ровно в max — карточка встаёт впритык */
+  function posOf(i){
     var d=cards[i].getBoundingClientRect().left - track.getBoundingClientRect().left;
-    track.scrollBy({left:d, behavior: RM ? "auto" : "smooth"});
+    return Math.max(0, Math.min(maxSL(), Math.round(track.scrollLeft + d)));
   }
-  function go(i){ i=Math.max(0,Math.min(cards.length-1,i)); scrollToCard(i); }
-  /* шаг = расстояние между карточками (ширина + gap) */
-  function step(){ return cards.length>1
-    ? (cards[1].getBoundingClientRect().left - cards[0].getBoundingClientRect().left)
-    : cards[0].getBoundingClientRect().width; }
-  function setActive(i){
-    if(i===cur) return; cur=i;
-    dots.forEach(function(d,k){ d.classList.toggle("on",k===i); });
+  function nearest(){
+    var sl=track.scrollLeft, best=0, bd=1e9;
+    for(var i=0;i<cards.length;i++){ var dd=Math.abs(posOf(i)-sl); if(dd<bd){bd=dd;best=i;} }
+    return best;
   }
-  /* стрелки листают ОТ ТЕКУЩЕЙ прокрутки на одну карточку (scrollBy), а не по
-     индексу активной карточки: у последних карточек snap-точка недостижима,
-     и листание «по индексу» дёргалось на месте. Кнопки гасим у краёв — по
-     фактической прокрутке, а не по «активной» карточке. */
-  function edge(){
-    var max=track.scrollWidth-track.clientWidth;
-    if(prev) prev.disabled=(track.scrollLeft<=4);
-    /* терпимость к суб-пиксельному остатку снапа (дробная ширина карточек),
-       иначе стрелка «вперёд» не гаснет на последней карточке */
-    if(next) next.disabled=(track.scrollLeft>=max-16);
+  function dotsPaint(i){ dots.forEach(function(d,k){ d.classList.toggle("on",k===i); }); }
+  function edge(){ var m=maxSL(); if(prev) prev.disabled=(track.scrollLeft<=2); if(next) next.disabled=(track.scrollLeft>=m-2); }
+  function goTo(i){
+    i=Math.max(0,Math.min(cards.length-1,i)); cur=i; lock=true;
+    dotsPaint(i);
+    track.scrollTo({left:posOf(i), behavior: RM?"auto":"smooth"});
+    edge();
+    clearTimeout(lockTmr); lockTmr=setTimeout(function(){ lock=false; edge(); }, RM?60:520);
   }
-  if(prev) prev.addEventListener("click",function(){ track.scrollBy({left:-step(), behavior: RM?"auto":"smooth"}); });
-  if(next) next.addEventListener("click",function(){ track.scrollBy({left: step(), behavior: RM?"auto":"smooth"}); });
-  var raf;
+  if(prev) prev.addEventListener("click",function(){ goTo(cur-1); });
+  if(next) next.addEventListener("click",function(){ goTo(cur+1); });
   track.addEventListener("scroll",function(){
     if(raf) cancelAnimationFrame(raf);
-    raf=requestAnimationFrame(function(){
-      var tr=track.getBoundingClientRect(), center=tr.left+tr.width/2, best=0, bd=1e9;
-      cards.forEach(function(c,i){ var r=c.getBoundingClientRect(), cc=r.left+r.width/2, dd=Math.abs(cc-center); if(dd<bd){bd=dd;best=i;} });
-      setActive(best); edge();
-    });
+    raf=requestAnimationFrame(function(){ edge(); if(!lock){ cur=nearest(); dotsPaint(cur); } });
+    if(lock) return;   // не мешаем стрелкам/точкам своей доводкой
+    /* доводка до ближайшей карточки после остановки свободной прокрутки (свайп/трекпад) */
+    clearTimeout(snapTmr);
+    snapTmr=setTimeout(function(){
+      if(lock) return;
+      var p=posOf(nearest());
+      if(Math.abs(track.scrollLeft-p)>1) track.scrollTo({left:p, behavior: RM?"auto":"smooth"});
+    }, 130);
   },{passive:true});
-  setActive(0); edge();
-  window.addEventListener("resize", edge);
-  window.addEventListener("load", edge);
+  dotsPaint(0); edge();
+  window.addEventListener("resize", function(){ edge(); if(!lock){ cur=nearest(); dotsPaint(cur); } });
+  window.addEventListener("load", function(){ edge(); });
 })();
 
 /* появление при скролле — ОДИН раз (повторные прятки при скролле вверх = дёрганье) */
