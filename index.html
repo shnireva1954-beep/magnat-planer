@@ -1113,11 +1113,11 @@
   <div class="flinks">
     <a href="oferta.html">Публичная оферта</a>
     <a href="privacy.html">Политика конфиденциальности</a>
-    <a href="mailto:shnireva1954@gmail.com">Поддержка</a>
+    <a href="mailto:planermagnat@gmail.com">Поддержка</a>
   </div>
   Самозанятый Могуленко Артём Евгеньевич<br>
   ИНН 753007234205 · Россия, г. Краснокаменск<br>
-  Почта: <a href="mailto:shnireva1954@gmail.com">shnireva1954@gmail.com</a><br>
+  Почта: <a href="mailto:planermagnat@gmail.com">planermagnat@gmail.com</a><br>
   <span style="color:#3d4a5c">«Магнат» · планер как игра-тайкун</span>
 </div></footer>
 
@@ -1130,7 +1130,7 @@
     <div class="big">🏛</div>
     <h4>Забронируй по стартовой цене</h4>
     <p>Приём оплаты картой и СБП подключается. Напиши на почту — забронируем набор по стартовой цене 990 ₽ и пришлём ссылку на оплату первыми.</p>
-    <div class="mailbox" id="mailTxt">shnireva1954@gmail.com</div>
+    <div class="mailbox" id="mailTxt">planermagnat@gmail.com</div>
     <button class="btn btn-p" id="copyBtn" type="button">📋 Скопировать адрес</button>
     <a class="maillink" id="mailBtn" href="#">или открыть почтовое приложение</a>
     <button class="close" id="ovlClose">закрыть</button>
@@ -1446,11 +1446,11 @@ document.querySelectorAll(".hero h1 .w").forEach(function(w,i){ w.style.setPrope
 /* покупка: есть ссылка Robokassa — идём платить; нет — модалка с почтой */
 (function(){
   var ovl=document.getElementById("buyOvl");
-  var mail="mailto:shnireva1954@gmail.com?subject="+encodeURIComponent("Магнат: бронирую набор за 990")+"&body="+encodeURIComponent("Привет! Хочу набор «Магнат 5 в 1» за 990 руб. Напиши, как оплатить.");
+  var mail="mailto:planermagnat@gmail.com?subject="+encodeURIComponent("Магнат: бронирую набор за 990")+"&body="+encodeURIComponent("Привет! Хочу набор «Магнат 5 в 1» за 990 руб. Напиши, как оплатить.");
   document.getElementById("mailBtn").setAttribute("href", mail);
   var copyBtn=document.getElementById("copyBtn");
   copyBtn.addEventListener("click", function(){
-    var addr="shnireva1954@gmail.com", done=function(){
+    var addr="planermagnat@gmail.com", done=function(){
       copyBtn.textContent="✓ Скопировано — жду письмо!";
       setTimeout(function(){copyBtn.textContent="📋 Скопировать адрес";}, 2200);
     };
