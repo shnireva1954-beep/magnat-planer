@@ -69,17 +69,14 @@ function finishFile_(ss) {
   try { ss.setSpreadsheetLocale('ru_RU'); } catch (e) { Logger.log('Локаль ru_RU: ' + e); }
 }
 
-/** Оформление дашборда: без сетки, узкая колонка A, контентные B..I. */
+/** Оформление дашборда: сетка-«клеточки» видна (владельцу так живее),
+    узкая колонка A, контентные B..I. */
 function dashBase_(sh, tabColor) {
-  sh.setHiddenGridlines(true);
+  sh.setHiddenGridlines(false);   // сетка видна — справа не белая пустота, а клетки
   sh.setTabColor(tabColor);
   sh.setColumnWidth(1, 16);
   sh.setColumnWidths(2, 8, 112);
   sh.setRowHeight(1, 34);
-  // убираем пустоту справа и снизу: дашборд живёт в A..I и до ~45 строки,
-  // остальное скрываем — лист не тянется белым полем, выглядит цельно
-  try { sh.hideColumns(10, sh.getMaxColumns() - 9); } catch (e) {}
-  try { sh.hideRows(46, sh.getMaxRows() - 45); } catch (e) {}
 }
 
 /** Заголовок дашборда: B1 название, H1:I1 показатель справа. */
@@ -898,11 +895,14 @@ function buildFinance_(folder) {
     'Долги — на отдельном листе, прогресс закрытия считается сам.',
     'Не редактируй серые ячейки — в них формулы.'
   ]);
-  header_(goal, 10, 1, ['Категория', 'План на месяц, ₽']);
+  header_(goal, 10, 1, ['Категория (меняй под себя)', 'План на месяц, ₽']);
   goal.getRange('A11:B15').setValues([
     ['🍔 Еда', 40000], ['🏠 Жильё', 25000], ['🚗 Транспорт', 18000],
     ['🎮 Досуг', 15000], ['📦 Другое', 8000]
   ]);
+  // категория дохода — тоже редактируемая, попадает в выпадающий список «Операций»
+  goal.getRange('A16').setValue('💼 Зарплата').setNote('Категория доходов. Переименуй/добавь свои категории прямо здесь — список в «Операциях» обновится сам.');
+  goal.getRange('A10').setNote('Это твои категории. Переименовывай, удаляй, добавляй строки — выпадающий список в «Операциях» берётся отсюда. Первые 5 (расходы) показываются на дашборде, «Другое» — всё остальное.');
   goal.getRange('A17').setValue('Цель: доля дохода в сбережения');
   goal.getRange('B17').setValue(0.15).setNumberFormat('0%');
   goal.getRange('A18').setValue('Цель подушки, месяцев');
@@ -940,8 +940,10 @@ function buildFinance_(folder) {
   var lastOp = rows.length + 1;
   ops.getRange('B2:B1000').setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(['Доход', 'Расход'], true).setAllowInvalid(false).build());
+  // категории берём ИЗ листа «Цели» (редактируемый список), плюс разрешаем
+  // вписать свою вручную (allowInvalid). Так можно менять/удалять/добавлять категории.
   ops.getRange('C2:C1000').setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInList(ALL_CATS, true).setAllowInvalid(true).build());
+    SpreadsheetApp.newDataValidation().requireValueInRange(goal.getRange('A11:A16'), true).setAllowInvalid(true).build());
   ops.getRange('A2:A1000').setNumberFormat('d MMM yyyy');
   ops.getRange('D2:D1000').setNumberFormat('#,##0" ₽"');
   ops.setFrozenRows(1);
@@ -1053,7 +1055,7 @@ function buildFinance_(folder) {
   protectWarn_(dash, null);
   protectWarn_(ops, ['A2:D1000']);
   protectWarn_(debt, ['A2:C30']);
-  protectWarn_(goal, ['A11:B15', 'B17:B19']);
+  protectWarn_(goal, ['A11:B16', 'B17:B19']);
   finishFile_(ss);
   Logger.log('Финансы: ' + ss.getUrl());
   return 'Финансы: ' + ss.getUrl();

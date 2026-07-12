@@ -345,6 +345,20 @@
     font-size:6.5px; color:#a7b1c0; font-weight:600; text-transform:uppercase; letter-spacing:.4px;}
   .heatleg i{width:8px; height:8px; border-radius:2px; background:#eef2f7; flex:none;}
   .heatleg i.h2{background:#a9e0c6} .heatleg i.h4{background:#12a565}
+  /* ТЕЛЕФОН: планеры — статичная карусель, без анимации отрисовки графиков.
+     Листаешь готовые дашборды, ничего не «рисуется» на ходу. */
+  @media (max-width:640px){
+    .planner.rv{opacity:1 !important; transform:none !important;}
+    .planner *, .planner *::before, .planner *::after{animation:none !important; transition:none !important;}
+    .planner .cbars i{height:var(--h,50%);}
+    .planner .hbar i{width:var(--w,60%);}
+    .planner .lvlbar i{width:var(--w,50%);}
+    .planner .heatgrid i{opacity:1;}
+    .planner .wave .warea{opacity:1;}
+    .planner .wave .wline{stroke-dashoffset:0;}
+    .planner .ring .val{stroke-dasharray:var(--v,75) 100;}
+    .planner .radar .rpoly{opacity:1;}
+  }
   /* волна в row2 растягивается на высоту колонки — без пустых полос */
   .row2 .wavebox{display:flex; flex-direction:column; padding:8px 8px 4px;}
   .row2 .wavebox .lab{position:static; margin-bottom:2px;}
