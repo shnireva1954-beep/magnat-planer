@@ -22,8 +22,9 @@
   *{box-sizing:border-box; margin:0; padding:0}
   ::selection{background:#2fe38f3d; color:var(--ink);}
   :focus-visible{outline:2px solid var(--emerald); outline-offset:2px; border-radius:4px;}
+  html{overflow-x:clip;}
   body{background:radial-gradient(1100px 620px at 82% -6%,#123044 0%,transparent 55%),radial-gradient(800px 560px at 6% 3%,#0f2a20 0%,transparent 55%),linear-gradient(180deg,var(--bg2),var(--bg));
-    color:var(--ink); font-family:var(--fb); line-height:1.45; -webkit-font-smoothing:antialiased; min-height:100vh; padding-bottom:80px;}
+    color:var(--ink); font-family:var(--fb); line-height:1.45; -webkit-font-smoothing:antialiased; min-height:100vh; padding-bottom:80px; overflow-x:hidden;}
   .wrap{max-width:1120px; margin:0 auto; padding:0 16px;}
   .glass{background:linear-gradient(168deg,rgba(20,28,42,.62),rgba(15,21,32,.62)); backdrop-filter:blur(11px) saturate(1.15); -webkit-backdrop-filter:blur(11px) saturate(1.15); border:1px solid var(--line2); border-radius:16px; box-shadow:inset 0 1px 0 #ffffff0e,0 8px 26px #00000038;}
   .card{padding:15px 15px;} .card>h3{font-size:11px; letter-spacing:1.1px; text-transform:uppercase; color:var(--mut2); font-weight:600; margin-bottom:11px; display:flex; justify-content:space-between; align-items:center;}
@@ -50,7 +51,7 @@
   .tab.on{color:#04120b; background:var(--emerald); border-color:var(--emerald); font-weight:700; box-shadow:0 0 16px #2fe38f44;}
 
   .view{padding:15px 0 30px; display:none;} .view.on{display:block;}
-  .row2{display:grid; gap:13px; grid-template-columns:1fr 1fr;} @media(max-width:560px){.row2{grid-template-columns:1fr}}
+  .row2{display:grid; gap:13px; grid-template-columns:minmax(0,1fr) minmax(0,1fr);} @media(max-width:560px){.row2{grid-template-columns:minmax(0,1fr)}}
 
   /* hero */
   .hero{padding:18px;} .hero-row{display:flex; align-items:center; justify-content:space-between; gap:12px;}
@@ -83,7 +84,7 @@
   .hcell.fut{opacity:.22; cursor:default;}
   table.hg td.name.hedit{cursor:pointer;}
   .prow{display:flex; align-items:center; gap:10px; padding:9px 2px; border-bottom:1px solid var(--line);}
-  .prow:last-child{border:none} .prow .nm{flex:1; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .prow:last-child{border:none} .prow .nm{flex:1; min-width:0; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .ptrack{width:90px; height:8px; border-radius:99px; background:#0a1119; border:1px solid var(--line); overflow:hidden;}
   .pfill{height:100%; background:linear-gradient(90deg,#7a3ecf,var(--violet)); box-shadow:0 0 7px #b06bff66;}
   .prow .pc{font-size:12px; color:var(--violet); width:38px; text-align:right; font-variant-numeric:tabular-nums;}
@@ -247,7 +248,9 @@ const coinsFor=d=>Math.round(baseCoins(d)*mult(streakBefore(d)));
 function totalXP(){let t=0;for(const d in S.checks)t+=coinsFor(d);return t;}
 function levelIdx(xp){let i=0;for(let k=0;k<LEVELS.length;k++)if(xp>=LEVELS[k][1])i=k;return i;}
 const curStreak=()=>dayComplete(TODAY)?streakEndingOn(TODAY):streakEndingOn(addDays(TODAY,-1));
-const wallet=()=>totalXP()-S.spent;
+// монеты нельзя потратить в минус: если задним числом снять уже зачтённые дни
+// после покупки награды, кошелёк не уходит в отрицательные значения, а падает до 0
+const wallet=()=>Math.max(0,totalXP()-S.spent);
 
 // ---- честные инсайты: только из реальных локальных данных ----
 function recordStreak(){
@@ -344,7 +347,7 @@ function celebrateLevel(li){
 function setup(cv,h){const dpr=window.devicePixelRatio||1,w=cv.getBoundingClientRect().width||200;cv.width=w*dpr;cv.height=h*dpr;cv.style.height=h+"px";const c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);return{c,w,h};}
 function donut(cv,frac,color){const {c,w,h}=setup(cv,150);const cx=w/2,cy=h/2,r=Math.min(w,h)/2-9;c.lineWidth=15;c.lineCap="round";c.strokeStyle="#182230";c.beginPath();c.arc(cx,cy,r,0,7);c.stroke();if(frac>0){c.strokeStyle=color;c.shadowColor=color;c.shadowBlur=13;c.beginPath();c.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(1,frac));c.stroke();c.shadowBlur=0;}}
 function line(cv,data,color){const {c,w,h}=setup(cv,110);if(data.length<2)data=[data[0]??0,data[0]??0];const mn=Math.min(...data),mx=Math.max(...data,mn+1),pd=8;const X=i=>pd+i*(w-2*pd)/(data.length-1),Y=v=>h-pd-(v-mn)/(mx-mn)*(h-2*pd);const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,color+"55");g.addColorStop(1,color+"00");c.beginPath();c.moveTo(X(0),Y(data[0]));data.forEach((v,i)=>c.lineTo(X(i),Y(v)));c.lineTo(X(data.length-1),h-pd);c.lineTo(X(0),h-pd);c.closePath();c.fillStyle=g;c.fill();c.beginPath();c.moveTo(X(0),Y(data[0]));data.forEach((v,i)=>c.lineTo(X(i),Y(v)));c.strokeStyle=color;c.lineWidth=2.4;c.lineJoin="round";c.shadowColor=color;c.shadowBlur=9;c.stroke();c.shadowBlur=0;c.beginPath();c.arc(X(data.length-1),Y(data[data.length-1]),3.5,0,7);c.fillStyle=color;c.fill();}
-function bars(cv,data,color){const {c,w,h}=setup(cv,120);const mx=Math.max(...data,1),n=data.length,bw=(w)/n*0.6,gap=(w)/n;data.forEach((v,i)=>{const bh=(v/mx)*(h-14),x=i*gap+(gap-bw)/2,y=h-bh-2;c.fillStyle=color;c.shadowColor=color;c.shadowBlur=7;c.beginPath();c.rect(x,y,bw,bh);c.fill();c.shadowBlur=0;});}
+function bars(cv,data,color){const {c,w,h}=setup(cv,120);const mx=Math.max(...data,1),n=data.length,bw=(w)/n*0.6,gap=(w)/n;data.forEach((v,i)=>{const col=Array.isArray(color)?(color[i]||color[0]):color;const bh=(v/mx)*(h-14),x=i*gap+(gap-bw)/2,y=h-bh-2;c.fillStyle=col;c.shadowColor=col;c.shadowBlur=7;c.beginPath();c.rect(x,y,bw,bh);c.fill();c.shadowBlur=0;});}
 // график веса: старт, текущее значение и пунктирная цель
 function weightChart(cv,log,goal){
   const {c,w,h}=setup(cv,150);
@@ -473,7 +476,7 @@ function vHome(root){
   let md=0,mp=0; for(let d=1;d<=Math.min(diM,now.getDate());d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;md+=checksOf(ds).length;mp+=S.habits.length;}
   const frac=mp?md/mp:0; donut(root.querySelector("#hDonut"),frac,gv("--emerald")); root.querySelector("#hDonutP").textContent=Math.round(frac*100)+"%";
   const sd=[];for(let k=13;k>=0;k--)sd.push(coinsFor(addDays(TODAY,-k))); line(root.querySelector("#hSpark"),sd,gv("--cyan")); root.querySelector("#hToday").textContent=nf(coinsFor(TODAY));
-  bars(root.querySelector("#hMoney"),[inc,out],inc>=out?gv("--emerald"):gv("--danger"));
+  bars(root.querySelector("#hMoney"),[inc,out],[gv("--emerald"),gv("--danger")]);
   line(root.querySelector("#hBody"),S.body.log.length?S.body.log.map(x=>x.w):[0,0],gv("--cyan"));
   city(root.querySelector("#hCity"),li+1,5);
   // «Сегодня»: кольцо наполняется, когда жмёшь чипы привычек
@@ -689,7 +692,7 @@ function vMoney(root){
     <div class="row2" style="margin-top:13px">
       <div class="addbtn" id="addIn">➕ Доход</div><div class="addbtn" id="addOut">➖ Расход</div>
     </div>`;
-  if(hasData){ bars(root.querySelector("#mBars"),[inc,out],gv("--emerald")); pie(root.querySelector("#mPie"),parts); }
+  if(hasData){ bars(root.querySelector("#mBars"),[inc,out],[gv("--emerald"),gv("--danger")]); pie(root.querySelector("#mPie"),parts); }
   root.querySelector("#addIn").addEventListener("click",()=>addFinance("in"));
   root.querySelector("#addOut").addEventListener("click",()=>addFinance("out"));
   root.querySelectorAll(".frow .del").forEach(d=>d.addEventListener("click",()=>{S.finance.entries=S.finance.entries.filter(e=>e.id!=d.dataset.id);save();render();}));
@@ -711,7 +714,7 @@ function vBody(root){
     return;
   }
   const w=body_curW(), start=S.body.log[0].w, goal=S.body.goalW, lost=start-w;
-  const workouts=(()=>{let c=0;for(let k=0;k<30;k++){const ds=addDays(TODAY,-k);const h=S.habits.find(h=>/трениров|зал|спорт/i.test(h.name));if(h&&isDone(h.id,ds))c++;}return c;})();
+  const workouts=(()=>{const h=S.habits.find(h=>/трениров|зал|спорт/i.test(h.name));if(!h)return 0;let c=0;for(let k=0;k<30;k++){if(isDone(h.id,addDays(TODAY,-k)))c++;}return c;})();
   // прогресс до цели: направление-независимый (работает и на сброс, и на набор)
   let prog=null, left=null, reached=false;
   if(goal && start!==goal){
