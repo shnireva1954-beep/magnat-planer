@@ -17,12 +17,20 @@
  * их по-русски (СУММПРОИЗВ и т.д.), локаль файла ставится ru_RU.
  */
 
+// ТЁМНАЯ ПРЕМИУМ-ТЕМА v3 (по референсу конкурента): тёмный холст, светлый
+// текст, неоновые акценты. Ключи сохранены — старый код красится сам.
 var PAL = {
-  grn: '#12a565', gold: '#c98a12', red: '#e0556a', vio: '#7a52d0', blu: '#2f8fd8',
-  head: '#eef2f8', grid: '#e0e6ef', ink: '#212a36', mut: '#5b6b82', mut2: '#8a97a8',
-  grnb: '#e2f6ec', goldb: '#fdf1d7', redb: '#fbe9ec', blub: '#e3f0fb',
-  insight: '#fdf7e7', insightBd: '#f0e2b6', gray: '#eef2f7'
+  // неоновые акценты (каждый планер — свой)
+  grn: '#2ee6a0', gold: '#f4c245', red: '#fb6f84', vio: '#b98bff', blu: '#38bdf8',
+  // тёмный холст / панели / текст / линии
+  canvas: '#0e1520', panel: '#16202e', panel2: '#1e2b3c', gridd: '#2a3a4e',
+  head: '#1e2b3c', grid: '#2a3a4e', ink: '#e8eef6', mut: '#9fb2c6', mut2: '#7286a0',
+  // тёмные тинты фона для бейджей/пилюль/зебры (текст — светлый неон)
+  grnb: '#123528', goldb: '#3a3012', redb: '#3a1826', blub: '#0e2a40',
+  insight: '#182234', insightBd: '#2a3a4e', gray: '#1b2736'
 };
+// светлый неон для текста бейджей/пилюль/УФ (замена прежних тёмных hex)
+var TXT = { grn: '#43e6a6', gold: '#f7cf6a', red: '#ff8ea0', blu: '#5cc6fb', vio: '#c9adff' };
 var LVL_N = '{0;300;1500;5000;15000}';
 var LVL_T = '{"🐣 Новичок";"🚀 Стартапер";"💼 Предприниматель";"🏢 Директор";"👑 Магнат"}';
 var MONDAY = 'TODAY()-WEEKDAY(TODAY(),2)'; // понедельник = MONDAY+1 … вс = MONDAY+7
@@ -69,24 +77,30 @@ function finishFile_(ss) {
   try { ss.setSpreadsheetLocale('ru_RU'); } catch (e) { Logger.log('Локаль ru_RU: ' + e); }
 }
 
-/** Оформление дашборда: сетка-«клеточки» видна (владельцу так живее),
-    узкая колонка A, контентные B..I. */
+/** Оформление дашборда (единый широкий каркас v3): сетка-«клеточки» видна
+    (владельцу так живее), узкие поля A и N, 12 широких контентных столбцов
+    B..M — контент во всю ширину, справа больше нет белой пустоты. */
 function dashBase_(sh, tabColor) {
-  sh.setHiddenGridlines(false);   // сетка видна — справа не белая пустота, а клетки
+  sh.setHiddenGridlines(true);     // на тёмном холсте сетка не нужна
   sh.setTabColor(tabColor);
-  sh.setColumnWidth(1, 16);
-  sh.setColumnWidths(2, 8, 112);
-  sh.setRowHeight(1, 34);
+  sh.setColumnWidth(1, 24);        // левое поле
+  sh.setColumnWidths(2, 12, 108);  // B..M — контент во всю ширину (12 столбцов)
+  sh.setColumnWidth(14, 24);       // правое поле
+  sh.setRowHeight(1, 40);
+  // тёмный холст во всю рабочую зону — «дашборд», а не «табличка»
+  sh.getRange(1, 1, 80, 14).setBackground(PAL.canvas).setFontColor(PAL.ink);
 }
 
-/** Заголовок дашборда: B1 название, H1:I1 показатель справа. */
-function dashTitle_(sh, text, accent, rightFormula, rightColor) {
+/** Единая шапка-бренд дашборда (одинаковая во всех 5 планерах): слева
+    название планера, справа герой-метрика, сквозная акцентная линия под
+    шапкой во всю ширину контента (B..M). */
+function dashHeader_(sh, text, accent, rightFormula, rightColor) {
   sh.getRange('B1:F1').merge().setValue(text)
-    .setFontSize(13).setFontWeight('bold').setFontColor(PAL.ink).setVerticalAlignment('middle');
-  sh.getRange('B1').setBorder(null, true, null, null, null, null, accent, SpreadsheetApp.BorderStyle.SOLID_THICK);
-  sh.getRange('H1:I1').merge().setFormula(rightFormula)
-    .setFontSize(13).setFontWeight('bold').setFontColor(rightColor)
+    .setFontSize(15).setFontWeight('bold').setFontColor(PAL.ink).setVerticalAlignment('middle');
+  sh.getRange('H1:M1').merge().setFormula(rightFormula)
+    .setFontSize(14).setFontWeight('bold').setFontColor(rightColor)
     .setHorizontalAlignment('right').setVerticalAlignment('middle');
+  sh.getRange('B1:M1').setBorder(null, null, true, null, null, null, accent, SpreadsheetApp.BorderStyle.SOLID_THICK);
 }
 
 /** Маленькая серая подпись-заголовок блока. */
@@ -96,27 +110,28 @@ function label_(sh, a1, text) {
 }
 
 /**
- * KPI-плитка 2 колонки × 3 строки: подпись / значение / бейдж.
- * col — левая колонка плитки (2,4,6,8 для четырёх плиток).
+ * KPI-плитка 3 колонки × 3 строки: подпись / крупное значение / бейдж.
+ * col — левая колонка плитки (2,5,8,11 для четырёх плиток во всю ширину B..M).
  */
 function kpi_(sh, row, col, title, valueF, badgeF, accent, badgeBg, badgeColor) {
-  var r1 = sh.getRange(row, col, 1, 2).merge().setValue(title.toUpperCase())
+  var W = 3;
+  sh.getRange(row, col, 1, W).merge().setValue(title.toUpperCase())
     .setFontSize(8).setFontWeight('bold').setFontColor(PAL.mut2);
-  var r2 = sh.getRange(row + 1, col, 1, 2).merge().setFontSize(15).setFontWeight('bold').setFontColor(PAL.ink);
+  var r2 = sh.getRange(row + 1, col, 1, W).merge().setFontSize(18).setFontWeight('bold').setFontColor(PAL.ink);
   if (String(valueF).charAt(0) === '=') r2.setFormula(valueF); else r2.setValue(valueF);
-  var r3 = sh.getRange(row + 2, col, 1, 2).merge().setFontSize(9).setFontColor(badgeColor).setBackground(badgeBg);
+  var r3 = sh.getRange(row + 2, col, 1, W).merge().setFontSize(9).setFontColor(badgeColor).setBackground(badgeBg);
   if (String(badgeF).charAt(0) === '=') r3.setFormula(badgeF); else r3.setValue(badgeF);
-  var block = sh.getRange(row, col, 3, 2);
-  block.setBackground('#ffffff').setVerticalAlignment('middle');
+  var block = sh.getRange(row, col, 3, W);
+  block.setBackground(PAL.panel).setVerticalAlignment('middle');
   r3.setBackground(badgeBg);
   block.setBorder(true, true, true, true, false, false, PAL.grid, SpreadsheetApp.BorderStyle.SOLID);
   block.setBorder(null, true, null, null, null, null, accent, SpreadsheetApp.BorderStyle.SOLID_THICK);
-  sh.setRowHeight(row, 18); sh.setRowHeight(row + 1, 26); sh.setRowHeight(row + 2, 18);
+  sh.setRowHeight(row, 18); sh.setRowHeight(row + 1, 30); sh.setRowHeight(row + 2, 18);
 }
 
-/** Инсайт-строка «💡 …» на светло-жёлтом. */
+/** Инсайт-строка «💡 …» на тёмной панели во всю ширину (B..M). */
 function insight_(sh, row, formula) {
-  var r = sh.getRange(row, 2, 1, 8).merge().setFormula(formula)
+  var r = sh.getRange(row, 2, 1, 12).merge().setFormula(formula)
     .setBackground(PAL.insight).setFontColor(PAL.mut).setFontSize(10)
     .setWrap(true).setVerticalAlignment('middle');
   r.setBorder(true, true, true, true, false, false, PAL.insightBd, SpreadsheetApp.BorderStyle.SOLID);
@@ -172,6 +187,40 @@ function addRule_(sh, rule) {
   sh.setConditionalFormatRules(rules);
 }
 
+/* ---- тёмная тема диаграмм ---- */
+
+/** Тёмные оси: подписи светлые, линии сетки приглушённые. extra — доп.опции. */
+function axD_(extra) {
+  var o = { textStyle: { color: PAL.mut2, fontSize: 10 },
+            gridlines: { color: PAL.gridd, count: 4 },
+            minorGridlines: { count: 0 }, baselineColor: PAL.gridd };
+  if (extra) for (var k in extra) o[k] = extra[k];
+  return o;
+}
+/** Тёмная легенда. */
+function legD_(pos) { return { position: pos, textStyle: { color: PAL.mut, fontSize: 10 } }; }
+
+/** Датчик-«спидометр» — одна главная цель планера, единый «топ»-элемент во
+    всех 5. dataRange: 2×2 в _calc (шапка + [метка, значение]). */
+function gauge_(sh, atRow, atCol, dataRange, maxV, yellowFrom, greenFrom, what) {
+  chartSafe_(sh, sh.newChart().setChartType(Charts.ChartType.GAUGE)
+    .addRange(dataRange)
+    .setPosition(atRow, atCol, 0, 0)
+    .setOption('width', 300).setOption('height', 168)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('min', 0).setOption('max', maxV)
+    .setOption('redFrom', 0).setOption('redTo', yellowFrom).setOption('redColor', PAL.red)
+    .setOption('yellowFrom', yellowFrom).setOption('yellowTo', greenFrom).setOption('yellowColor', PAL.gold)
+    .setOption('greenFrom', greenFrom).setOption('greenTo', maxV).setOption('greenColor', PAL.grn)
+    .setOption('minorTicks', 4), what);
+}
+
+/** Затемнить лист ввода: тёмный фон рабочей зоны + светлый шрифт (единый стиль). */
+function sheetDark_(sh, rows, cols) {
+  sh.setHiddenGridlines(true);
+  sh.getRange(1, 1, rows, cols).setBackground(PAL.canvas).setFontColor(PAL.ink);
+}
+
 /* ==================== 1. ПРИВЫЧКИ — «ШТАБ ДИСЦИПЛИНЫ» ==================== */
 
 function buildHabits_(folder) {
@@ -184,7 +233,8 @@ function buildHabits_(folder) {
 
   /* ---- Настройки ---- */
   set.setTabColor(PAL.mut2);
-  set.getRange('A1').setValue('⚙️ Настройки «Штаба дисциплины»').setFontWeight('bold').setFontSize(13);
+  sheetDark_(set, 28, 4);
+  set.getRange('A1').setValue('⚙️ Настройки «Штаба дисциплины»').setFontWeight('bold').setFontSize(13).setFontColor(PAL.ink);
   starterBlock_(set, 3, [
     'Впиши свои привычки и цену каждой в монетах (таблица ниже).',
     'Ставь галочки на листе «Привычки» — каждая даёт монеты.',
@@ -205,12 +255,15 @@ function buildHabits_(folder) {
     ['🏢 Директор', 5000], ['👑 Магнат', 15000]
   ]).setFontColor(PAL.mut);
   set.setColumnWidth(1, 260); set.setColumnWidth(2, 120);
+  set.getRange('A26:B27').merge().setValue('🧹 Начать с чистого листа: сотри галочки на листе «Привычки» (выдели → Delete) — дашборд обнулится сам. Свои привычки и цены впиши в таблицу выше.')
+    .setFontColor(PAL.mut).setWrap(true).setVerticalAlignment('middle');
   ss.setNamedRange('HABIT_NAMES', set.getRange('A11:A15'));
   ss.setNamedRange('HABIT_PRICES', set.getRange('B11:B15'));
   ss.setNamedRange('MIN_DONE', set.getRange('B17'));
 
   /* ---- Лист Привычки: чекбоксы 5×31 ---- */
   data.setTabColor(PAL.grn);
+  sheetDark_(data, 8, 33);
   var dhead = ['Привычка'];
   for (var d = 1; d <= 31; d++) dhead.push(d);
   dhead.push('%');
@@ -234,6 +287,7 @@ function buildHabits_(folder) {
 
   /* ---- История ---- */
   hist.setTabColor(PAL.mut2);
+  sheetDark_(hist, 40, 4);
   header_(hist, 1, 1, ['Месяц', 'Монеты', '% месяца', 'Лучшая серия']);
   hist.getRange('A2').setNote('В конце месяца перенеси сюда итоги с дашборда и очисти галочки — начнётся новый месяц.');
   hist.setColumnWidths(1, 4, 130);
@@ -286,38 +340,56 @@ function buildHabits_(folder) {
   calc.getRange('M10:M11').setValues([['Выполнено'], ['Осталось']]); // подписи пончика
   calc.getRange('M10').offset(0, 1).setFormula('=N2'); // N10
   calc.getRange('M11').offset(0, 1).setFormula('=N3'); // N11
+  // данные датчика «прогресс уровня» (2×2: шапка + [метка, значение 0..100])
+  calc.getRange('P5:Q5').setValues([['', 'Прогресс уровня, %']]);
+  calc.getRange('P6').setValue('🎯');
+  calc.getRange('Q6').setFormula('=IF(K7>=5,100,ROUND(IFERROR(K8/MAX(1,K9),0)*100))');
 
   /* ---- Дашборд ---- */
   dashBase_(dash, PAL.grn);
-  dashTitle_(dash, '✅ ШТАБ ДИСЦИПЛИНЫ', PAL.grn, '=TEXT(_calc!P2,"0%")', PAL.grn);
+  dashHeader_(dash, '✅ ШТАБ ДИСЦИПЛИНЫ', PAL.grn, '=TEXT(_calc!P2,"0%")', PAL.grn);
   kpi_(dash, 3, 2, 'Серия', '="🔥 "&_calc!K2&" дн"',
     '=IF(_calc!K2>=3,"огонь, держи темп",IF(_calc!K2>0,"разгоняемся","начни сегодня"))',
-    PAL.gold, PAL.goldb, '#a5720a');
-  kpi_(dash, 3, 4, 'Множитель', '="×"&TEXT(_calc!K3,"0.0")', 'максимум ×2', PAL.grn, PAL.gray, PAL.mut);
-  kpi_(dash, 3, 6, 'Сегодня', '="+"&_calc!K4&" 🪙"',
-    '=IF(_calc!K4>0,"монеты капают","поставь галочку")', PAL.gold, PAL.grnb, '#0d7a4c');
-  kpi_(dash, 3, 8, 'Уровень', '=_calc!K6',
+    PAL.gold, PAL.goldb, '#f7cf6a');
+  kpi_(dash, 3, 5, 'Множитель', '="×"&TEXT(_calc!K3,"0.0")', 'максимум ×2', PAL.grn, PAL.gray, PAL.mut);
+  kpi_(dash, 3, 8, 'Сегодня', '="+"&_calc!K4&" 🪙"',
+    '=IF(_calc!K4>0,"монеты капают","поставь галочку")', PAL.gold, PAL.grnb, '#43e6a6');
+  kpi_(dash, 3, 11, 'Уровень', '=_calc!K6',
     '=IF(_calc!K7>=5,"вершина империи","до «"&_calc!K10&"» — "&TEXT(_calc!K11,"#,##0")&" 🪙")',
     PAL.vio, PAL.gray, PAL.mut);
 
+  // ряд крупных тёмных диаграмм: кривая · пончик месяца · сила привычек
   label_(dash, 'B7', 'Кривая прогресса · % по дням');
-  label_(dash, 'H7', 'Месяц');
-  // диаграммы: область + пончик (строки 8–16 под ними)
+  label_(dash, 'G7', 'Месяц');
+  label_(dash, 'J7', 'Сила привычек · %');
   chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.AREA)
     .addRange(calc.getRange('A3:A33')).addRange(calc.getRange('C3:C33'))
-    .setPosition(8, 2, 0, 6)
-    .setOption('width', 540).setOption('height', 180)
-    .setOption('colors', [PAL.grn]).setOption('legend', { position: 'none' })
-    .setOption('vAxis', { format: 'percent' }), 'Кривая прогресса');
+    .setPosition(8, 2, 0, 4)
+    .setOption('width', 500).setOption('height', 200)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('colors', [PAL.grn]).setOption('legend', legD_('none'))
+    .setOption('hAxis', axD_({ format: 'd' }))
+    .setOption('vAxis', axD_({ format: 'percent' })), 'Кривая прогресса');
   chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.PIE)
     .addRange(calc.getRange('M10:N11'))
-    .setPosition(8, 8, 0, 6)
-    .setOption('width', 210).setOption('height', 180)
-    .setOption('pieHole', 0.62).setOption('colors', [PAL.grn, '#e9edf3'])
-    .setOption('legend', { position: 'none' }).setOption('pieSliceText', 'none'), 'Пончик месяца');
-  for (var rr = 8; rr <= 16; rr++) dash.setRowHeight(rr, 20);
+    .setPosition(8, 7, 0, 4)
+    .setOption('width', 300).setOption('height', 200)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('pieHole', 0.62).setOption('colors', [PAL.grn, PAL.gridd])
+    .setOption('legend', legD_('none')).setOption('pieSliceText', 'none'), 'Пончик месяца');
+  chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.BAR)
+    .addRange(data.getRange('A2:A6')).addRange(data.getRange('AG2:AG6'))
+    .setPosition(8, 10, 0, 4)
+    .setOption('width', 340).setOption('height', 200)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('colors', [PAL.gold]).setOption('legend', legD_('none'))
+    .setOption('hAxis', axD_({ format: 'percent', viewWindow: { min: 0, max: 1 } }))
+    .setOption('vAxis', axD_()), 'Сила привычек');
+  for (var rr = 8; rr <= 17; rr++) dash.setRowHeight(rr, 20);
 
   label_(dash, 'B18', 'Карта активности · месяц');
+  label_(dash, 'K18', 'Прогресс уровня');
+  gauge_(dash, 19, 11, calc.getRange('P5:Q6'), 100, 34, 67, 'Прогресс уровня');
   dash.getRange('C19:I19').setValues([DAYS_RU]).setFontSize(8)
     .setFontColor(PAL.mut2).setFontWeight('bold').setHorizontalAlignment('center');
   // тепловая карта C20:I25: n = 1..42, idx = n − (WEEKDAY 1-го − 1)
@@ -336,7 +408,7 @@ function buildHabits_(folder) {
   // светло-серый фон всей сетки: пустые/будущие дни — часть календаря (стиль
   // GitHub-графика), а не белая дыра. Активные дни красит шкала цвета сверху.
   heat.setFormulas(heatF).setNumberFormat(';;;').setBackground(PAL.gray)
-    .setBorder(true, true, true, true, true, true, '#ffffff', SpreadsheetApp.BorderStyle.SOLID_THICK);
+    .setBorder(true, true, true, true, true, true, PAL.canvas, SpreadsheetApp.BorderStyle.SOLID_THICK);
   for (var hrr = 20; hrr <= 25; hrr++) dash.setRowHeight(hrr, 16);
   // «сегодня» — светло-золотая заливка (правило выше шкалы цвета)
   addRule_(dash, SpreadsheetApp.newConditionalFormatRule()
@@ -362,22 +434,20 @@ function buildHabits_(folder) {
   }
   var weekR = dash.getRange('C29:I33');
   addRule_(dash, SpreadsheetApp.newConditionalFormatRule()
-    .whenTextEqualTo('✓').setBackground(PAL.grnb).setFontColor('#0d7a4c')
+    .whenTextEqualTo('✓').setBackground(PAL.grnb).setFontColor('#43e6a6')
     .setRanges([weekR]).build());
 
   dash.getRange('B35').setFormula('=_calc!K6').setFontWeight('bold').setFontSize(10);
   dash.getRange('C35:E35').merge().setFormula(
-    '=IFERROR(SPARKLINE(_calc!K8,{"charttype","bar";"max",MAX(1,_calc!K9);"color1","#12a565"}),"")');
+    '=IFERROR(SPARKLINE(_calc!K8,{"charttype","bar";"max",MAX(1,_calc!K9);"color1","#2ee6a0"}),"")');
   dash.getRange('F35:I35').merge().setFormula(
     '=IF(_calc!K7>=5,"👑 Максимальный уровень достигнут",TEXT(_calc!K8,"#,##0")&" / "&TEXT(_calc!K9,"#,##0")&" 🪙 до уровня «"&_calc!K10&"»")')
     .setFontSize(9).setFontColor(PAL.mut);
   insight_(dash, 37, '="💡 "&_calc!K14');
 
   finishCalc_(calc);
-  protectWarn_(dash, null);
-  protectWarn_(data, ['B2:AF6']);
-  protectWarn_(set, ['A11:B15', 'B17']);
-  protectWarn_(hist, ['A2:D100']);
+  protectWarn_(dash, null);   // дашборд — только формулы, мягкая защита
+  // листы ввода НЕ защищаем — клиент свободно правит/добавляет/удаляет свои данные
   finishFile_(ss);
   Logger.log('Привычки: ' + ss.getUrl());
   return 'Привычки: ' + ss.getUrl();
@@ -414,7 +484,8 @@ function buildTasks_(folder) {
 
   /* ---- Настройки ---- */
   set.setTabColor(PAL.mut2);
-  set.getRange('A1').setValue('⚙️ Настройки «Центра задач»').setFontWeight('bold').setFontSize(13);
+  sheetDark_(set, 16, 4);
+  set.getRange('A1').setValue('⚙️ Настройки «Центра задач»').setFontWeight('bold').setFontSize(13).setFontColor(PAL.ink);
   starterBlock_(set, 3, [
     'Пиши задачи на листе «Задачи»: название, срок, приоритет.',
     'Выполнил — ставь галочку и дату выполнения (для статистики).',
@@ -422,9 +493,13 @@ function buildTasks_(folder) {
     'Раз в неделю переноси выполненные в «Архив» (вырезать → вставить).',
     'Не редактируй колонку «Осталось» — в ней формула.'
   ]);
+  set.getRange('A10:D11').merge().setValue('🧹 Начать с чистого листа: выдели строки-примеры на листах «Задачи» и «Архив» → Delete. Дашборд обнулится сам, пиши свои задачи поверх.')
+    .setFontColor(PAL.mut).setWrap(true).setVerticalAlignment('middle');
+  set.setColumnWidth(1, 300);
 
   /* ---- Задачи ---- */
   data.setTabColor(PAL.gold);
+  sheetDark_(data, 202, 6);
   header_(data, 1, 1, ['Задача', 'Срок', 'Приоритет', '✓', 'Дата вып.', 'Осталось']);
   var t = new Date();
   function dPlus(n) { return new Date(t.getFullYear(), t.getMonth(), t.getDate() + n); }
@@ -457,14 +532,15 @@ function buildTasks_(folder) {
     .whenFormulaSatisfied('=$D2=TRUE')
     .setFontColor('#9aa6b4').setStrikethrough(true).setRanges([all]).build());
   var prioR = data.getRange('C2:C200');
-  [['Срочно', PAL.redb, '#c0344a'], ['Высокий', PAL.redb, '#c0344a'],
-   ['Средний', PAL.goldb, '#a5720a'], ['Низкий', PAL.blub, '#1d6fb0']].forEach(function (p) {
+  [['Срочно', PAL.redb, '#ff8ea0'], ['Высокий', PAL.redb, '#ff8ea0'],
+   ['Средний', PAL.goldb, '#f7cf6a'], ['Низкий', PAL.blub, '#5cc6fb']].forEach(function (p) {
     addRule_(data, SpreadsheetApp.newConditionalFormatRule()
       .whenTextEqualTo(p[0]).setBackground(p[1]).setFontColor(p[2]).setRanges([prioR]).build());
   });
 
   /* ---- Архив (демо для графика «закрыто по дням») ---- */
   arch.setTabColor(PAL.mut2);
+  sheetDark_(arch, 102, 5);
   header_(arch, 1, 1, ['Задача', 'Срок', 'Приоритет', '✓', 'Дата вып.']);
   var demo = ['🧾 Отправить отчёт', '🛒 Купить продукты', '📮 Ответить на письма', '🧹 Разобрать стол',
               '📈 Обновить таблицу трат', '🎨 Обложка для ролика', '📖 Конспект главы', '🔧 Починить кран',
@@ -502,17 +578,30 @@ function buildTasks_(folder) {
   };
   for (var a1 in C) calc.getRange(a1).setFormula(C[a1]);
   calc.getRange('D2:D4').setValues([['Срочно + высокий'], ['Средний'], ['Низкий']]);
+  // 14 дней: закрыто по дням (кривая динамики)
+  for (var td = 0; td < 14; td++) {
+    var rt = 2 + td;
+    calc.getRange(rt, 7).setFormula('=TODAY()-' + (13 - td));
+    calc.getRange(rt, 8).setFormula('=COUNTIF(Задачи!$E$2:$E$500,G' + rt + ')+COUNTIF(Архив!$E$2:$E$500,G' + rt + ')');
+  }
+  // датчик «% в срок» (2×2: шапка + [метка, 0..100])
+  calc.getRange('J2:K2').setValues([['', '% в срок']]);
+  calc.getRange('J3').setValue('⏱');
+  calc.getRange('K3').setFormula('=ROUND(B13*100)');
 
   /* ---- Дашборд ---- */
   dashBase_(dash, PAL.gold);
-  dashTitle_(dash, '🎯 ЦЕНТР ЗАДАЧ', PAL.gold, '=TEXT(_calc!B13,"0%")&" в срок"', PAL.gold);
+  dashHeader_(dash, '🎯 ЦЕНТР ЗАДАЧ', PAL.gold, '=TEXT(_calc!B13,"0%")&" в срок"', PAL.gold);
   kpi_(dash, 3, 2, 'Открыто', '=_calc!B10', '=_calc!B17&" на сегодня"', PAL.gold, PAL.gray, PAL.mut);
-  kpi_(dash, 3, 4, 'Горит', '="⚠ "&_calc!B11',
-    '=IF(_calc!B11>0,"разгреби первым делом","просрочек нет")', PAL.red, PAL.redb, '#c0344a');
-  kpi_(dash, 3, 6, 'За неделю', '=_calc!B12&" ✓"', 'закрыто за 7 дней', PAL.grn, PAL.grnb, '#0d7a4c');
-  kpi_(dash, 3, 8, 'В срок', '=TEXT(_calc!B13,"0%")', 'доля вовремя', PAL.grn, PAL.gray, PAL.mut);
+  kpi_(dash, 3, 5, 'Горит', '="⚠ "&_calc!B11',
+    '=IF(_calc!B11>0,"разгреби первым делом","просрочек нет")', PAL.red, PAL.redb, '#ff8ea0');
+  kpi_(dash, 3, 8, 'За неделю', '=_calc!B12&" ✓"', 'закрыто за 7 дней', PAL.grn, PAL.grnb, '#43e6a6');
+  kpi_(dash, 3, 11, 'В срок', '=TEXT(_calc!B13,"0%")', 'доля вовремя', PAL.grn, PAL.gray, PAL.mut);
 
+  // верхний ряд: таблица ближайших · пончик приоритетов · датчик «в срок»
   label_(dash, 'B7', 'Ближайшие задачи');
+  label_(dash, 'G7', 'Приоритеты открытых');
+  label_(dash, 'J7', 'Дисциплина сроков');
   dash.getRange('B8:E8').setValues([['Задача', 'Срок', 'Осталось', 'Приоритет']])
     .setBackground(PAL.head).setFontColor(PAL.mut).setFontWeight('bold').setFontSize(9);
   dash.getRange('B9').setFormula(
@@ -521,35 +610,46 @@ function buildTasks_(folder) {
   addRule_(dash, SpreadsheetApp.newConditionalFormatRule()
     .whenFormulaSatisfied('=AND(ISNUMBER(D9),D9<0)').setFontColor(PAL.red)
     .setRanges([dash.getRange('D9:D13')]).build());
-  [['Срочно', PAL.redb, '#c0344a'], ['Высокий', PAL.redb, '#c0344a'],
-   ['Средний', PAL.goldb, '#a5720a'], ['Низкий', PAL.blub, '#1d6fb0']].forEach(function (p) {
+  [['Срочно', PAL.redb, '#ff8ea0'], ['Высокий', PAL.redb, '#ff8ea0'],
+   ['Средний', PAL.goldb, '#f7cf6a'], ['Низкий', PAL.blub, '#5cc6fb']].forEach(function (p) {
     addRule_(dash, SpreadsheetApp.newConditionalFormatRule()
       .whenTextEqualTo(p[0]).setBackground(p[1]).setFontColor(p[2])
       .setRanges([dash.getRange('E9:E13')]).build());
   });
-
-  label_(dash, 'B15', 'Закрыто по дням · неделя');
-  label_(dash, 'G15', 'Приоритеты открытых');
-  chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.COLUMN)
-    .addRange(calc.getRange('A2:B8'))
-    .setPosition(16, 2, 0, 6)
-    .setOption('width', 430).setOption('height', 180)
-    .setOption('colors', ['#e0a93a']).setOption('legend', { position: 'none' }), 'Закрыто по дням');
   chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.PIE)
     .addRange(calc.getRange('D2:E4'))
-    .setPosition(16, 7, 0, 6)
-    .setOption('width', 320).setOption('height', 180)
+    .setPosition(8, 7, 0, 4)
+    .setOption('width', 300).setOption('height', 200)
+    .setOption('backgroundColor', PAL.canvas)
     .setOption('pieHole', 0.6).setOption('colors', [PAL.red, PAL.gold, PAL.blu])
-    .setOption('legend', { position: 'right' }).setOption('pieSliceText', 'value'), 'Приоритеты');
-  for (var rr = 16; rr <= 24; rr++) dash.setRowHeight(rr, 20);
+    .setOption('legend', legD_('right')).setOption('pieSliceText', 'value'), 'Приоритеты');
+  gauge_(dash, 8, 10, calc.getRange('J2:K3'), 100, 50, 80, 'В срок, %');
+  for (var rr = 8; rr <= 16; rr++) dash.setRowHeight(rr, 20);
 
-  insight_(dash, 26, '="💡 "&_calc!B16');
+  // нижний ряд: закрыто по дням (столбцы) · динамика 14 дней (кривая)
+  label_(dash, 'B18', 'Закрыто по дням · неделя');
+  label_(dash, 'H18', 'Динамика закрытий · 14 дней');
+  chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.COLUMN)
+    .addRange(calc.getRange('A2:B8'))
+    .setPosition(19, 2, 0, 4)
+    .setOption('width', 480).setOption('height', 190)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('colors', [PAL.gold]).setOption('legend', legD_('none'))
+    .setOption('hAxis', axD_()).setOption('vAxis', axD_()), 'Закрыто по дням');
+  chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.AREA)
+    .addRange(calc.getRange('G2:H15'))
+    .setPosition(19, 8, 0, 4)
+    .setOption('width', 480).setOption('height', 190)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('colors', [PAL.grn]).setOption('legend', legD_('none'))
+    .setOption('hAxis', axD_({ format: 'd MMM' })).setOption('vAxis', axD_()), 'Динамика 14 дней');
+  for (var rr2 = 18; rr2 <= 28; rr2++) dash.setRowHeight(rr2, 20);
+
+  insight_(dash, 30, '="💡 "&_calc!B16');
 
   finishCalc_(calc);
-  protectWarn_(dash, null);
-  protectWarn_(data, ['A2:E200']);
-  protectWarn_(arch, ['A2:E500']);
-  protectWarn_(set, []);
+  protectWarn_(dash, null);   // дашборд — только формулы, мягкая защита
+  // листы ввода НЕ защищаем — клиент свободно правит/добавляет/удаляет свои данные
   finishFile_(ss);
   Logger.log('Задачи: ' + ss.getUrl());
   return 'Задачи: ' + ss.getUrl();
@@ -569,7 +669,8 @@ function buildBody_(folder) {
 
   /* ---- Настройки ---- */
   set.setTabColor(PAL.mut2);
-  set.getRange('A1').setValue('⚙️ Настройки «Панели формы»').setFontWeight('bold').setFontSize(13);
+  sheetDark_(set, 22, 4);
+  set.getRange('A1').setValue('⚙️ Настройки «Панели формы»').setFontWeight('bold').setFontSize(13).setFontColor(PAL.ink);
   starterBlock_(set, 3, [
     'Впиши стартовый вес и цель (ниже) — путь к цели посчитается сам.',
     'Каждый день заполняй строку на листе «Тренировки» (что есть — то и пиши).',
@@ -583,6 +684,8 @@ function buildBody_(folder) {
     ['Норма воды, л', 2], ['Тренировок в неделю (план)', 5]
   ]);
   set.setColumnWidth(1, 260);
+  set.getRange('A18:B19').merge().setValue('🧹 Начать с чистого листа: сотри строки-примеры на листах «Тренировки» и «Замеры» → Delete. Дашборд обнулится сам.')
+    .setFontColor(PAL.mut).setWrap(true).setVerticalAlignment('middle');
   ss.setNamedRange('W_START', set.getRange('B11'));
   ss.setNamedRange('W_GOAL', set.getRange('B12'));
   ss.setNamedRange('KCAL_GOAL', set.getRange('B13'));
@@ -591,6 +694,7 @@ function buildBody_(folder) {
 
   /* ---- Тренировки (демо 30 дней) ---- */
   data.setTabColor(PAL.red);
+  sheetDark_(data, 402, 8);
   header_(data, 1, 1, ['Дата', 'Вес', 'Ккал', 'Вода, л', 'Сон, ч', 'Тренировка', 'Группа мышц', 'Настроение']);
   var t = new Date();
   var rows = [], gi = 0;
@@ -617,10 +721,20 @@ function buildBody_(folder) {
   data.getRange('D2:E400').setNumberFormat('0.0');
   data.setFrozenRows(1);
 
-  /* ---- Замеры ---- */
+  /* ---- Замеры (демо: 8 недель, для графика динамики) ---- */
   meas.setTabColor(PAL.mut2);
+  sheetDark_(meas, 202, 5);
   header_(meas, 1, 1, ['Дата', 'Талия, см', 'Грудь, см', 'Бицепс, см', 'Бёдра, см']);
   meas.getRange('A2').setNote('Меряй раз в неделю — динамика скажет больше, чем вес.');
+  var mrows = [];
+  for (var mw = 7; mw >= 0; mw--) {
+    var md = new Date(t.getFullYear(), t.getMonth(), t.getDate() - mw * 7);
+    mrows.push([md, Math.round((88 - (7 - mw) * 0.8) * 10) / 10, Math.round((104 - (7 - mw) * 0.3) * 10) / 10,
+                Math.round((38 + (7 - mw) * 0.15) * 10) / 10, Math.round((100 - (7 - mw) * 0.5) * 10) / 10]);
+  }
+  meas.getRange(2, 1, 8, 5).setValues(mrows);
+  meas.getRange('A2:A200').setNumberFormat('d MMM');
+  meas.getRange('B2:E200').setNumberFormat('0.0');
 
   /* ---- _calc ---- */
   var B = {
@@ -669,64 +783,89 @@ function buildBody_(folder) {
     ]);
   }
   calc.getRange(2, 13, 120, 3).setFormulas(wf);
+  // датчик «путь к цели» (2×2: шапка + [метка, 0..100])
+  calc.getRange('P1:Q1').setValues([['', 'Путь к цели, %']]);
+  calc.getRange('P2').setValue('🎯');
+  calc.getRange('Q2').setFormula('=ROUND(B9*100)');
 
   /* ---- Дашборд ---- */
   dashBase_(dash, PAL.red);
-  dashTitle_(dash, '💪 ПАНЕЛЬ ФОРМЫ', PAL.red, '=TEXT(_calc!B4,"+0.0;-0.0;0.0")&" кг за месяц"', PAL.grn);
+  dashHeader_(dash, '💪 ПАНЕЛЬ ФОРМЫ', PAL.red, '=TEXT(_calc!B4,"+0.0;-0.0;0.0")&" кг за месяц"', PAL.grn);
   kpi_(dash, 3, 2, 'Вес', '=TEXT(_calc!B2,"0.0")&" кг"',
-    '=TEXT(_calc!B4,"+0.0;-0.0;0.0")&" за месяц"', PAL.grn, PAL.grnb, '#0d7a4c');
-  kpi_(dash, 3, 4, 'Тренировки', '=_calc!B5&" / 7"', '="план "&TRAIN_PLAN&" в неделю"', PAL.red, PAL.gray, PAL.mut);
-  kpi_(dash, 3, 6, 'Калории', '=_calc!B7', '="цель "&TEXT(KCAL_GOAL,"#,##0")', PAL.gold, PAL.gray, PAL.mut);
-  kpi_(dash, 3, 8, 'Сон', '=_calc!B8&" ч"', 'среднее за 7 дней', PAL.blu, PAL.gray, PAL.mut);
+    '=TEXT(_calc!B4,"+0.0;-0.0;0.0")&" за месяц"', PAL.grn, PAL.grnb, '#43e6a6');
+  kpi_(dash, 3, 5, 'Тренировки', '=_calc!B5&" / 7"', '="план "&TRAIN_PLAN&" в неделю"', PAL.red, PAL.gray, PAL.mut);
+  kpi_(dash, 3, 8, 'Калории', '=_calc!B7', '="цель "&TEXT(KCAL_GOAL,"#,##0")', PAL.gold, PAL.gray, PAL.mut);
+  kpi_(dash, 3, 11, 'Сон', '=_calc!B8&" ч"', 'среднее за 7 дней', PAL.blu, PAL.gray, PAL.mut);
 
+  // верхний ряд: вес+цель · радар мышц · датчик «путь к цели»
   label_(dash, 'B7', 'Вес, кг · линия цели');
-  label_(dash, 'H7', 'Баланс мышц · 30 дней');
+  label_(dash, 'G7', 'Баланс мышц · 30 дн');
+  label_(dash, 'J7', 'Путь к цели');
   chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.AREA)
     .addRange(calc.getRange('M2:O121'))
-    .setPosition(8, 2, 0, 6)
-    .setOption('width', 540).setOption('height', 190)
+    .setPosition(8, 2, 0, 4)
+    .setOption('width', 500).setOption('height', 200)
+    .setOption('backgroundColor', PAL.canvas)
     .setOption('colors', [PAL.red, PAL.gold])
     .setOption('series', { 1: { lineDashStyle: [4, 4] } })
     .setOption('interpolateNulls', true)
-    .setOption('legend', { position: 'none' }), 'График веса');
+    .setOption('legend', legD_('none'))
+    .setOption('hAxis', axD_({ format: 'd MMM' })).setOption('vAxis', axD_()), 'График веса');
   chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.RADAR)
     .addRange(calc.getRange('J2:K7'))
-    .setPosition(8, 8, 0, 6)
-    .setOption('width', 220).setOption('height', 190)
-    .setOption('colors', [PAL.red]).setOption('legend', { position: 'none' }), 'Радар мышц');
-  for (var rr = 8; rr <= 17; rr++) dash.setRowHeight(rr, 20);
+    .setPosition(8, 7, 0, 4)
+    .setOption('width', 280).setOption('height', 200)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('colors', [PAL.red]).setOption('legend', legD_('none')), 'Радар мышц');
+  gauge_(dash, 8, 10, calc.getRange('P1:Q2'), 100, 40, 80, 'Путь к цели, %');
+  for (var rr = 8; rr <= 16; rr++) dash.setRowHeight(rr, 20);
+  dash.getRange('B17:M17').merge().setFormula(
+    '="🎯 Путь к цели:   "&W_START&" → "&TEXT(_calc!B2,"0.0")&" → "&W_GOAL&" кг    ·    пройдено "&TEXT(_calc!B9,"0%")')
+    .setFontSize(10).setFontColor(PAL.mut).setVerticalAlignment('middle');
 
-  dash.getRange('B19').setValue('🎯 ПУТЬ К ЦЕЛИ').setFontWeight('bold').setFontSize(10);
-  dash.getRange('C19:E19').merge().setFormula(
-    '=IFERROR(SPARKLINE(_calc!B9,{"charttype","bar";"max",1;"color1","#c98a12"}),"")');
-  dash.getRange('F19:I19').merge().setFormula(
-    '=W_START&" → "&TEXT(_calc!B2,"0.0")&" → "&W_GOAL&" кг · пройдено "&TEXT(_calc!B9,"0%")')
-    .setFontSize(9).setFontColor(PAL.mut);
+  // нижний ряд: сон+калории (комбо) · динамика замеров (кривая)
+  label_(dash, 'B19', 'Сон и калории · 30 дней');
+  label_(dash, 'H19', 'Замеры · талия, см');
+  chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.COMBO)
+    .addRange(data.getRange('A2:A31')).addRange(data.getRange('C2:C31')).addRange(data.getRange('E2:E31'))
+    .setPosition(20, 2, 0, 4)
+    .setOption('width', 520).setOption('height', 190)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('seriesType', 'bars')
+    .setOption('series', { 0: { color: PAL.gold, targetAxisIndex: 0 }, 1: { type: 'line', color: PAL.blu, targetAxisIndex: 1 } })
+    .setOption('legend', legD_('none'))
+    .setOption('hAxis', axD_({ format: 'd MMM' })).setOption('vAxes', { 0: axD_(), 1: axD_() }), 'Сон и калории');
+  chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.LINE)
+    .addRange(meas.getRange('A2:A9')).addRange(meas.getRange('B2:B9'))
+    .setPosition(20, 8, 0, 4)
+    .setOption('width', 460).setOption('height', 190)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('colors', [PAL.red]).setOption('curveType', 'function').setOption('legend', legD_('none'))
+    .setOption('hAxis', axD_({ format: 'd MMM' })).setOption('vAxis', axD_()), 'Замеры талия');
+  for (var rb = 18; rb <= 29; rb++) dash.setRowHeight(rb, 20);
 
-  kpi_(dash, 21, 2, 'Тренировок · 30 дн', '=_calc!B6', 'держи ритм', PAL.red, PAL.gray, PAL.mut);
-  kpi_(dash, 21, 4, 'Лучшая серия', '=_calc!B10&" дн"', 'тренировки подряд', PAL.grn, PAL.gray, PAL.mut);
-  kpi_(dash, 21, 6, 'Ср. вес недели', '=TEXT(_calc!B11,"0.0")', 'по 7 дням', PAL.gold, PAL.gray, PAL.mut);
-  kpi_(dash, 21, 8, 'Вода сегодня', '=IFERROR(TEXT(N(VLOOKUP(TODAY(),Тренировки!A2:D500,4,FALSE)),"0.0"),"0")&" / "&WATER_GOAL&" л"',
+  kpi_(dash, 31, 2, 'Тренировок · 30 дн', '=_calc!B6', 'держи ритм', PAL.red, PAL.gray, PAL.mut);
+  kpi_(dash, 31, 5, 'Лучшая серия', '=_calc!B10&" дн"', 'тренировки подряд', PAL.grn, PAL.gray, PAL.mut);
+  kpi_(dash, 31, 8, 'Ср. вес недели', '=TEXT(_calc!B11,"0.0")', 'по 7 дням', PAL.gold, PAL.gray, PAL.mut);
+  kpi_(dash, 31, 11, 'Вода сегодня', '=IFERROR(TEXT(N(VLOOKUP(TODAY(),Тренировки!A2:D500,4,FALSE)),"0.0"),"0")&" / "&WATER_GOAL&" л"',
     'заполняется из дневника', PAL.blu, PAL.gray, PAL.mut);
 
-  label_(dash, 'B25', 'Тренировки недели');
+  label_(dash, 'B35', 'Тренировки недели');
   for (var wc = 1; wc <= 7; wc++) {
     var dExpr = MONDAY + '+' + wc;
-    dash.getRange(26, 2 + wc).setFormula(
+    dash.getRange(36, 2 + wc).setFormula(
       '=IF(' + dExpr + '>TODAY(),"' + DAYS_RU[wc - 1] + '",IF(COUNTIFS(Тренировки!$A$2:$A$500,' + dExpr + ',Тренировки!$F$2:$F$500,TRUE)>0,"' + DAYS_RU[wc - 1] + ' ✓","' + DAYS_RU[wc - 1] + '"))'
     ).setHorizontalAlignment('center').setFontSize(9).setBackground(PAL.gray);
   }
   addRule_(dash, SpreadsheetApp.newConditionalFormatRule()
-    .whenTextContains('✓').setBackground(PAL.grnb).setFontColor('#0d7a4c')
-    .setRanges([dash.getRange('C26:I26')]).build());
+    .whenTextContains('✓').setBackground(PAL.grnb).setFontColor('#43e6a6')
+    .setRanges([dash.getRange('C36:I36')]).build());
 
-  insight_(dash, 28, '="💡 "&_calc!B13');
+  insight_(dash, 38, '="💡 "&_calc!B13');
 
   finishCalc_(calc);
-  protectWarn_(dash, null);
-  protectWarn_(data, ['A2:H400']);
-  protectWarn_(meas, ['A2:E200']);
-  protectWarn_(set, ['B11:B15']);
+  protectWarn_(dash, null);   // дашборд — только формулы, мягкая защита
+  // листы ввода НЕ защищаем — клиент свободно правит/добавляет/удаляет свои данные
   finishFile_(ss);
   Logger.log('Тело: ' + ss.getUrl());
   return 'Тело: ' + ss.getUrl();
@@ -745,7 +884,8 @@ function buildWeek_(folder) {
 
   /* ---- Настройки ---- */
   set.setTabColor(PAL.mut2);
-  set.getRange('A1').setValue('⚙️ Настройки «Пульта недели»').setFontWeight('bold').setFontSize(13);
+  sheetDark_(set, 16, 4);
+  set.getRange('A1').setValue('⚙️ Настройки «Пульта недели»').setFontWeight('bold').setFontSize(13).setFontColor(PAL.ink);
   starterBlock_(set, 3, [
     'Каждое утро впиши 3 главных дела дня на листе «Неделя».',
     'Вечером — галочки, энергия (1–5) и настроение.',
@@ -756,10 +896,13 @@ function buildWeek_(folder) {
   set.getRange('A10').setValue('Монет за выполненное дело');
   set.getRange('B10').setValue(25);
   set.setColumnWidth(1, 260);
+  set.getRange('A12:B13').merge().setValue('🧹 Начать с чистого листа: сотри дела и галочки на листе «Неделя» → Delete. Дашборд обнулится сам.')
+    .setFontColor(PAL.mut).setWrap(true).setVerticalAlignment('middle');
   ss.setNamedRange('TASK_COIN', set.getRange('B10'));
 
   /* ---- Неделя ---- */
   data.setTabColor(PAL.vio);
+  sheetDark_(data, 16, 10);
   header_(data, 1, 1, ['День', 'Дата', 'Дело 1', '✓', 'Дело 2', '✓', 'Дело 3', '✓', 'Энергия 1–5', 'Настроение']);
   var demoTasks = [
     ['Запустить лендинг', 'Тренировка', 'Прочитать 20 стр'],
@@ -803,6 +946,7 @@ function buildWeek_(folder) {
 
   /* ---- Рефлексия ---- */
   refl.setTabColor(PAL.mut2);
+  sheetDark_(refl, 60, 4);
   header_(refl, 1, 1, ['Неделя', 'Что получилось', 'Что мешало', 'Что изменю']);
   refl.setColumnWidth(1, 90); refl.setColumnWidths(2, 3, 240);
 
@@ -817,16 +961,34 @@ function buildWeek_(folder) {
     'B8': '=IF(B2=0,"Отмечай дела и энергию — инсайт появится к вечеру","Меньше всего энергии — "&B5&". Ставь лёгкие задачи на этот день, и процент недели вырастет.")'
   };
   for (var a1 in W) calc.getRange(a1).setFormula(W[a1]);
+  // дела по дням (столбчатая): D — день, E — сколько дел закрыто
+  for (var wd = 0; wd < 7; wd++) {
+    calc.getRange(2 + wd, 4).setValue(DAYS_RU[wd]);
+    calc.getRange(2 + wd, 5).setFormula('=COUNTIF(Неделя!C' + (2 + wd) + ':H' + (2 + wd) + ',TRUE)');
+  }
+  // распределение настроений (пончик): G — эмодзи, H — счётчик
+  var MOODS2 = ['😄', '🙂', '😐', '😴', '💪'];
+  for (var mo = 0; mo < 5; mo++) {
+    calc.getRange(2 + mo, 7).setValue(MOODS2[mo]);
+    calc.getRange(2 + mo, 8).setFormula('=COUNTIF(Неделя!J2:J8,G' + (2 + mo) + ')');
+  }
+  // датчик «% недели» (2×2: шапка + [метка, 0..100])
+  calc.getRange('J2:K2').setValues([['', '% недели']]);
+  calc.getRange('J3').setValue('📅');
+  calc.getRange('K3').setFormula('=ROUND(B2/21*100)');
 
   /* ---- Дашборд ---- */
   dashBase_(dash, PAL.vio);
-  dashTitle_(dash, '📅 ПУЛЬТ НЕДЕЛИ', PAL.vio, '=TEXT(_calc!B2/21,"0%")', PAL.vio);
+  dashHeader_(dash, '📅 ПУЛЬТ НЕДЕЛИ', PAL.vio, '=TEXT(_calc!B2/21,"0%")', PAL.vio);
   kpi_(dash, 3, 2, 'Выполнено', '=_calc!B2&" / 21"', '=TEXT(_calc!B2/21,"0%")&" недели"', PAL.vio, PAL.gray, PAL.mut);
-  kpi_(dash, 3, 4, 'Энергия', '="⚡ "&_calc!B3&" / 5"', '="пик — "&_calc!B4', PAL.gold, PAL.goldb, '#a5720a');
-  kpi_(dash, 3, 6, 'Фокус-цели', '=_calc!B6&" / 3"', 'главные цели недели', PAL.grn, PAL.gray, PAL.mut);
-  kpi_(dash, 3, 8, 'Монеты', '="+"&_calc!B7&" 🪙"', 'за дела недели', PAL.gold, PAL.grnb, '#0d7a4c');
+  kpi_(dash, 3, 5, 'Энергия', '="⚡ "&_calc!B3&" / 5"', '="пик — "&_calc!B4', PAL.gold, PAL.goldb, '#f7cf6a');
+  kpi_(dash, 3, 8, 'Фокус-цели', '=_calc!B6&" / 3"', 'главные цели недели', PAL.grn, PAL.gray, PAL.mut);
+  kpi_(dash, 3, 11, 'Монеты', '="+"&_calc!B7&" 🪙"', 'за дела недели', PAL.gold, PAL.grnb, '#43e6a6');
 
+  // верхний ряд: таблица дней · пончик настроений · датчик «% недели»
   label_(dash, 'B7', 'Дни недели');
+  label_(dash, 'H7', 'Настроение недели');
+  label_(dash, 'K7', 'Прогресс недели');
   dash.getRange('B8:F8').setValues([['День', 'Дела', 'Энергия', 'Настроение', 'Итог']])
     .setBackground(PAL.head).setFontColor(PAL.mut).setFontWeight('bold').setFontSize(9);
   for (var d2 = 0; d2 < 7; d2++) {
@@ -836,38 +998,55 @@ function buildWeek_(folder) {
       '=REPT("✓ ",COUNTIF(Неделя!C' + src + ':H' + src + ',TRUE))&REPT("· ",3-COUNTIF(Неделя!C' + src + ':H' + src + ',TRUE))')
       .setFontColor(PAL.grn).setFontWeight('bold');
     dash.getRange(rr, 4).setFormula(
-      '=IFERROR(SPARKLINE(Неделя!I' + src + ',{"charttype","bar";"max",5;"color1","#e0a93a"}),"")');
+      '=IFERROR(SPARKLINE(Неделя!I' + src + ',{"charttype","bar";"max",5;"color1","#f4c245"}),"")');
     dash.getRange(rr, 5).setFormula('=Неделя!J' + src).setHorizontalAlignment('center');
     dash.getRange(rr, 6).setFormula('=TEXT(COUNTIF(Неделя!C' + src + ':H' + src + ',TRUE)/3,"0%")')
       .setFontWeight('bold').setFontColor(PAL.vio);
   }
+  chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.PIE)
+    .addRange(calc.getRange('G2:H6'))
+    .setPosition(8, 8, 0, 4)
+    .setOption('width', 300).setOption('height', 200)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('pieHole', 0.6).setOption('colors', [PAL.grn, PAL.blu, PAL.gold, PAL.mut2, PAL.vio])
+    .setOption('legend', legD_('right')).setOption('pieSliceText', 'value'), 'Настроения');
+  gauge_(dash, 8, 11, calc.getRange('J2:K3'), 100, 40, 75, '% недели');
+  for (var rw = 8; rw <= 16; rw++) dash.setRowHeight(rw, 20);
 
-  label_(dash, 'B17', 'Фокус-цели недели');
+  label_(dash, 'B18', 'Фокус-цели недели');
   for (var fg = 0; fg < 3; fg++) {
-    dash.getRange(18, 2 + fg * 2, 1, 2).merge().setFormula(
+    dash.getRange(19, 2 + fg * 2, 1, 2).merge().setFormula(
       '=IF(Неделя!B' + (11 + fg) + '=TRUE,"✓ ","○ ")&Неделя!A' + (11 + fg))
       .setFontSize(9).setBackground(PAL.gray).setHorizontalAlignment('center');
   }
   addRule_(dash, SpreadsheetApp.newConditionalFormatRule()
-    .whenTextContains('✓').setBackground(PAL.grnb).setFontColor('#0d7a4c')
-    .setRanges([dash.getRange('B18:G18')]).build());
+    .whenTextContains('✓').setBackground(PAL.grnb).setFontColor('#43e6a6')
+    .setRanges([dash.getRange('B19:G19')]).build());
 
-  label_(dash, 'B20', 'Энергия недели');
+  // нижний ряд: кривая энергии · дела по дням (столбцы)
+  label_(dash, 'B21', 'Энергия недели');
+  label_(dash, 'H21', 'Дела по дням');
   chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.AREA)
     .addRange(data.getRange('A2:A8')).addRange(data.getRange('I2:I8'))
-    .setPosition(21, 2, 0, 6)
-    .setOption('width', 760).setOption('height', 170)
-    .setOption('colors', [PAL.vio]).setOption('legend', { position: 'none' })
-    .setOption('vAxis', { minValue: 0, maxValue: 5 }), 'Энергия недели');
-  for (var er = 21; er <= 28; er++) dash.setRowHeight(er, 20);
+    .setPosition(22, 2, 0, 4)
+    .setOption('width', 520).setOption('height', 190)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('colors', [PAL.vio]).setOption('legend', legD_('none'))
+    .setOption('hAxis', axD_()).setOption('vAxis', axD_({ minValue: 0, maxValue: 5 })), 'Энергия недели');
+  chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.COLUMN)
+    .addRange(calc.getRange('D2:E8'))
+    .setPosition(22, 8, 0, 4)
+    .setOption('width', 460).setOption('height', 190)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('colors', [PAL.grn]).setOption('legend', legD_('none'))
+    .setOption('hAxis', axD_()).setOption('vAxis', axD_({ viewWindow: { min: 0, max: 3 } })), 'Дела по дням');
+  for (var er = 21; er <= 31; er++) dash.setRowHeight(er, 20);
 
-  insight_(dash, 30, '="💡 "&_calc!B8');
+  insight_(dash, 33, '="💡 "&_calc!B8');
 
   finishCalc_(calc);
-  protectWarn_(dash, null);
-  protectWarn_(data, ['A2:A8', 'C2:J8', 'A11:B13']);
-  protectWarn_(refl, ['A2:D100']);
-  protectWarn_(set, ['B10']);
+  protectWarn_(dash, null);   // дашборд — только формулы, мягкая защита
+  // листы ввода НЕ защищаем — клиент свободно правит/добавляет/удаляет свои данные
   finishFile_(ss);
   Logger.log('Неделя: ' + ss.getUrl());
   return 'Неделя: ' + ss.getUrl();
@@ -887,7 +1066,8 @@ function buildFinance_(folder) {
 
   /* ---- Цели (+ инструкция) ---- */
   goal.setTabColor(PAL.mut2);
-  goal.getRange('A1').setValue('🎯 Цели и планы').setFontWeight('bold').setFontSize(13);
+  sheetDark_(goal, 24, 4);
+  goal.getRange('A1').setValue('🎯 Цели и планы').setFontWeight('bold').setFontSize(13).setFontColor(PAL.ink);
   starterBlock_(goal, 3, [
     'Записывай операции на листе «Операции»: дата, тип, категория, сумма.',
     'Планы по категориям на месяц — в таблице ниже.',
@@ -910,12 +1090,15 @@ function buildFinance_(folder) {
   goal.getRange('A19').setValue('Уже отложено (стартовая подушка), ₽');
   goal.getRange('B19').setValue(200000);
   goal.setColumnWidth(1, 280); goal.setColumnWidth(2, 140);
+  goal.getRange('A21:B22').merge().setValue('🧹 Начать с чистого листа: сотри строки-примеры на листах «Операции» и «Долги» → Delete. Дашборд обнулится сам. Категории меняй прямо здесь.')
+    .setFontColor(PAL.mut).setWrap(true).setVerticalAlignment('middle');
   ss.setNamedRange('SAVE_GOAL', goal.getRange('B17'));
   ss.setNamedRange('PILLOW_GOAL', goal.getRange('B18'));
   ss.setNamedRange('PILLOW_START', goal.getRange('B19'));
 
   /* ---- Операции (демо 6 месяцев) ---- */
   ops.setTabColor(PAL.gold);
+  sheetDark_(ops, 1002, 4);
   header_(ops, 1, 1, ['Дата', 'Тип', 'Категория', 'Сумма, ₽']);
   var t = new Date();
   var rows = [];
@@ -949,18 +1132,19 @@ function buildFinance_(folder) {
   ops.setFrozenRows(1);
   ops.setColumnWidths(1, 4, 130);
   addRule_(ops, SpreadsheetApp.newConditionalFormatRule()
-    .whenFormulaSatisfied('=$B2="Доход"').setFontColor('#0d7a4c')
+    .whenFormulaSatisfied('=$B2="Доход"').setFontColor('#43e6a6')
     .setRanges([ops.getRange('D2:D1000')]).build());
 
   /* ---- Долги ---- */
   debt.setTabColor(PAL.mut2);
+  sheetDark_(debt, 32, 5);
   header_(debt, 1, 1, ['Кому / что', 'Всего, ₽', 'Выплачено, ₽', 'Осталось, ₽', 'Прогресс']);
   debt.getRange('A2:C3').setValues([['Кредитная карта', 45000, 20000], ['Брату за ноутбук', 30000, 18000]]);
   var df = [];
   for (var dr = 2; dr <= 30; dr++) {
     df.push([
       '=IF($A' + dr + '="","",$B' + dr + '-$C' + dr + ')',
-      '=IF($A' + dr + '="","",IFERROR(SPARKLINE($C' + dr + ',{"charttype","bar";"max",MAX(1,$B' + dr + ');"color1","#12a565"}),""))'
+      '=IF($A' + dr + '="","",IFERROR(SPARKLINE($C' + dr + ',{"charttype","bar";"max",MAX(1,$B' + dr + ');"color1","#2ee6a0"}),""))'
     ]);
   }
   debt.getRange(2, 4, 29, 2).setFormulas(df);
@@ -1002,24 +1186,40 @@ function buildFinance_(folder) {
     'B19': '=IF(B8+B9=0,"Добавь операции — аналитика появится сама","Сбережения "&TEXT(B11,"0%")&" дохода"&IF(B18>0," · "&B17&" превысила план на "&TEXT(B18,"#,##0")&" ₽ — проверь её первой",IF(B11>=SAVE_GOAL," — выше цели "&TEXT(SAVE_GOAL,"0%")&", так держать!"," — цель "&TEXT(SAVE_GOAL,"0%")&", чуть поднажми")))'
   };
   for (var a1 in F) calc.getRange(a1).setFormula(F[a1]);
+  // заголовки рядов для combo-легенды
+  calc.getRange('F1').setValue('Доход');
+  calc.getRange('G1').setValue('Сбережения');
+  calc.getRange('I1').setValue('Расход');
+  // норма сбережений по месяцам (кривая): K = сбережения / доход
+  for (var sr = 0; sr < 6; sr++) {
+    calc.getRange(2 + sr, 11).setFormula('=IFERROR(G' + (2 + sr) + '/F' + (2 + sr) + ',0)');
+  }
+  calc.getRange('K1').setValue('Норма сбережений');
+  // датчик «подушка, мес» (2×2: шапка + [метка, значение])
+  calc.getRange('M2:N2').setValues([['', 'Подушка, мес']]);
+  calc.getRange('M3').setValue('🛡️');
+  calc.getRange('N3').setFormula('=ROUND(B15,1)');
 
   /* ---- Дашборд ---- */
   dashBase_(dash, PAL.gold);
-  dashTitle_(dash, '💰 КАПИТАЛ · МЕСЯЦ', PAL.gold, '=TEXT(_calc!B10,"+#,##0;-#,##0")&" ₽"', PAL.grn);
-  kpi_(dash, 3, 2, 'Доход', '=TEXT(_calc!B8,"#,##0")', 'за текущий месяц', PAL.grn, PAL.grnb, '#0d7a4c');
-  kpi_(dash, 3, 4, 'Расход', '=TEXT(_calc!B9,"#,##0")', 'за текущий месяц', PAL.red, PAL.redb, '#c0344a');
-  kpi_(dash, 3, 6, 'Сбережения', '=TEXT(_calc!B10,"#,##0")', '=TEXT(_calc!B11,"0%")&" дохода"', PAL.gold, PAL.grnb, '#0d7a4c');
-  kpi_(dash, 3, 8, 'Подушка', '=TEXT(_calc!B15,"0.0")&" мес"', '="цель — "&PILLOW_GOAL&" мес"', PAL.blu, PAL.gray, PAL.mut);
+  dashHeader_(dash, '💰 КАПИТАЛ · МЕСЯЦ', PAL.gold, '=TEXT(_calc!B10,"+#,##0;-#,##0")&" ₽"', PAL.grn);
+  kpi_(dash, 3, 2, 'Доход', '=TEXT(_calc!B8,"#,##0")', 'за текущий месяц', PAL.grn, PAL.grnb, '#43e6a6');
+  kpi_(dash, 3, 5, 'Расход', '=TEXT(_calc!B9,"#,##0")', 'за текущий месяц', PAL.red, PAL.redb, '#ff8ea0');
+  kpi_(dash, 3, 8, 'Сбережения', '=TEXT(_calc!B10,"#,##0")', '=TEXT(_calc!B11,"0%")&" дохода"', PAL.gold, PAL.grnb, '#43e6a6');
+  kpi_(dash, 3, 11, 'Подушка', '=TEXT(_calc!B15,"0.0")&" мес"', '="цель — "&PILLOW_GOAL&" мес"', PAL.blu, PAL.gray, PAL.mut);
 
+  // верхний ряд: пончик расходов · план-факт · датчик подушки
   label_(dash, 'B7', 'Расходы месяца');
   label_(dash, 'F7', 'План против факта');
+  label_(dash, 'K7', 'Финансовая подушка');
   chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.PIE)
     .addRange(calc.getRange('A2:B6'))
-    .setPosition(8, 2, 0, 6)
-    .setOption('width', 380).setOption('height', 200)
+    .setPosition(8, 2, 0, 4)
+    .setOption('width', 320).setOption('height', 200)
+    .setOption('backgroundColor', PAL.canvas)
     .setOption('pieHole', 0.6)
-    .setOption('colors', [PAL.grn, PAL.blu, PAL.gold, PAL.vio, '#9aa6b4'])
-    .setOption('legend', { position: 'right' }).setOption('pieSliceText', 'percentage'), 'Пончик расходов');
+    .setOption('colors', [PAL.grn, PAL.blu, PAL.gold, PAL.vio, PAL.mut2])
+    .setOption('legend', legD_('right')).setOption('pieSliceText', 'percentage'), 'Пончик расходов');
   dash.getRange('F8:I8').setValues([['Категория', 'План', 'Факт', '']])
     .setBackground(PAL.head).setFontColor(PAL.mut).setFontWeight('bold').setFontSize(9);
   for (var pc = 0; pc < 5; pc++) {
@@ -1028,34 +1228,44 @@ function buildFinance_(folder) {
     dash.getRange(pr, 7).setFormula('=_calc!C' + cr).setNumberFormat('#,##0');
     dash.getRange(pr, 8).setFormula('=_calc!B' + cr).setNumberFormat('#,##0');
     dash.getRange(pr, 9).setFormula(
-      '=IFERROR(SPARKLINE(_calc!B' + cr + ',{"charttype","bar";"max",MAX(1,_calc!B' + cr + ',_calc!C' + cr + ');"color1",IF(_calc!B' + cr + '>_calc!C' + cr + ',"#e0556a","#12a565")}),"")');
+      '=IFERROR(SPARKLINE(_calc!B' + cr + ',{"charttype","bar";"max",MAX(1,_calc!B' + cr + ',_calc!C' + cr + ');"color1",IF(_calc!B' + cr + '>_calc!C' + cr + ',"#fb6f84","#2ee6a0")}),"")');
   }
   addRule_(dash, SpreadsheetApp.newConditionalFormatRule()
     .whenFormulaSatisfied('=AND(ISNUMBER(H9),H9>G9)').setFontColor(PAL.red)
     .setRanges([dash.getRange('H9:H13')]).build());
-  for (var rr = 8; rr <= 17; rr++) dash.setRowHeight(rr, 20);
+  gauge_(dash, 8, 11, calc.getRange('M2:N3'), 12, 3, 6, 'Подушка, мес');
+  for (var rr = 8; rr <= 16; rr++) dash.setRowHeight(rr, 20);
 
-  label_(dash, 'B19', 'Копилка · 6 месяцев');
-  chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.COLUMN)
-    .addRange(calc.getRange('E2:E7')).addRange(calc.getRange('G2:G7'))
-    .setPosition(20, 2, 0, 6)
-    .setOption('width', 760).setOption('height', 170)
-    .setOption('colors', [PAL.gold]).setOption('legend', { position: 'none' }), 'Копилка');
-  for (var kr = 20; kr <= 27; kr++) dash.setRowHeight(kr, 20);
+  // нижний ряд: доходы/расходы/сбережения (комбо) · норма сбережений (кривая)
+  label_(dash, 'B18', 'Доходы и расходы · 6 месяцев');
+  label_(dash, 'H18', 'Норма сбережений · 6 мес');
+  chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.COMBO)
+    .addRange(calc.getRange('E1:E7')).addRange(calc.getRange('F1:F7'))
+    .addRange(calc.getRange('I1:I7')).addRange(calc.getRange('G1:G7'))
+    .setPosition(19, 2, 0, 4)
+    .setOption('width', 560).setOption('height', 190)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('seriesType', 'bars')
+    .setOption('series', { 0: { color: PAL.grn }, 1: { color: PAL.red }, 2: { type: 'line', color: PAL.gold } })
+    .setOption('legend', legD_('top'))
+    .setOption('hAxis', axD_()).setOption('vAxis', axD_()), 'Доходы и расходы');
+  chartSafe_(dash, dash.newChart().setChartType(Charts.ChartType.LINE)
+    .addRange(calc.getRange('E2:E7')).addRange(calc.getRange('K2:K7'))
+    .setPosition(19, 8, 0, 4)
+    .setOption('width', 440).setOption('height', 190)
+    .setOption('backgroundColor', PAL.canvas)
+    .setOption('colors', [PAL.blu]).setOption('curveType', 'function').setOption('legend', legD_('none'))
+    .setOption('hAxis', axD_()).setOption('vAxis', axD_({ format: 'percent' })), 'Норма сбережений');
+  for (var kr = 18; kr <= 28; kr++) dash.setRowHeight(kr, 20);
 
-  dash.getRange('B29').setValue('🛡️ ПОДУШКА').setFontWeight('bold').setFontSize(10);
-  dash.getRange('C29:E29').merge().setFormula(
-    '=IFERROR(SPARKLINE(_calc!B15,{"charttype","bar";"max",MAX(1,PILLOW_GOAL);"color1","#2f8fd8"}),"")');
-  dash.getRange('F29:I29').merge().setFormula('=TEXT(_calc!B15,"0.0")&" / "&PILLOW_GOAL&" мес · "&_calc!B16')
-    .setFontSize(9).setFontColor(PAL.mut);
+  dash.getRange('B30:M30').merge().setFormula('="🛡️ Подушка  "&TEXT(_calc!B15,"0.0")&" / "&PILLOW_GOAL&" мес    ·    "&_calc!B16')
+    .setFontSize(10).setFontColor(PAL.mut).setVerticalAlignment('middle');
 
-  insight_(dash, 31, '="💡 "&_calc!B19');
+  insight_(dash, 32, '="💡 "&_calc!B19');
 
   finishCalc_(calc);
-  protectWarn_(dash, null);
-  protectWarn_(ops, ['A2:D1000']);
-  protectWarn_(debt, ['A2:C30']);
-  protectWarn_(goal, ['A11:B16', 'B17:B19']);
+  protectWarn_(dash, null);   // дашборд — только формулы, мягкая защита
+  // листы ввода НЕ защищаем — клиент свободно правит/добавляет/удаляет свои данные
   finishFile_(ss);
   Logger.log('Финансы: ' + ss.getUrl());
   return 'Финансы: ' + ss.getUrl();
