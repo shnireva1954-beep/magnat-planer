@@ -31,6 +31,12 @@ var PAL = {
 };
 // светлый неон для текста бейджей/пилюль/УФ (замена прежних тёмных hex)
 var TXT = { grn: '#43e6a6', gold: '#f7cf6a', red: '#ff8ea0', blu: '#5cc6fb', vio: '#c9adff' };
+// СВЕТЛАЯ палитра — для листов ВВОДА (чистые светлые, дашборды остаются тёмными).
+var LT = {
+  grn: '#12a565', gold: '#c98a12', red: '#e0556a', vio: '#7a52d0', blu: '#2f8fd8',
+  head: '#eef2f8', grid: '#e0e6ef', ink: '#212a36', mut: '#5b6b82', mut2: '#8a97a8',
+  grnb: '#e2f6ec', goldb: '#fdf1d7', redb: '#fbe9ec', blub: '#e3f0fb'
+};
 var LVL_N = '{0;300;1500;5000;15000}';
 var LVL_T = '{"🐣 Новичок";"🚀 Стартапер";"💼 Предприниматель";"🏢 Директор";"👑 Магнат"}';
 var MONDAY = 'TODAY()-WEEKDAY(TODAY(),2)'; // понедельник = MONDAY+1 … вс = MONDAY+7
@@ -84,7 +90,7 @@ function dashBase_(sh, tabColor) {
   sh.setHiddenGridlines(true);     // на тёмном холсте сетка не нужна
   sh.setTabColor(tabColor);
   sh.setColumnWidth(1, 24);        // левое поле
-  sh.setColumnWidths(2, 12, 108);  // B..M — контент во всю ширину (12 столбцов)
+  sh.setColumnWidths(2, 12, 118);  // B..M — контент во всю ширину (12 столбцов, шире)
   sh.setColumnWidth(14, 24);       // правое поле
   sh.setRowHeight(1, 40);
   // тёмный холст во всю рабочую зону — «дашборд», а не «табличка»
@@ -141,18 +147,18 @@ function insight_(sh, row, formula) {
 /** Шапка таблицы данных. */
 function header_(sh, row, col, titles) {
   var r = sh.getRange(row, col, 1, titles.length);
-  r.setValues([titles]).setBackground(PAL.head).setFontColor(PAL.mut)
+  r.setValues([titles]).setBackground(LT.head).setFontColor(LT.mut)
     .setFontWeight('bold').setFontSize(9);
-  r.setBorder(true, true, true, true, true, true, PAL.grid, SpreadsheetApp.BorderStyle.SOLID);
+  r.setBorder(true, true, true, true, true, true, LT.grid, SpreadsheetApp.BorderStyle.SOLID);
 }
 
 /** Блок «Старт за 60 секунд» на листе настроек. */
 function starterBlock_(sh, row, lines) {
   sh.getRange(row, 1, 1, 4).merge().setValue('🚀 СТАРТ ЗА 60 СЕКУНД')
-    .setFontWeight('bold').setFontSize(11).setFontColor(PAL.ink);
+    .setFontWeight('bold').setFontSize(11).setFontColor(LT.ink);
   for (var i = 0; i < lines.length; i++) {
     sh.getRange(row + 1 + i, 1, 1, 4).merge().setValue((i + 1) + '. ' + lines[i])
-      .setFontColor(PAL.mut).setFontSize(10);
+      .setFontColor(LT.mut).setFontSize(10);
   }
 }
 
@@ -215,10 +221,11 @@ function gauge_(sh, atRow, atCol, dataRange, maxV, yellowFrom, greenFrom, what) 
     .setOption('minorTicks', 4), what);
 }
 
-/** Затемнить лист ввода: тёмный фон рабочей зоны + светлый шрифт (единый стиль). */
-function sheetDark_(sh, rows, cols) {
-  sh.setHiddenGridlines(true);
-  sh.getRange(1, 1, rows, cols).setBackground(PAL.canvas).setFontColor(PAL.ink);
+/** Чистый светлый лист ввода: белый фон, тёмный шрифт, видимая сетка.
+    Тёмная тема — только на дашбордах; листы ввода светлые (удобнее печатать). */
+function sheetClean_(sh, rows, cols) {
+  sh.setHiddenGridlines(false);
+  sh.getRange(1, 1, rows, cols).setBackground('#ffffff').setFontColor(LT.ink);
 }
 
 /* ==================== 1. ПРИВЫЧКИ — «ШТАБ ДИСЦИПЛИНЫ» ==================== */
@@ -233,8 +240,8 @@ function buildHabits_(folder) {
 
   /* ---- Настройки ---- */
   set.setTabColor(PAL.mut2);
-  sheetDark_(set, 28, 4);
-  set.getRange('A1').setValue('⚙️ Настройки «Штаба дисциплины»').setFontWeight('bold').setFontSize(13).setFontColor(PAL.ink);
+  sheetClean_(set, 28, 4);
+  set.getRange('A1').setValue('⚙️ Настройки «Штаба дисциплины»').setFontWeight('bold').setFontSize(13).setFontColor(LT.ink);
   starterBlock_(set, 3, [
     'Впиши свои привычки и цену каждой в монетах (таблица ниже).',
     'Ставь галочки на листе «Привычки» — каждая даёт монеты.',
@@ -249,21 +256,21 @@ function buildHabits_(folder) {
   ]);
   set.getRange('A17').setValue('Минимум привычек для зачёта дня в серию');
   set.getRange('B17').setValue(3);
-  set.getRange('A19').setValue('Уровни (справочно):').setFontColor(PAL.mut);
+  set.getRange('A19').setValue('Уровни (справочно):').setFontColor(LT.mut);
   set.getRange('A20:B24').setValues([
     ['🐣 Новичок', 0], ['🚀 Стартапер', 300], ['💼 Предприниматель', 1500],
     ['🏢 Директор', 5000], ['👑 Магнат', 15000]
-  ]).setFontColor(PAL.mut);
+  ]).setFontColor(LT.mut);
   set.setColumnWidth(1, 260); set.setColumnWidth(2, 120);
   set.getRange('A26:B27').merge().setValue('🧹 Начать с чистого листа: сотри галочки на листе «Привычки» (выдели → Delete) — дашборд обнулится сам. Свои привычки и цены впиши в таблицу выше.')
-    .setFontColor(PAL.mut).setWrap(true).setVerticalAlignment('middle');
+    .setFontColor(LT.mut).setWrap(true).setVerticalAlignment('middle');
   ss.setNamedRange('HABIT_NAMES', set.getRange('A11:A15'));
   ss.setNamedRange('HABIT_PRICES', set.getRange('B11:B15'));
   ss.setNamedRange('MIN_DONE', set.getRange('B17'));
 
   /* ---- Лист Привычки: чекбоксы 5×31 ---- */
   data.setTabColor(PAL.grn);
-  sheetDark_(data, 8, 33);
+  sheetClean_(data, 8, 33);
   var dhead = ['Привычка'];
   for (var d = 1; d <= 31; d++) dhead.push(d);
   dhead.push('%');
@@ -271,7 +278,7 @@ function buildHabits_(folder) {
   for (var h = 0; h < 5; h++) {
     data.getRange(2 + h, 1).setFormula('=IF(Настройки!A' + (11 + h) + '="","",Настройки!A' + (11 + h) + ')');
     data.getRange(2 + h, 33).setFormula('=IFERROR(COUNTIF(B' + (2 + h) + ':AF' + (2 + h) + ',TRUE)/MAX(1,MIN(DAY(TODAY()),31)),0)')
-      .setNumberFormat('0%').setFontWeight('bold').setFontColor(PAL.vio);
+      .setNumberFormat('0%').setFontWeight('bold').setFontColor(LT.vio);
   }
   var boxes = data.getRange('B2:AF6');
   boxes.insertCheckboxes();
@@ -282,12 +289,12 @@ function buildHabits_(folder) {
   data.setColumnWidth(33, 52);
   // зачтённые дни подсвечивать не нужно — карта на дашборде; лёгкая зебра:
   addRule_(data, SpreadsheetApp.newConditionalFormatRule()
-    .whenFormulaSatisfied('=B2=TRUE').setBackground(PAL.grnb)
+    .whenFormulaSatisfied('=B2=TRUE').setBackground(LT.grnb)
     .setRanges([boxes]).build());
 
   /* ---- История ---- */
   hist.setTabColor(PAL.mut2);
-  sheetDark_(hist, 40, 4);
+  sheetClean_(hist, 40, 4);
   header_(hist, 1, 1, ['Месяц', 'Монеты', '% месяца', 'Лучшая серия']);
   hist.getRange('A2').setNote('В конце месяца перенеси сюда итоги с дашборда и очисти галочки — начнётся новый месяц.');
   hist.setColumnWidths(1, 4, 130);
@@ -484,8 +491,8 @@ function buildTasks_(folder) {
 
   /* ---- Настройки ---- */
   set.setTabColor(PAL.mut2);
-  sheetDark_(set, 16, 4);
-  set.getRange('A1').setValue('⚙️ Настройки «Центра задач»').setFontWeight('bold').setFontSize(13).setFontColor(PAL.ink);
+  sheetClean_(set, 16, 4);
+  set.getRange('A1').setValue('⚙️ Настройки «Центра задач»').setFontWeight('bold').setFontSize(13).setFontColor(LT.ink);
   starterBlock_(set, 3, [
     'Пиши задачи на листе «Задачи»: название, срок, приоритет.',
     'Выполнил — ставь галочку и дату выполнения (для статистики).',
@@ -494,12 +501,12 @@ function buildTasks_(folder) {
     'Не редактируй колонку «Осталось» — в ней формула.'
   ]);
   set.getRange('A10:D11').merge().setValue('🧹 Начать с чистого листа: выдели строки-примеры на листах «Задачи» и «Архив» → Delete. Дашборд обнулится сам, пиши свои задачи поверх.')
-    .setFontColor(PAL.mut).setWrap(true).setVerticalAlignment('middle');
+    .setFontColor(LT.mut).setWrap(true).setVerticalAlignment('middle');
   set.setColumnWidth(1, 300);
 
   /* ---- Задачи ---- */
   data.setTabColor(PAL.gold);
-  sheetDark_(data, 202, 6);
+  sheetClean_(data, 202, 6);
   header_(data, 1, 1, ['Задача', 'Срок', 'Приоритет', '✓', 'Дата вып.', 'Осталось']);
   var t = new Date();
   function dPlus(n) { return new Date(t.getFullYear(), t.getMonth(), t.getDate() + n); }
@@ -527,20 +534,20 @@ function buildTasks_(folder) {
   var all = data.getRange('A2:F200');
   addRule_(data, SpreadsheetApp.newConditionalFormatRule()
     .whenFormulaSatisfied('=AND($A2<>"",$D2=FALSE,$B2<>"",$B2<TODAY())')
-    .setFontColor(PAL.red).setRanges([all]).build());
+    .setFontColor(LT.red).setRanges([all]).build());
   addRule_(data, SpreadsheetApp.newConditionalFormatRule()
     .whenFormulaSatisfied('=$D2=TRUE')
     .setFontColor('#9aa6b4').setStrikethrough(true).setRanges([all]).build());
   var prioR = data.getRange('C2:C200');
-  [['Срочно', PAL.redb, '#ff8ea0'], ['Высокий', PAL.redb, '#ff8ea0'],
-   ['Средний', PAL.goldb, '#f7cf6a'], ['Низкий', PAL.blub, '#5cc6fb']].forEach(function (p) {
+  [['Срочно', LT.redb, '#c0344a'], ['Высокий', LT.redb, '#c0344a'],
+   ['Средний', LT.goldb, '#a5720a'], ['Низкий', LT.blub, '#1d6fb0']].forEach(function (p) {
     addRule_(data, SpreadsheetApp.newConditionalFormatRule()
       .whenTextEqualTo(p[0]).setBackground(p[1]).setFontColor(p[2]).setRanges([prioR]).build());
   });
 
   /* ---- Архив (демо для графика «закрыто по дням») ---- */
   arch.setTabColor(PAL.mut2);
-  sheetDark_(arch, 102, 5);
+  sheetClean_(arch, 102, 5);
   header_(arch, 1, 1, ['Задача', 'Срок', 'Приоритет', '✓', 'Дата вып.']);
   var demo = ['🧾 Отправить отчёт', '🛒 Купить продукты', '📮 Ответить на письма', '🧹 Разобрать стол',
               '📈 Обновить таблицу трат', '🎨 Обложка для ролика', '📖 Конспект главы', '🔧 Починить кран',
@@ -669,8 +676,8 @@ function buildBody_(folder) {
 
   /* ---- Настройки ---- */
   set.setTabColor(PAL.mut2);
-  sheetDark_(set, 22, 4);
-  set.getRange('A1').setValue('⚙️ Настройки «Панели формы»').setFontWeight('bold').setFontSize(13).setFontColor(PAL.ink);
+  sheetClean_(set, 22, 4);
+  set.getRange('A1').setValue('⚙️ Настройки «Панели формы»').setFontWeight('bold').setFontSize(13).setFontColor(LT.ink);
   starterBlock_(set, 3, [
     'Впиши стартовый вес и цель (ниже) — путь к цели посчитается сам.',
     'Каждый день заполняй строку на листе «Тренировки» (что есть — то и пиши).',
@@ -685,7 +692,7 @@ function buildBody_(folder) {
   ]);
   set.setColumnWidth(1, 260);
   set.getRange('A18:B19').merge().setValue('🧹 Начать с чистого листа: сотри строки-примеры на листах «Тренировки» и «Замеры» → Delete. Дашборд обнулится сам.')
-    .setFontColor(PAL.mut).setWrap(true).setVerticalAlignment('middle');
+    .setFontColor(LT.mut).setWrap(true).setVerticalAlignment('middle');
   ss.setNamedRange('W_START', set.getRange('B11'));
   ss.setNamedRange('W_GOAL', set.getRange('B12'));
   ss.setNamedRange('KCAL_GOAL', set.getRange('B13'));
@@ -694,7 +701,7 @@ function buildBody_(folder) {
 
   /* ---- Тренировки (демо 30 дней) ---- */
   data.setTabColor(PAL.red);
-  sheetDark_(data, 402, 8);
+  sheetClean_(data, 402, 8);
   header_(data, 1, 1, ['Дата', 'Вес', 'Ккал', 'Вода, л', 'Сон, ч', 'Тренировка', 'Группа мышц', 'Настроение']);
   var t = new Date();
   var rows = [], gi = 0;
@@ -723,7 +730,7 @@ function buildBody_(folder) {
 
   /* ---- Замеры (демо: 8 недель, для графика динамики) ---- */
   meas.setTabColor(PAL.mut2);
-  sheetDark_(meas, 202, 5);
+  sheetClean_(meas, 202, 5);
   header_(meas, 1, 1, ['Дата', 'Талия, см', 'Грудь, см', 'Бицепс, см', 'Бёдра, см']);
   meas.getRange('A2').setNote('Меряй раз в неделю — динамика скажет больше, чем вес.');
   var mrows = [];
@@ -884,8 +891,8 @@ function buildWeek_(folder) {
 
   /* ---- Настройки ---- */
   set.setTabColor(PAL.mut2);
-  sheetDark_(set, 16, 4);
-  set.getRange('A1').setValue('⚙️ Настройки «Пульта недели»').setFontWeight('bold').setFontSize(13).setFontColor(PAL.ink);
+  sheetClean_(set, 16, 4);
+  set.getRange('A1').setValue('⚙️ Настройки «Пульта недели»').setFontWeight('bold').setFontSize(13).setFontColor(LT.ink);
   starterBlock_(set, 3, [
     'Каждое утро впиши 3 главных дела дня на листе «Неделя».',
     'Вечером — галочки, энергия (1–5) и настроение.',
@@ -897,12 +904,12 @@ function buildWeek_(folder) {
   set.getRange('B10').setValue(25);
   set.setColumnWidth(1, 260);
   set.getRange('A12:B13').merge().setValue('🧹 Начать с чистого листа: сотри дела и галочки на листе «Неделя» → Delete. Дашборд обнулится сам.')
-    .setFontColor(PAL.mut).setWrap(true).setVerticalAlignment('middle');
+    .setFontColor(LT.mut).setWrap(true).setVerticalAlignment('middle');
   ss.setNamedRange('TASK_COIN', set.getRange('B10'));
 
   /* ---- Неделя ---- */
   data.setTabColor(PAL.vio);
-  sheetDark_(data, 16, 10);
+  sheetClean_(data, 16, 10);
   header_(data, 1, 1, ['День', 'Дата', 'Дело 1', '✓', 'Дело 2', '✓', 'Дело 3', '✓', 'Энергия 1–5', 'Настроение']);
   var demoTasks = [
     ['Запустить лендинг', 'Тренировка', 'Прочитать 20 стр'],
@@ -946,7 +953,7 @@ function buildWeek_(folder) {
 
   /* ---- Рефлексия ---- */
   refl.setTabColor(PAL.mut2);
-  sheetDark_(refl, 60, 4);
+  sheetClean_(refl, 60, 4);
   header_(refl, 1, 1, ['Неделя', 'Что получилось', 'Что мешало', 'Что изменю']);
   refl.setColumnWidth(1, 90); refl.setColumnWidths(2, 3, 240);
 
@@ -1066,8 +1073,8 @@ function buildFinance_(folder) {
 
   /* ---- Цели (+ инструкция) ---- */
   goal.setTabColor(PAL.mut2);
-  sheetDark_(goal, 24, 4);
-  goal.getRange('A1').setValue('🎯 Цели и планы').setFontWeight('bold').setFontSize(13).setFontColor(PAL.ink);
+  sheetClean_(goal, 24, 4);
+  goal.getRange('A1').setValue('🎯 Цели и планы').setFontWeight('bold').setFontSize(13).setFontColor(LT.ink);
   starterBlock_(goal, 3, [
     'Записывай операции на листе «Операции»: дата, тип, категория, сумма.',
     'Планы по категориям на месяц — в таблице ниже.',
@@ -1091,14 +1098,14 @@ function buildFinance_(folder) {
   goal.getRange('B19').setValue(200000);
   goal.setColumnWidth(1, 280); goal.setColumnWidth(2, 140);
   goal.getRange('A21:B22').merge().setValue('🧹 Начать с чистого листа: сотри строки-примеры на листах «Операции» и «Долги» → Delete. Дашборд обнулится сам. Категории меняй прямо здесь.')
-    .setFontColor(PAL.mut).setWrap(true).setVerticalAlignment('middle');
+    .setFontColor(LT.mut).setWrap(true).setVerticalAlignment('middle');
   ss.setNamedRange('SAVE_GOAL', goal.getRange('B17'));
   ss.setNamedRange('PILLOW_GOAL', goal.getRange('B18'));
   ss.setNamedRange('PILLOW_START', goal.getRange('B19'));
 
   /* ---- Операции (демо 6 месяцев) ---- */
   ops.setTabColor(PAL.gold);
-  sheetDark_(ops, 1002, 4);
+  sheetClean_(ops, 1002, 4);
   header_(ops, 1, 1, ['Дата', 'Тип', 'Категория', 'Сумма, ₽']);
   var t = new Date();
   var rows = [];
@@ -1132,12 +1139,12 @@ function buildFinance_(folder) {
   ops.setFrozenRows(1);
   ops.setColumnWidths(1, 4, 130);
   addRule_(ops, SpreadsheetApp.newConditionalFormatRule()
-    .whenFormulaSatisfied('=$B2="Доход"').setFontColor('#43e6a6')
+    .whenFormulaSatisfied('=$B2="Доход"').setFontColor('#0d7a4c')
     .setRanges([ops.getRange('D2:D1000')]).build());
 
   /* ---- Долги ---- */
   debt.setTabColor(PAL.mut2);
-  sheetDark_(debt, 32, 5);
+  sheetClean_(debt, 32, 5);
   header_(debt, 1, 1, ['Кому / что', 'Всего, ₽', 'Выплачено, ₽', 'Осталось, ₽', 'Прогресс']);
   debt.getRange('A2:C3').setValues([['Кредитная карта', 45000, 20000], ['Брату за ноутбук', 30000, 18000]]);
   var df = [];
