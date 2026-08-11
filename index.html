@@ -115,6 +115,8 @@
   .frow .fdt{font-size:10.5px; color:var(--mut2); font-variant-numeric:tabular-nums;}
   .hedit2{color:var(--emerald); font-size:10.5px; cursor:pointer; text-transform:none; letter-spacing:0; font-weight:600;}
   .si .cnt{font-size:9.5px; color:var(--emerald); margin-top:4px;}
+  .si .cnt.hintc{color:var(--mut2);}
+  .si .rm{font-size:13px; padding:2px 4px; line-height:1;}
   /* пояснение под автоматически посчитанной нормой */
   .nrm{font-size:10.5px; color:var(--mut2); margin-top:9px; line-height:1.5;}
   .nprof{display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12.5px; color:var(--mut); padding:13px 15px;}
@@ -201,8 +203,14 @@
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 const KEY="magnat_app_v2", DAYOK=3;
 const LEVELS=[["🐣 Новичок",0,"🛖"],["🚀 Стартапер",300,"🏠"],["💼 Предприниматель",1500,"🏢"],["🏢 Директор",5000,"🏙"],["👑 Магнат",15000,"👑"]];
-const DEFHABITS=[["🏋️","Тренировка",25],["📚","Час на дело / обучение",25],["💰","Шаг к деньгам",30],["📵","День без залипания",15],["🧊","Холодный душ",10],["💧","Вода 2 л",10],["🚶","10 000 шагов",15],["✍️","Разбор дня",15]];
-const REWARDS=[["🎮","Вечер игр",150],["🍔","Читмил",300],["🎬","Кино",400],["🛌","Выходной",1500],["🛍","Новая вещь",2000],["🌴","Поездка",5000]];
+// Все привычки стоят одинаково: цену не назначает пользователь.
+// Разницу создаёт не ценник, а серия — множитель до ×2.
+const COIN=20;
+const DEFHABITS=[["🏋️","Тренировка"],["📚","Час на дело / обучение"],["💰","Шаг к деньгам"],["📵","День без залипания"],["🧊","Холодный душ"],["💧","Вода 2 л"],["🚶","10 000 шагов"],["✍️","Разбор дня"]];
+// Награда измеряется в ДНЯХ дисциплины, монеты считаются от твоего среднего заработка
+const SIZES=[[1,"Мелкая — день дисциплины"],[3,"Средняя — три дня"],[7,"Крупная — неделя"],[30,"Мечта — месяц"]];
+const SIZENAME=d=>d<=1?"день":d<=3?"три дня":d<=7?"неделя":"месяц";
+const DEFREWARDS=[["🎮","Вечер игр",1],["🍔","Читмил",1],["🎬","Кино",3],["🛌","Выходной",7],["🛍","Новая вещь",7],["🌴","Поездка",30]];
 const TABS=[["home","🏛 Обзор"],["habits","✅ Привычки"],["tasks","🎯 Задачи"],["money","💰 Финансы"],["body","💪 Тело"],["shop","🛒 Награды"]];
 const nf=n=>Math.round(n).toLocaleString("ru-RU");
 const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -224,6 +232,31 @@ const num=v=>{ if(typeof v==="number") return Number.isFinite(v)?v:0;
   const n=parseFloat(String(v??"").replace(/[\s  ]/g,"").replace(",","."));
   return Number.isFinite(n)?n:0; };
 
+// ---- эмодзи в названии и цена награды ----
+// Иконка — эмодзи в начале названия. Стёр его — значит иконки нет, и она не возвращается.
+const RE_ICO=/^((?:\p{Extended_Pictographic}\uFE0F?(?:[\u{1F3FB}-\u{1F3FF}])?)(?:\u200D\p{Extended_Pictographic}\uFE0F?)*)\s*([\s\S]*)$/u;
+function parseIco(v){
+  const t=String(v==null?"":v).trim(), m=t.match(RE_ICO);
+  if(m && m[2].trim()) return {ico:m[1], name:m[2].trim()};
+  return {ico:"", name:t};      // без эмодзи впереди — всё название целиком
+}
+const withIco=(ico,name)=>(ico?ico+" ":"")+name;
+
+// «День дисциплины» в монетах: среднее за две недели, но не меньше половины полного дня
+function dayValue(){
+  let sum=0,n=0;
+  for(let k=1;k<=14;k++){ const ds=addDays(TODAY,-k); if(checksOf(ds).length){ sum+=coinsFor(ds); n++; } }
+  const full=Math.max(1,S.habits.length)*COIN;
+  return Math.max(n?sum/n:0, full*0.5);
+}
+const roundCoins=v=>Math.max(50,Math.round(v/50)*50);
+const priceFor=days=>roundCoins(dayValue()*days);
+const nearestSize=days=>SIZES.reduce((a,b)=>Math.abs(b[0]-days)<Math.abs(a-days)?b[0]:a,SIZES[0][0]);
+function defRewards(nHabits){
+  const day=Math.max(1,nHabits)*COIN; let id=1;
+  return DEFREWARDS.map(([ico,name,days])=>({id:id++,ico,name,days,cost:roundCoins(day*days)}));
+}
+
 let FIRST_RUN=false;
 function load(){
   try{const r=localStorage.getItem(KEY); if(r) return normalize(JSON.parse(r));}catch(e){}
@@ -231,8 +264,8 @@ function load(){
 }
 function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} }
 function freshStart(){  // чистый лист — без чужих данных
-  let id=1; const habits=DEFHABITS.map(([ico,name,coin])=>({id:id++,ico,name,coin}));
-  return {habits, checks:{}, tasks:[], finance:{income:0,entries:[]}, body:{goalW:0,calGoal:2400,waterGoal:2500,calManual:false,waterManual:false,sex:"",height:0,birth:0,act:"auto",log:[]}, bought:[], myRewards:[], boughtMy:{}, spent:0};
+  let id=1; const habits=DEFHABITS.map(([ico,name])=>({id:id++,ico,name}));
+  return {habits, checks:{}, tasks:[], finance:{income:0,entries:[]}, body:{goalW:0,calGoal:2400,waterGoal:2500,calManual:false,waterManual:false,sex:"",height:0,birth:0,act:"auto",log:[]}, rewards:defRewards(habits.length), boughtCnt:{}, spent:0};
 }
 // приводим любые данные (старая версия, ручная правка, чужой файл) к рабочему виду —
 // иначе одно недостающее поле роняет всё приложение в белый экран
@@ -241,8 +274,9 @@ function normalize(d){
   const def=freshStart(), o={};
   o.habits=Array.isArray(d.habits)
     ? d.habits.filter(h=>h&&typeof h==="object").map((h,i)=>({
-        id:Number.isFinite(+h.id)?+h.id:i+1, ico:String(h.ico||"⭐"),
-        name:String(h.name||"Привычка"), coin:Math.min(200,Math.max(1,Math.round(num(h.coin))||10))}))
+        id:Number.isFinite(+h.id)?+h.id:i+1,
+        ico:typeof h.ico==="string"?h.ico:"",       // пустая иконка — законное состояние
+        name:String(h.name||"Привычка")}))
     : def.habits;
   const ids=new Set(o.habits.map(h=>h.id));
   o.checks={};
@@ -276,14 +310,26 @@ function normalize(d){
           birth:(byr>=yNow-100&&byr<=yNow-10)?byr:0,
           act:["auto","1.2","1.375","1.55","1.725","1.9"].includes(b.act)?b.act:"auto",
           log};
-  o.bought=Array.isArray(d.bought)?d.bought.map(Number).filter(n=>Number.isInteger(n)&&n>=0):[];
-  o.myRewards=Array.isArray(d.myRewards)?d.myRewards.filter(r=>r&&typeof r==="object").map(r=>({
-    id:Number.isFinite(+r.id)?+r.id:uid(), ico:String(r.ico||"🎁"),
-    name:String(r.name||"Награда"), cost:Math.max(1,Math.round(num(r.cost))||100)})):[];
-  o.boughtMy={};
-  if(d.boughtMy&&typeof d.boughtMy==="object") for(const k in d.boughtMy){
-    const n=Math.round(num(d.boughtMy[k])); if(n>0) o.boughtMy[k]=n;
+  const day0=Math.max(1,o.habits.length)*COIN;
+  const mkRw=(r,fallbackId)=>{
+    const cost=Math.max(1,Math.round(num(r.cost))||100);
+    return {id:Number.isFinite(+r.id)?+r.id:fallbackId, ico:typeof r.ico==="string"?r.ico:"🎁",
+            name:String(r.name||"Награда"),
+            days:SIZES.some(x=>x[0]===+r.days)?+r.days:nearestSize(cost/day0), cost};
+  };
+  if(Array.isArray(d.rewards)&&d.rewards.length){
+    o.rewards=d.rewards.filter(r=>r&&typeof r==="object").map((r,i)=>mkRw(r,i+1));
+  }else{
+    // старый формат: 6 встроенных наград + свои. Переносим в один общий список
+    o.rewards=defRewards(o.habits.length);
+    if(Array.isArray(d.myRewards)) d.myRewards.filter(r=>r&&typeof r==="object")
+      .forEach((r,i)=>o.rewards.push(mkRw(r,1000+i)));
   }
+  o.boughtCnt={};
+  const addCnt=(k,n)=>{ if(n>0) o.boughtCnt[k]=(o.boughtCnt[k]||0)+n; };
+  if(d.boughtCnt&&typeof d.boughtCnt==="object") for(const k in d.boughtCnt) addCnt(k,Math.round(num(d.boughtCnt[k])));
+  if(Array.isArray(d.bought)) d.bought.forEach(i=>{ const r=o.rewards[Math.round(num(i))]; if(r) addCnt(r.id,1); });
+  if(d.boughtMy&&typeof d.boughtMy==="object") for(const k in d.boughtMy) addCnt(k,Math.round(num(d.boughtMy[k])));
   o.spent=Math.max(0,Math.round(num(d.spent)));
   if(d.demoData) o.demoData=true;
   if(Number.isInteger(d.lastLvl)) o.lastLvl=d.lastLvl;
@@ -291,7 +337,7 @@ function normalize(d){
 }
 let S=load();
 function seed(){
-  let id=1; const habits=DEFHABITS.map(([ico,name,coin])=>({id:id++,ico,name,coin}));
+  let id=1; const habits=DEFHABITS.map(([ico,name])=>({id:id++,ico,name}));
   const checks={};
   // 8 недель истории — столько же, сколько показывает график «Сила по неделям»
   for(let k=55;k>=1;k--){ const date=addDays(TODAY,-k),arr=[]; habits.forEach(h=>{if(Math.random()<0.8)arr.push(h.id);}); if(arr.length)checks[date]=arr; }
@@ -317,7 +363,7 @@ function seed(){
   const body={goalW:78, calGoal:2400, waterGoal:2500, calManual:false, waterManual:false,
     sex:"m", height:182, birth:1990, act:"auto",
     log:[["-56",84],["-49",83.2],["-42",82.5],["-35",81.9],["-28",81.1],["-21",80.4],["-14",79.8],["-7",79.3],["0",78.9]].map(([k,w])=>({date:addDays(TODAY,+k),w}))};
-  return {habits,checks,tasks,finance,body,bought:[],spent:0};
+  return {habits,checks,tasks,finance,body,rewards:defRewards(habits.length),boughtCnt:{},spent:0};
 }
 
 // ---- gamification (сверено с ботом) ----
@@ -325,7 +371,7 @@ const checksOf=d=>S.checks[d]||[];
 const isDone=(hid,d)=>checksOf(d).includes(hid);
 const habitById=id=>S.habits.find(h=>h.id===id);
 const dayComplete=d=>checksOf(d).length>=DAYOK;
-const baseCoins=d=>checksOf(d).reduce((s,id)=>s+(habitById(id)?.coin||0),0);
+const baseCoins=d=>checksOf(d).length*COIN;
 function streakEndingOn(d){let s=0;while(dayComplete(d)){s++;d=addDays(d,-1);}return s;}
 const streakBefore=d=>streakEndingOn(addDays(d,-1));
 const mult=s=>Math.min(2,1+0.1*s);
@@ -489,7 +535,8 @@ function pie(cv,parts){const {c,w,h}=setup(cv,150);const cx=w/2,cy=h/2,r=Math.mi
 function el(html){const d=document.createElement("div");d.innerHTML=html.trim();return d.firstElementChild;}
 
 // аккуратная форма вместо системного prompt(); возвращает объект значений или null
-function askModal(title, fields){
+function askModal(title, fields, opts){
+  const o=opts||{};
   return new Promise(resolve=>{
     const ovl=el(`<div class="ovl"></div>`);
     const m=el(`<div class="modal"><h4>${title}</h4></div>`);
@@ -512,11 +559,11 @@ function askModal(title, fields){
       }
       m.appendChild(inp); inputs[f.name]=inp;
     });
-    const btns=el(`<div class="btns"><button class="no">Отмена</button><button class="ok">Готово</button></div>`);
+    const btns=el(`<div class="btns"><button class="no${o.del?" dl":""}"${o.del?' style="color:var(--danger);border-color:#5a2730"':""}>${o.del||"Отмена"}</button><button class="ok">Готово</button></div>`);
     m.appendChild(btns); ovl.appendChild(m); document.body.appendChild(ovl);
     setTimeout(()=>inputs[fields[0].name].focus(),50);
     const close=v=>{ovl.remove();resolve(v);};
-    btns.querySelector(".no").onclick=()=>close(null);
+    btns.querySelector(".no").onclick=()=>close(o.del?{__deleted:true}:null);
     btns.querySelector(".ok").onclick=()=>{const r={};fields.forEach(f=>{const v=inputs[f.name].value;r[f.name]=typeof v==="string"?v.trim():v;});close(r);};
     ovl.onclick=e=>{if(e.target===ovl)close(null);};
     m.addEventListener("keydown",e=>{
@@ -554,7 +601,7 @@ function vHome(root){
      <h3>Сегодня <span id="todayCnt" style="color:var(--mut);font-weight:400;text-transform:none"></span></h3>
      <div class="donut-wrap"><canvas id="todayRing"></canvas><div class="donut-c"><div class="p e" id="todayP">0%</div><div class="t">выполнено</div></div></div>
      <div class="tchips" id="todayChips"></div>
-     <div style="font-size:10.5px;color:var(--mut2);margin-top:10px;text-align:center">день идёт в серию 🔥 от 3 выполненных привычек</div>
+     <div style="font-size:10.5px;color:var(--mut2);margin-top:10px;text-align:center">каждая привычка +${COIN} 🪙 · день идёт в серию 🔥 от 3 отмеченных</div>
    </div>
    ${ins?`<div class="glass card" style="margin-top:13px"><h3>Инсайт недели</h3>
      <div style="display:flex;gap:10px;font-size:13.5px;color:var(--mut);line-height:1.55;align-items:flex-start"><span style="flex:none">💡</span><span class="ins-t">${ins}</span></div></div>`:""}
@@ -591,7 +638,7 @@ function vHome(root){
   S.habits.forEach(h=>{
     const on=isDone(h.id,TODAY);
     const chip=el(`<div class="tchip${on?" on":""}"><span class="d">${on?"✓":""}</span><span class="nm"></span></div>`);
-    chip.querySelector(".nm").textContent=`${h.ico} ${h.name}`;
+    chip.querySelector(".nm").textContent=withIco(h.ico,h.name);
     chip.addEventListener("click",()=>{
       const arr=checksOf(TODAY).slice(),i=arr.indexOf(h.id);
       if(i>=0)arr.splice(i,1);else{arr.push(h.id);flyCoinToWallet(chip);}
@@ -643,7 +690,7 @@ function vHabits(root){
   let rows="";
   const elapsed=Math.min(diM,now.getDate());
   S.habits.forEach(h=>{
-    let r=`<tr><td class="name hedit" data-edit="${h.id}"><span class="hn">${h.ico} ${esc(h.name)}</span> ✏️</td>`; let cnt=0;
+    let r=`<tr><td class="name hedit" data-edit="${h.id}"><span class="hn">${esc(withIco(h.ico,h.name))}</span> ✏️</td>`; let cnt=0;
     for(let d=1;d<=diM;d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;const on=isDone(h.id,ds);if(on&&d<=elapsed)cnt++;
       r+=`<td><span class="hcell${on?" on":""}${ds>TODAY?" fut":""}" data-h="${h.id}" data-d="${ds}"></span></td>`;}
     const pc=elapsed?Math.round(cnt/elapsed*100):0;
@@ -658,7 +705,7 @@ function vHabits(root){
       <div class="hscroll"><table class="hg">${head}${rows}</table></div></div>
     <div class="row2" style="margin-top:13px">
       <div class="glass card"><h3>Сила по неделям</h3><canvas id="hbWeeks"></canvas><div style="font-size:11px;color:var(--mut2);margin-top:6px">% выполнения, 8 недель</div></div>
-      <div class="glass card"><h3>Топ привычек</h3>${tops.map(t=>`<div class="prow"><span class="nm">${t.h.ico} ${esc(t.h.name)}</span><span class="ptrack"><span class="pfill" style="width:${t.pc}%"></span></span><span class="pc">${t.pc}%</span></div>`).join("")}</div>
+      <div class="glass card"><h3>Топ привычек</h3>${tops.map(t=>`<div class="prow"><span class="nm">${esc(withIco(t.h.ico,t.h.name))}</span><span class="ptrack"><span class="pfill" style="width:${t.pc}%"></span></span><span class="pc">${t.pc}%</span></div>`).join("")}</div>
     </div>
     <div class="addbtn" id="addHabit" style="margin-top:13px">➕ Добавить привычку</div>`;
   bars(root.querySelector("#hbWeeks"),wk,gv("--emerald"),
@@ -686,12 +733,10 @@ function editHabit(hid){
   const h=habitById(hid); if(!h) return;
   const ovl=el(`<div class="ovl"></div>`);
   const m=el(`<div class="modal"><h4>Привычка</h4></div>`);
-  m.appendChild(el(`<span class="lab">Название (можно с эмодзи)</span>`));
-  const inp=document.createElement("input"); inp.type="text"; inp.value=`${h.ico} ${h.name}`;
+  m.appendChild(el(`<span class="lab">Название — эмодзи впереди можно стереть</span>`));
+  const inp=document.createElement("input"); inp.type="text"; inp.value=withIco(h.ico,h.name);
   m.appendChild(inp);
-  m.appendChild(el(`<span class="lab">Монет за выполнение 🪙</span>`));
-  const cin=document.createElement("input"); cin.type="text"; cin.inputMode="numeric"; cin.autocomplete="off"; cin.value=h.coin;
-  m.appendChild(cin);
+  m.appendChild(el(`<p class="nrm" style="margin-top:10px">Любая привычка даёт ${COIN} 🪙 — цену назначать не нужно, её растит серия.</p>`));
   const btns=el(`<div class="btns"><button class="no" id="hDel" style="color:var(--danger);border-color:#5a2730">🗑 Удалить</button><button class="ok" id="hSv">Сохранить</button></div>`);
   m.appendChild(btns); ovl.appendChild(m); document.body.appendChild(ovl);
   setTimeout(()=>inp.focus(),50);
@@ -705,9 +750,7 @@ function editHabit(hid){
   };
   btns.querySelector("#hSv").onclick=()=>{
     const v=inp.value.trim(); if(!v) return;
-    let ico=h.ico,nm=v; const mm=v.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u); if(mm){ico=mm[1];nm=mm[2]||v;}
-    h.ico=ico; h.name=nm;
-    const cv=Math.round(num(cin.value)); if(cv>0) h.coin=Math.min(200,cv);
+    const pi=parseIco(v); h.ico=pi.ico; h.name=pi.name;
     save(); close(); render();
   };
 }
@@ -977,43 +1020,60 @@ function vBody(root){
 
 function vShop(root){
   const w=wallet();
-  S.myRewards=S.myRewards||[]; S.boughtMy=S.boughtMy||{};
-  root.innerHTML=`<div class="glass card"><h3>Кошелёк</h3><div class="stat"><div class="v g num">${nf(w)} 🪙</div><div class="l">заработано дисциплиной · трать на реальное</div></div></div>
+  root.innerHTML=`<div class="glass card"><h3>Кошелёк</h3><div class="stat"><div class="v g num">${nf(w)} 🪙</div><div class="l">заработано дисциплиной · трать на реальное</div></div>
+      <div class="nrm">день дисциплины сейчас — примерно ${nf(dayValue())} 🪙, из этого и считается цена награды</div></div>
     <div class="sec-h">Награды</div><div class="shop" id="shopGrid"></div>
     <div class="addbtn" id="addReward" style="margin-top:13px">➕ Своя награда</div>`;
   const grid=root.querySelector("#shopGrid");
+  if(!S.rewards.length) grid.innerHTML='<div style="color:var(--mut2);font-size:13px;padding:6px 2px">Наград нет — придумай первую кнопкой ниже 👇</div>';
   // награды многоразовые: «Кино» можно покупать хоть каждую неделю
-  REWARDS.forEach(([ico,name,cost],idx)=>{
-    const cnt=S.bought.filter(i=>i===idx).length;
-    const it=el(`<div class="si${w>=cost?" afford":""}"><div class="i">${ico}</div><div class="n">${name}</div><div class="pr">🪙 ${nf(cost)}</div>${cnt?`<div class="cnt">куплено ×${cnt}</div>`:""}`+`</div>`);
-    it.addEventListener("click",()=>{ if(wallet()<cost){toast("Не хватает монет 🪙");return;} S.bought.push(idx);S.spent+=cost;save();render();toast("Награда куплена! Отдыхай честно 🎉"); });
-    grid.appendChild(it);
-  });
-  // свои награды — награды всегда личные
-  S.myRewards.forEach(rw=>{
-    const cnt=S.boughtMy[rw.id]||0;
-    const it=el(`<div class="si${w>=rw.cost?" afford":""}"><span class="rm" data-id="${rw.id}" title="удалить награду">✕</span><div class="i">${rw.ico}</div><div class="n"></div><div class="pr">🪙 ${nf(rw.cost)}</div>${cnt?`<div class="cnt">куплено ×${cnt}</div>`:""}</div>`);
+  S.rewards.forEach(rw=>{
+    const cnt=S.boughtCnt[rw.id]||0;
+    const it=el(`<div class="si${w>=rw.cost?" afford":""}"><span class="rm" title="изменить">✏️</span>
+      <div class="i">${rw.ico||"🎁"}</div><div class="n"></div>
+      <div class="pr">🪙 ${nf(rw.cost)}</div>
+      <div class="cnt${cnt?"":" hintc"}">${cnt?`куплено ×${cnt}`:`≈ ${SIZENAME(rw.days)}`}</div></div>`);
     it.querySelector(".n").textContent=rw.name;
     it.addEventListener("click",e=>{
-      if(e.target.classList.contains("rm")){
-        if(confirm(`Удалить награду «${rw.name}»?`)){ S.myRewards=S.myRewards.filter(x=>x.id!==rw.id); save(); render(); }
-        return;
-      }
-      if(wallet()<rw.cost){toast("Не хватает монет 🪙");return;}
-      S.boughtMy[rw.id]=(S.boughtMy[rw.id]||0)+1; S.spent+=rw.cost; save(); render(); toast("Награда куплена! Отдыхай честно 🎉");
+      if(e.target.classList.contains("rm")){ editReward(rw); return; }
+      if(wallet()<rw.cost){ toast("Не хватает монет 🪙"); return; }
+      S.boughtCnt[rw.id]=(S.boughtCnt[rw.id]||0)+1; S.spent+=rw.cost;
+      save(); render(); toast("Награда куплена! Отдыхай честно 🎉");
     });
     grid.appendChild(it);
   });
-  root.querySelector("#addReward").addEventListener("click",async()=>{
-    const r=await askModal("Своя награда",[
-      {name:"n",label:"Название (можно с эмодзи)",placeholder:"🎣 Рыбалка"},
-      {name:"c",label:"Цена в монетах 🪙",type:"number",value:"500"},
-    ]);
-    if(!r||!r.n) return;
-    let ico="🎁",nm=r.n; const m=r.n.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u); if(m){ico=m[1];nm=m[2]||r.n;}
-    const cost=Math.max(1,Math.round(num(r.c))||500);
-    S.myRewards.push({id:uid(),ico,name:nm,cost}); save(); render();
-  });
+  root.querySelector("#addReward").addEventListener("click",addReward);
+}
+
+async function addReward(){
+  const r=await askModal("Своя награда",[
+    {name:"n",label:"Название (можно с эмодзи)",placeholder:"🎣 Рыбалка"},
+    {name:"d",label:"Насколько крупная — цену посчитаю сам",type:"select",
+     options:SIZES.map(([d,t])=>[String(d),t]),value:"3"},
+  ]);
+  if(!r||!r.n) return;
+  const pi=parseIco(r.n), days=nearestSize(num(r.d)||3), cost=priceFor(days);
+  S.rewards.push({id:uid(),ico:pi.ico||"🎁",name:pi.name,days,cost});
+  save(); render(); toast(`«${pi.name}» — ${nf(cost)} 🪙`);
+}
+
+async function editReward(rw){
+  const r=await askModal("Награда",[
+    {name:"n",label:"Название — эмодзи впереди можно стереть",value:withIco(rw.ico,rw.name)},
+    {name:"d",label:"Насколько крупная — цену посчитаю сам",type:"select",
+     options:SIZES.map(([d,t])=>[String(d),t]),value:String(rw.days||3)},
+  ],{del:"🗑 Удалить"});
+  if(!r) return;
+  if(r.__deleted){
+    if(!confirm(`Удалить награду «${rw.name}»?`)) return;
+    S.rewards=S.rewards.filter(x=>x.id!==rw.id); delete S.boughtCnt[rw.id];
+    save(); render(); return;
+  }
+  if(!r.n) return;
+  const pi=parseIco(r.n), days=nearestSize(num(r.d)||3);
+  rw.ico=pi.ico||"🎁"; rw.name=pi.name;
+  if(days!==rw.days){ rw.days=days; rw.cost=priceFor(days); }
+  save(); render();
 }
 
 // добавление дохода/расхода: выбрать категорию-иконку + вписать сумму (стиль Monarch/Copilot)
@@ -1055,12 +1115,11 @@ function addFinance(type){
 async function addHabit(){
   const r=await askModal("Новая привычка",[
     {name:"name",label:"Название (можно с эмодзи)",placeholder:"🏃 Бег по утрам"},
-    {name:"coin",label:"Монет за выполнение 🪙",type:"number",value:"15"},
   ]);
   if(!r||!r.name) return;
-  let ico="⭐",nm=r.name; const m=r.name.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u); if(m){ico=m[1];nm=m[2]||r.name;}
-  const coin=Math.min(200,Math.max(1,Math.round(num(r.coin))||15));
-  S.habits.push({id:Math.max(0,...S.habits.map(h=>h.id))+1,ico,name:nm,coin}); save(); render();
+  const {ico,name}=parseIco(r.name);
+  S.habits.push({id:Math.max(0,...S.habits.map(h=>h.id))+1,ico,name});
+  save(); render(); toast(`Привычка добавлена · +${COIN} 🪙 за отметку`);
 }
 function city(cv,level,total){const {c,w,h}=setup(cv,90);const emer=gv("--emerald"),gold=gv("--gold"),cyan=gv("--cyan"),labels=["🐣","🚀","💼","🏢","👑"];const gy=h-20,px=12,slot=(w-2*px)/total;
   c.strokeStyle=cyan;c.globalAlpha=.5;c.lineWidth=1.4;c.shadowColor=cyan;c.shadowBlur=7;c.beginPath();c.moveTo(px,gy+.5);c.lineTo(w-px,gy+.5);c.stroke();c.shadowBlur=0;c.globalAlpha=1;
