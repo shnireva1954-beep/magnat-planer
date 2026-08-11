@@ -23,8 +23,11 @@
   ::selection{background:#2fe38f3d; color:var(--ink);}
   :focus-visible{outline:2px solid var(--emerald); outline-offset:2px; border-radius:4px;}
   body{background:radial-gradient(1100px 620px at 82% -6%,#123044 0%,transparent 55%),radial-gradient(800px 560px at 6% 3%,#0f2a20 0%,transparent 55%),linear-gradient(180deg,var(--bg2),var(--bg));
-    color:var(--ink); font-family:var(--fb); line-height:1.45; -webkit-font-smoothing:antialiased; min-height:100vh; padding-bottom:80px;}
-  .wrap{max-width:1120px; margin:0 auto; padding:0 16px;}
+    color:var(--ink); font-family:var(--fb); line-height:1.45; -webkit-font-smoothing:antialiased; min-height:100vh;
+    padding-bottom:calc(80px + env(safe-area-inset-bottom));}
+  /* вырез и скруглённые углы телефона не должны срезать содержимое */
+  .wrap{max-width:1120px; margin:0 auto;
+    padding-left:max(16px,env(safe-area-inset-left)); padding-right:max(16px,env(safe-area-inset-right));}
   .glass{background:linear-gradient(168deg,rgba(20,28,42,.62),rgba(15,21,32,.62)); backdrop-filter:blur(11px) saturate(1.15); -webkit-backdrop-filter:blur(11px) saturate(1.15); border:1px solid var(--line2); border-radius:16px; box-shadow:inset 0 1px 0 #ffffff0e,0 8px 26px #00000038;}
   .card{padding:15px 15px;} .card>h3{font-size:11px; letter-spacing:1.1px; text-transform:uppercase; color:var(--mut2); font-weight:600; margin-bottom:11px; display:flex; justify-content:space-between; align-items:center;}
   canvas{display:block; width:100%; height:auto;}
@@ -51,6 +54,10 @@
 
   .view{padding:15px 0 30px; display:none;} .view.on{display:block;}
   .row2{display:grid; gap:13px; grid-template-columns:1fr 1fr;} @media(max-width:560px){.row2{grid-template-columns:1fr}}
+  /* без этого длинное название в flex:1 раздвигает карточку и рождает
+     горизонтальный скролл всей страницы на узких экранах (320px) */
+  .grid>*, .row2>*{min-width:0;}
+  .prow .nm, .q .nm, .frow .cat{min-width:0;}
 
   /* hero */
   .hero{padding:18px;} .hero-row{display:flex; align-items:center; justify-content:space-between; gap:12px;}
@@ -77,15 +84,18 @@
   table.hg td.name{text-align:left; padding:6px 9px; white-space:nowrap; background:var(--panel); color:var(--ink); font-size:12.5px;
     position:sticky; left:0; z-index:2;}
   table.hg th.name{position:sticky; left:0; z-index:3; background:var(--panel2);}
-  .hcell{width:22px; height:26px; cursor:pointer; display:block;}
+  .hcell{width:24px; height:27px; cursor:pointer; display:grid; place-items:center; line-height:1;}
   .hcell.on{background:var(--emerald); box-shadow:inset 0 0 5px #0a3d28;}
-  .hcell.on:after{content:"✓"; color:#04120b; font-weight:900; font-size:11px;}
+  .hcell.on:after{content:"✓"; color:#04120b; font-weight:900; font-size:12px;}
   .hcell.fut{opacity:.22; cursor:default;}
   table.hg td.name.hedit{cursor:pointer;}
+  /* на телефоне длинные названия съедали календарь — обрезаем, чтобы влезло больше дней */
+  .hn{display:inline-block; vertical-align:bottom; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:230px;}
+  @media(max-width:560px){ .hn{max-width:124px} }
   .prow{display:flex; align-items:center; gap:10px; padding:9px 2px; border-bottom:1px solid var(--line);}
   .prow:last-child{border:none} .prow .nm{flex:1; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .ptrack{width:90px; height:8px; border-radius:99px; background:#0a1119; border:1px solid var(--line); overflow:hidden;}
-  .pfill{height:100%; background:linear-gradient(90deg,#7a3ecf,var(--violet)); box-shadow:0 0 7px #b06bff66;}
+  .ptrack{width:90px; height:8px; border-radius:99px; background:#0a1119; border:1px solid var(--line); overflow:hidden; flex:none;}
+  .pfill{display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#7a3ecf,var(--violet)); box-shadow:0 0 7px #b06bff66;}
   .prow .pc{font-size:12px; color:var(--violet); width:38px; text-align:right; font-variant-numeric:tabular-nums;}
 
   /* quests / lists */
@@ -198,20 +208,82 @@ const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const parseYmd=s=>{const[y,m,dd]=s.split("-").map(Number);return new Date(y,m-1,dd);};
 const addDays=(s,n)=>{const d=parseYmd(s);d.setDate(d.getDate()+n);return ymd(d);};
 const fmtD=s=>s.slice(8,10)+"."+s.slice(5,7);
-const TODAY=ymd(new Date());
+const isYmd=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+// дата живая: приложение может остаться открытым на телефоне через полночь
+let TODAY=ymd(new Date());
+let CURMONTH=TODAY.slice(0,7);
+function refreshToday(){ const t=ymd(new Date()); if(t===TODAY) return false; TODAY=t; CURMONTH=t.slice(0,7); return true; }
+// уникальные id, которые не столкнутся при добавлении двух записей в одну миллисекунду
+let uidN=0; const uid=()=>Date.now()*1000+(uidN=(uidN+1)%1000);
+// «82,4», «2 400», «1 500 ₽» — всё это должно превращаться в число, а не в 0
+const num=v=>{ if(typeof v==="number") return Number.isFinite(v)?v:0;
+  const n=parseFloat(String(v??"").replace(/[\s  ]/g,"").replace(",","."));
+  return Number.isFinite(n)?n:0; };
 
 let FIRST_RUN=false;
-function load(){ try{const r=localStorage.getItem(KEY); if(r) return JSON.parse(r);}catch(e){} FIRST_RUN=true; return seed(); }
+function load(){
+  try{const r=localStorage.getItem(KEY); if(r) return normalize(JSON.parse(r));}catch(e){}
+  FIRST_RUN=true; return seed();
+}
 function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} }
-function freshStart(){  // чистый лист для реального клиента — без чужих данных
+function freshStart(){  // чистый лист — без чужих данных
   let id=1; const habits=DEFHABITS.map(([ico,name,coin])=>({id:id++,ico,name,coin}));
-  return {habits, checks:{}, tasks:[], finance:{income:0,entries:[]}, body:{goalW:0,calGoal:2400,waterGoal:2500,log:[]}, bought:[], spent:0};
+  return {habits, checks:{}, tasks:[], finance:{income:0,entries:[]}, body:{goalW:0,calGoal:2400,waterGoal:2500,log:[]}, bought:[], myRewards:[], boughtMy:{}, spent:0};
+}
+// приводим любые данные (старая версия, ручная правка, чужой файл) к рабочему виду —
+// иначе одно недостающее поле роняет всё приложение в белый экран
+function normalize(d){
+  if(!d||typeof d!=="object"||Array.isArray(d)) return freshStart();
+  const def=freshStart(), o={};
+  o.habits=Array.isArray(d.habits)
+    ? d.habits.filter(h=>h&&typeof h==="object").map((h,i)=>({
+        id:Number.isFinite(+h.id)?+h.id:i+1, ico:String(h.ico||"⭐"),
+        name:String(h.name||"Привычка"), coin:Math.min(200,Math.max(1,Math.round(num(h.coin))||10))}))
+    : def.habits;
+  const ids=new Set(o.habits.map(h=>h.id));
+  o.checks={};
+  if(d.checks&&typeof d.checks==="object") for(const k in d.checks){
+    if(!isYmd(k)||!Array.isArray(d.checks[k])) continue;
+    const a=[...new Set(d.checks[k].map(Number).filter(n=>ids.has(n)))];
+    if(a.length) o.checks[k]=a;
+  }
+  o.tasks=Array.isArray(d.tasks)?d.tasks.filter(t=>t&&typeof t==="object").map(t=>({
+    id:Number.isFinite(+t.id)?+t.id:uid(), name:String(t.name||"Задача"),
+    prio:["hi","md","lo"].includes(t.prio)?t.prio:"md",
+    due:isYmd(t.due)?t.due:TODAY, done:!!t.done})):[];
+  const fin=(d.finance&&typeof d.finance==="object")?d.finance:{};
+  o.finance={income:Math.max(0,num(fin.income)), entries:Array.isArray(fin.entries)?fin.entries
+    .filter(e=>e&&typeof e==="object").map(e=>({
+      id:Number.isFinite(+e.id)?+e.id:uid(), type:e.type==="in"?"in":"out",
+      cat:String(e.cat||"💸 Прочее"), amount:Math.round(Math.abs(num(e.amount))),
+      date:isYmd(e.date)?e.date:TODAY})).filter(e=>e.amount>0):[]};
+  const b=(d.body&&typeof d.body==="object")?d.body:{};
+  const seen=new Set(); const log=(Array.isArray(b.log)?b.log:[])
+    .filter(x=>x&&isYmd(x.date)&&num(x.w)>0)
+    .map(x=>({date:x.date,w:Math.round(num(x.w)*10)/10}))
+    .sort((p,q)=>p.date<q.date?-1:p.date>q.date?1:0)
+    .filter(x=>{ if(seen.has(x.date)) return false; seen.add(x.date); return true; });
+  o.body={goalW:Math.max(0,num(b.goalW)), calGoal:Math.round(num(b.calGoal))||2400,
+          waterGoal:Math.round(num(b.waterGoal))||2500, log};
+  o.bought=Array.isArray(d.bought)?d.bought.map(Number).filter(n=>Number.isInteger(n)&&n>=0):[];
+  o.myRewards=Array.isArray(d.myRewards)?d.myRewards.filter(r=>r&&typeof r==="object").map(r=>({
+    id:Number.isFinite(+r.id)?+r.id:uid(), ico:String(r.ico||"🎁"),
+    name:String(r.name||"Награда"), cost:Math.max(1,Math.round(num(r.cost))||100)})):[];
+  o.boughtMy={};
+  if(d.boughtMy&&typeof d.boughtMy==="object") for(const k in d.boughtMy){
+    const n=Math.round(num(d.boughtMy[k])); if(n>0) o.boughtMy[k]=n;
+  }
+  o.spent=Math.max(0,Math.round(num(d.spent)));
+  if(d.demoData) o.demoData=true;
+  if(Number.isInteger(d.lastLvl)) o.lastLvl=d.lastLvl;
+  return o;
 }
 let S=load();
 function seed(){
   let id=1; const habits=DEFHABITS.map(([ico,name,coin])=>({id:id++,ico,name,coin}));
   const checks={};
-  for(let k=27;k>=1;k--){ const date=addDays(TODAY,-k),arr=[]; habits.forEach(h=>{if(Math.random()<0.8)arr.push(h.id);}); if(arr.length)checks[date]=arr; }
+  // 8 недель истории — столько же, сколько показывает график «Сила по неделям»
+  for(let k=55;k>=1;k--){ const date=addDays(TODAY,-k),arr=[]; habits.forEach(h=>{if(Math.random()<0.8)arr.push(h.id);}); if(arr.length)checks[date]=arr; }
   const tasks=[
     {id:1,name:"Смонтировать ролик",prio:"hi",due:addDays(TODAY,0),done:false},
     {id:2,name:"Написать 5 сценариев",prio:"hi",due:addDays(TODAY,1),done:false},
@@ -220,14 +292,16 @@ function seed(){
     {id:5,name:"Позвонить маме",prio:"md",due:addDays(TODAY,-1),done:false},
     {id:6,name:"Разобрать почту",prio:"lo",due:addDays(TODAY,0),done:true},
   ];
+  // операции разложены по числам текущего месяца, а не свалены в один день
+  const dayIn=n=>{const d=Math.min(n,+TODAY.slice(8,10));return CURMONTH+"-"+pad(d);};
   const finance={income:80000, entries:[
-    {id:1,type:"in",cat:"💼 Работа",amount:60000,date:TODAY},
-    {id:2,type:"in",cat:"📈 Подработка",amount:15000,date:TODAY},
-    {id:3,type:"out",cat:"🍔 Еда",amount:18000,date:TODAY},
-    {id:4,type:"out",cat:"🏠 Аренда",amount:25000,date:TODAY},
-    {id:5,type:"out",cat:"🚗 Транспорт",amount:6000,date:TODAY},
-    {id:6,type:"out",cat:"🎮 Развлечения",amount:8000,date:TODAY},
-    {id:7,type:"out",cat:"📱 Подписки",amount:2500,date:TODAY},
+    {id:1,type:"in", cat:"💼 Работа",       amount:60000,date:dayIn(5)},
+    {id:2,type:"in", cat:"📈 Подработка",   amount:15000,date:dayIn(12)},
+    {id:3,type:"out",cat:"🏠 Жильё",        amount:25000,date:dayIn(3)},
+    {id:4,type:"out",cat:"🍔 Еда",          amount:18000,date:dayIn(9)},
+    {id:5,type:"out",cat:"🎮 Досуг",        amount:8000, date:dayIn(11)},
+    {id:6,type:"out",cat:"🚗 Транспорт",    amount:6000, date:dayIn(7)},
+    {id:7,type:"out",cat:"📱 Связь",        amount:2500, date:dayIn(2)},
   ]};
   const body={goalW:78, calGoal:2400, waterGoal:2500,
     log:[["-56",84],["-49",83.2],["-42",82.5],["-35",81.9],["-28",81.1],["-21",80.4],["-14",79.8],["-7",79.3],["0",78.9]].map(([k,w])=>({date:addDays(TODAY,+k),w}))};
@@ -288,7 +362,6 @@ function homeInsight(){
   }
   return null;
 }
-const CURMONTH=TODAY.slice(0,7);
 const monthEntries=()=>S.finance.entries.filter(e=>e.date.slice(0,7)===CURMONTH);
 
 let toastT; function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),1900);}
@@ -344,7 +417,24 @@ function celebrateLevel(li){
 function setup(cv,h){const dpr=window.devicePixelRatio||1,w=cv.getBoundingClientRect().width||200;cv.width=w*dpr;cv.height=h*dpr;cv.style.height=h+"px";const c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);return{c,w,h};}
 function donut(cv,frac,color){const {c,w,h}=setup(cv,150);const cx=w/2,cy=h/2,r=Math.min(w,h)/2-9;c.lineWidth=15;c.lineCap="round";c.strokeStyle="#182230";c.beginPath();c.arc(cx,cy,r,0,7);c.stroke();if(frac>0){c.strokeStyle=color;c.shadowColor=color;c.shadowBlur=13;c.beginPath();c.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(1,frac));c.stroke();c.shadowBlur=0;}}
 function line(cv,data,color){const {c,w,h}=setup(cv,110);if(data.length<2)data=[data[0]??0,data[0]??0];const mn=Math.min(...data),mx=Math.max(...data,mn+1),pd=8;const X=i=>pd+i*(w-2*pd)/(data.length-1),Y=v=>h-pd-(v-mn)/(mx-mn)*(h-2*pd);const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,color+"55");g.addColorStop(1,color+"00");c.beginPath();c.moveTo(X(0),Y(data[0]));data.forEach((v,i)=>c.lineTo(X(i),Y(v)));c.lineTo(X(data.length-1),h-pd);c.lineTo(X(0),h-pd);c.closePath();c.fillStyle=g;c.fill();c.beginPath();c.moveTo(X(0),Y(data[0]));data.forEach((v,i)=>c.lineTo(X(i),Y(v)));c.strokeStyle=color;c.lineWidth=2.4;c.lineJoin="round";c.shadowColor=color;c.shadowBlur=9;c.stroke();c.shadowBlur=0;c.beginPath();c.arc(X(data.length-1),Y(data[data.length-1]),3.5,0,7);c.fillStyle=color;c.fill();}
-function bars(cv,data,color){const {c,w,h}=setup(cv,120);const mx=Math.max(...data,1),n=data.length,bw=(w)/n*0.6,gap=(w)/n;data.forEach((v,i)=>{const bh=(v/mx)*(h-14),x=i*gap+(gap-bw)/2,y=h-bh-2;c.fillStyle=color;c.shadowColor=color;c.shadowBlur=7;c.beginPath();c.rect(x,y,bw,bh);c.fill();c.shadowBlur=0;});}
+// столбики: color — строка или массив по столбцу; opts.labels — подписи снизу, opts.values — значения сверху
+function bars(cv,data,color,opts){
+  const o=opts||{}, {c,w,h}=setup(cv,o.height||120);
+  const n=data.length, mx=Math.max(...data,1);
+  const base=h-(o.labels?15:3), top=o.values?16:6;
+  const gap=w/n, bw=Math.min(gap*(n<=3?0.44:0.62), 74);
+  c.strokeStyle="#1c2735"; c.lineWidth=1;
+  c.beginPath(); c.moveTo(0,base+.5); c.lineTo(w,base+.5); c.stroke();
+  data.forEach((v,i)=>{
+    const col=Array.isArray(color)?color[i%color.length]:color;
+    const bh=Math.max(v>0?2:0,(v/mx)*(base-top)), x=i*gap+(gap-bw)/2, y=base-bh;
+    if(bh){ c.fillStyle=col; c.shadowColor=col; c.shadowBlur=7;
+      c.beginPath(); c.rect(x,y,bw,bh); c.fill(); c.shadowBlur=0; }
+    c.textAlign="center";
+    if(o.values){ c.fillStyle=col; c.font="700 10.5px system-ui"; c.fillText(o.values[i],x+bw/2,Math.max(11,y-5)); }
+    if(o.labels){ c.fillStyle="#68809b"; c.font="10px system-ui"; c.fillText(o.labels[i],x+bw/2,h-3); }
+  });
+}
 // график веса: старт, текущее значение и пунктирная цель
 function weightChart(cv,log,goal){
   const {c,w,h}=setup(cv,150);
@@ -400,10 +490,13 @@ function askModal(title, fields){
         f.options.forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;inp.appendChild(o);});
         if(f.value!=null) inp.value=f.value;
       } else {
-        inp=document.createElement("input"); inp.type=f.type||"text";
+        inp=document.createElement("input");
+        // числа вводим текстовым полем: type=number в браузере отбрасывает «82,4»
+        // (запятая на русской клавиатуре) и отдаёт пустую строку — вес просто не сохранялся
+        if(f.type==="number"){ inp.type="text"; inp.inputMode="decimal"; inp.autocomplete="off"; }
+        else inp.type=f.type||"text";
         if(f.value!=null) inp.value=f.value;
         if(f.placeholder) inp.placeholder=f.placeholder;
-        if(f.type==="number"){ inp.inputMode="numeric"; }
       }
       m.appendChild(inp); inputs[f.name]=inp;
     });
@@ -473,7 +566,8 @@ function vHome(root){
   let md=0,mp=0; for(let d=1;d<=Math.min(diM,now.getDate());d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;md+=checksOf(ds).length;mp+=S.habits.length;}
   const frac=mp?md/mp:0; donut(root.querySelector("#hDonut"),frac,gv("--emerald")); root.querySelector("#hDonutP").textContent=Math.round(frac*100)+"%";
   const sd=[];for(let k=13;k>=0;k--)sd.push(coinsFor(addDays(TODAY,-k))); line(root.querySelector("#hSpark"),sd,gv("--cyan")); root.querySelector("#hToday").textContent=nf(coinsFor(TODAY));
-  bars(root.querySelector("#hMoney"),[inc,out],inc>=out?gv("--emerald"):gv("--danger"));
+  bars(root.querySelector("#hMoney"),[inc,out],[gv("--emerald"),gv("--danger")],
+       {labels:["доход","расход"],height:104});
   line(root.querySelector("#hBody"),S.body.log.length?S.body.log.map(x=>x.w):[0,0],gv("--cyan"));
   city(root.querySelector("#hCity"),li+1,5);
   // «Сегодня»: кольцо наполняется, когда жмёшь чипы привычек
@@ -495,12 +589,7 @@ function vHome(root){
     cw.appendChild(chip);
   });
   if(!S.habits.length) cw.innerHTML='<span style="font-size:12.5px;color:var(--mut2)">Привычек нет — добавь первую в разделе «✅ Привычки»</span>';
-  root.querySelector("#bkSave").addEventListener("click",()=>{
-    const blob=new Blob([JSON.stringify(S)],{type:"application/json"});
-    const url=URL.createObjectURL(blob), a=document.createElement("a");
-    a.href=url; a.download="magnat-backup-"+TODAY+".json"; a.click();
-    URL.revokeObjectURL(url); toast("Копия сохранена 💾");
-  });
+  root.querySelector("#bkSave").addEventListener("click",downloadBackup);
   root.querySelector("#bkLoad").addEventListener("click",()=>{
     const inp=document.createElement("input"); inp.type="file"; inp.accept=".json,application/json";
     inp.onchange=()=>{
@@ -509,9 +598,9 @@ function vHome(root){
       rd.onload=()=>{
         try{
           const d=JSON.parse(rd.result);
-          if(!d || !Array.isArray(d.habits) || typeof d.checks!=="object") throw 0;
+          if(!d || !Array.isArray(d.habits) || !d.checks || typeof d.checks!=="object") throw 0;
           if(!confirm("Заменить текущие данные данными из копии?")) return;
-          S=d; save(); render(); toast("Данные восстановлены 📥");
+          S=normalize(d); save(); render(); toast("Данные восстановлены 📥");
         }catch(e){ toast("Файл не похож на копию Магната 🤔"); }
       };
       rd.readAsText(f);
@@ -542,7 +631,7 @@ function vHabits(root){
   let rows="";
   const elapsed=Math.min(diM,now.getDate());
   S.habits.forEach(h=>{
-    let r=`<tr><td class="name hedit" data-edit="${h.id}">${h.ico} ${esc(h.name)}  ✏️</td>`; let cnt=0;
+    let r=`<tr><td class="name hedit" data-edit="${h.id}"><span class="hn">${h.ico} ${esc(h.name)}</span> ✏️</td>`; let cnt=0;
     for(let d=1;d<=diM;d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;const on=isDone(h.id,ds);if(on&&d<=elapsed)cnt++;
       r+=`<td><span class="hcell${on?" on":""}${ds>TODAY?" fut":""}" data-h="${h.id}" data-d="${ds}"></span></td>`;}
     const pc=elapsed?Math.round(cnt/elapsed*100):0;
@@ -560,10 +649,17 @@ function vHabits(root){
       <div class="glass card"><h3>Топ привычек</h3>${tops.map(t=>`<div class="prow"><span class="nm">${t.h.ico} ${esc(t.h.name)}</span><span class="ptrack"><span class="pfill" style="width:${t.pc}%"></span></span><span class="pc">${t.pc}%</span></div>`).join("")}</div>
     </div>
     <div class="addbtn" id="addHabit" style="margin-top:13px">➕ Добавить привычку</div>`;
-  bars(root.querySelector("#hbWeeks"),wk,gv("--emerald"));
-  // календарь открывается на сегодняшнем дне, а не на 1-м числе
+  bars(root.querySelector("#hbWeeks"),wk,gv("--emerald"),
+       {labels:wk.map((_,i)=>i===7?"эта":"−"+(7-i)),height:150});
+  // календарь открывается на сегодняшнем дне — с учётом липкого столбца с названиями,
+  // иначе «сегодня» уезжает под него и в кадре остаются пустые будущие дни
   const hs=root.querySelector(".hscroll"), tdy=root.querySelector("th.tdy");
-  if(hs&&tdy) hs.scrollLeft=Math.max(0, tdy.offsetLeft-130);
+  if(hs&&tdy){
+    const nameTh=root.querySelector("table.hg th.name");
+    const nw=nameTh?nameTh.getBoundingClientRect().width:130;
+    const free=Math.max(0,hs.clientWidth-nw);
+    hs.scrollLeft=Math.max(0, tdy.offsetLeft-nw-Math.max(0,free/2-tdy.offsetWidth/2));
+  }
   root.querySelectorAll(".hcell").forEach(c=>c.addEventListener("click",()=>{
     const ds=c.dataset.d; if(ds>TODAY){toast("Будущий день ещё не наступил 🙂");return;}
     const hid=+c.dataset.h,arr=checksOf(ds).slice(),i=arr.indexOf(hid);
@@ -582,7 +678,7 @@ function editHabit(hid){
   const inp=document.createElement("input"); inp.type="text"; inp.value=`${h.ico} ${h.name}`;
   m.appendChild(inp);
   m.appendChild(el(`<span class="lab">Монет за выполнение 🪙</span>`));
-  const cin=document.createElement("input"); cin.type="number"; cin.inputMode="numeric"; cin.value=h.coin;
+  const cin=document.createElement("input"); cin.type="text"; cin.inputMode="numeric"; cin.autocomplete="off"; cin.value=h.coin;
   m.appendChild(cin);
   const btns=el(`<div class="btns"><button class="no" id="hDel" style="color:var(--danger);border-color:#5a2730">🗑 Удалить</button><button class="ok" id="hSv">Сохранить</button></div>`);
   m.appendChild(btns); ovl.appendChild(m); document.body.appendChild(ovl);
@@ -599,14 +695,15 @@ function editHabit(hid){
     const v=inp.value.trim(); if(!v) return;
     let ico=h.ico,nm=v; const mm=v.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u); if(mm){ico=mm[1];nm=mm[2]||v;}
     h.ico=ico; h.name=nm;
-    const cv=parseInt(cin.value,10); if(cv>0) h.coin=Math.min(200,cv);
+    const cv=Math.round(num(cin.value)); if(cv>0) h.coin=Math.min(200,cv);
     save(); close(); render();
   };
 }
 
 function vTasks(root){
   const order={hi:0,md:1,lo:2};
-  const sorted=[...S.tasks].sort((a,b)=>a.done-b.done || order[a.prio]-order[b.prio]);
+  // сначала невыполненные, внутри — по приоритету, при равном приоритете ближний срок выше
+  const sorted=[...S.tasks].sort((a,b)=>a.done-b.done || order[a.prio]-order[b.prio] || (a.due<b.due?-1:a.due>b.due?1:0));
   const open=S.tasks.filter(t=>!t.done).length, over=S.tasks.filter(t=>!t.done&&t.due<TODAY).length;
   root.innerHTML=`
     <div class="grid">
@@ -641,7 +738,7 @@ function vTasks(root){
     ]);
     if(!r||!r.name) return;
     const due=/^\d{4}-\d{2}-\d{2}$/.test(r.due)?r.due:TODAY;
-    S.tasks.push({id:Date.now(),name:r.name,prio:r.prio,due,done:false}); save(); render();
+    S.tasks.push({id:uid(),name:r.name,prio:r.prio,due,done:false}); save(); render();
   });
   const cd=root.querySelector("#clearDone");
   if(cd) cd.addEventListener("click",()=>{S.tasks=S.tasks.filter(t=>!t.done);save();render();});
@@ -680,7 +777,7 @@ function vMoney(root){
         <div style="margin-top:10px">${parts.map(p=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;margin-bottom:4px"><span style="width:9px;height:9px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:var(--mut)">${p.cat}</span><b class="num">${nf(p.v)}</b></div>`).join("")}</div></div>
     </div>
     <div class="sec-h">Операции месяца</div>
-    <div class="glass card">${me.slice().reverse().map(e=>`<div class="frow"><span class="cat">${e.cat}</span><span class="fdt">${fmtD(e.date)}</span><span class="del" data-id="${e.id}">✕</span><span class="amt ${e.type==='in'?'e':'dn'}">${e.type==='in'?'+':'-'}${nf(e.amount)} ₽</span></div>`).join("")}</div>
+    <div class="glass card">${me.slice().sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:b.id-a.id).map(e=>`<div class="frow"><span class="cat">${e.cat}</span><span class="fdt">${fmtD(e.date)}</span><span class="del" data-id="${e.id}">✕</span><span class="amt ${e.type==='in'?'e':'dn'}">${e.type==='in'?'+':'-'}${nf(e.amount)} ₽</span></div>`).join("")}</div>
     `:`
     <div class="glass card" style="text-align:center;padding:30px 18px;margin-top:13px">
       <div style="font-size:40px">💰</div>
@@ -689,13 +786,23 @@ function vMoney(root){
     <div class="row2" style="margin-top:13px">
       <div class="addbtn" id="addIn">➕ Доход</div><div class="addbtn" id="addOut">➖ Расход</div>
     </div>`;
-  if(hasData){ bars(root.querySelector("#mBars"),[inc,out],gv("--emerald")); pie(root.querySelector("#mPie"),parts); }
+  if(hasData){
+    bars(root.querySelector("#mBars"),[inc,out],[gv("--emerald"),gv("--danger")],
+         {labels:["доход","расход"],values:[nf(inc),nf(out)],height:150});
+    pie(root.querySelector("#mPie"),parts);
+  }
   root.querySelector("#addIn").addEventListener("click",()=>addFinance("in"));
   root.querySelector("#addOut").addEventListener("click",()=>addFinance("out"));
   root.querySelectorAll(".frow .del").forEach(d=>d.addEventListener("click",()=>{S.finance.entries=S.finance.entries.filter(e=>e.id!=d.dataset.id);save();render();}));
 }
 
 function body_curW(){return S.body.log.length?S.body.log[S.body.log.length-1].w:0;}
+// запись веса за сегодня: перезаписываем существующую и держим журнал отсортированным по дате
+function logWeight(v){
+  const w=Math.round(v*10)/10, ex=S.body.log.find(x=>x.date===TODAY);
+  if(ex) ex.w=w; else S.body.log.push({date:TODAY,w});
+  S.body.log.sort((p,q)=>p.date<q.date?-1:p.date>q.date?1:0);
+}
 function vBody(root){
   if(!S.body.log.length){
     root.innerHTML=`<div class="glass card" style="text-align:center;padding:36px 18px">
@@ -705,8 +812,8 @@ function vBody(root){
       <div class="addbtn" id="addW">⚖️ Записать первый вес</div></div>`;
     root.querySelector("#addW").addEventListener("click",async()=>{
       const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",placeholder:"75"}]);
-      if(!r)return; const v=parseFloat(String(r.w).replace(",",".")); if(!v)return;
-      S.body.log.push({date:TODAY,w:v}); if(!S.body.goalW)S.body.goalW=Math.round(v-3); save(); render();
+      if(!r)return; const v=num(r.w); if(v<=0)return;
+      logWeight(v); if(!S.body.goalW)S.body.goalW=Math.round(v-3); save(); render();
     });
     return;
   }
@@ -754,25 +861,23 @@ function vBody(root){
   }));
   root.querySelector("#editGoal").addEventListener("click",async()=>{
     const r=await askModal("Цель веса",[{name:"g",label:"Цель, кг",type:"number",value:goal?String(goal):""}]);
-    if(!r)return; const v=parseFloat(String(r.g).replace(",",".")); if(!v)return;
+    if(!r)return; const v=num(r.g); if(v<=0)return;
     S.body.goalW=v; save(); render();
   });
   root.querySelector("#editCal").addEventListener("click",async()=>{
     const r=await askModal("Норма калорий",[{name:"c",label:"Ккал в день",type:"number",value:String(S.body.calGoal)}]);
-    if(!r)return; const v=parseInt(r.c,10); if(!v)return;
+    if(!r)return; const v=Math.round(num(r.c)); if(v<=0)return;
     S.body.calGoal=v; save(); render();
   });
   root.querySelector("#editWater").addEventListener("click",async()=>{
     const r=await askModal("Норма воды",[{name:"m",label:"Миллилитров в день",type:"number",value:String(S.body.waterGoal)}]);
-    if(!r)return; const v=parseInt(r.m,10); if(!v)return;
+    if(!r)return; const v=Math.round(num(r.m)); if(v<=0)return;
     S.body.waterGoal=v; save(); render();
   });
   root.querySelector("#addW").addEventListener("click",async()=>{
     const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",value:String(w)}]);
-    if(!r)return; const v=parseFloat(String(r.w).replace(",",".")); if(!v)return;
-    const last=S.body.log[S.body.log.length-1];
-    if(last && last.date===TODAY) last.w=v; else S.body.log.push({date:TODAY,w:v});
-    save();render();
+    if(!r)return; const v=num(r.w); if(v<=0)return;
+    logWeight(v); save(); render();
   });
 }
 
@@ -812,8 +917,8 @@ function vShop(root){
     ]);
     if(!r||!r.n) return;
     let ico="🎁",nm=r.n; const m=r.n.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u); if(m){ico=m[1];nm=m[2]||r.n;}
-    const cost=Math.max(1,parseInt(r.c,10)||500);
-    S.myRewards.push({id:Date.now(),ico,name:nm,cost}); save(); render();
+    const cost=Math.max(1,Math.round(num(r.c))||500);
+    S.myRewards.push({id:uid(),ico,name:nm,cost}); save(); render();
   });
 }
 
@@ -825,7 +930,8 @@ function addFinance(type){
   const ovl=el(`<div class="ovl"></div>`);
   const m=el(`<div class="modal"><h4>${type==="in"?"➕ Доход":"➖ Расход"}</h4></div>`);
   m.appendChild(el(`<span class="lab">Сумма, ₽</span>`));
-  const amt=document.createElement("input"); amt.type="number"; amt.inputMode="numeric"; amt.className="amt-in"; amt.placeholder="0";
+  const amt=document.createElement("input"); amt.type="text"; amt.inputMode="decimal";
+  amt.autocomplete="off"; amt.className="amt-in"; amt.placeholder="0";
   m.appendChild(amt);
   m.appendChild(el(`<span class="lab">Категория — нажми</span>`));
   const grid=el(`<div class="catgrid"></div>`);
@@ -844,10 +950,11 @@ function addFinance(type){
   ovl.onclick=e=>{if(e.target===ovl)close();};
   m.addEventListener("keydown",e=>{if(e.key==="Escape")close();});
   btns.querySelector(".ok").onclick=()=>{
-    const a=parseInt(amt.value,10)||0; if(!a){amt.focus();return;}
+    const a=Math.round(Math.abs(num(amt.value))); // копейки и минус не пускаем — сумма всегда целая и положительная
+    if(!a){ amt.focus(); toast("Впиши сумму больше нуля"); return; }
     const [ic,nm]=cats[sel];
-    S.finance.entries.push({id:Date.now(),type,cat:`${ic} ${nm}`,amount:a,date:TODAY});
-    save(); close(); render();
+    S.finance.entries.push({id:uid(),type,cat:`${ic} ${nm}`,amount:a,date:TODAY});
+    save(); close(); render(); toast(type==="in"?"Доход записан ✅":"Расход записан ✅");
   };
 }
 
@@ -858,7 +965,7 @@ async function addHabit(){
   ]);
   if(!r||!r.name) return;
   let ico="⭐",nm=r.name; const m=r.name.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u); if(m){ico=m[1];nm=m[2]||r.name;}
-  const coin=Math.min(200,Math.max(1,parseInt(r.coin,10)||15));
+  const coin=Math.min(200,Math.max(1,Math.round(num(r.coin))||15));
   S.habits.push({id:Math.max(0,...S.habits.map(h=>h.id))+1,ico,name:nm,coin}); save(); render();
 }
 function city(cv,level,total){const {c,w,h}=setup(cv,90);const emer=gv("--emerald"),gold=gv("--gold"),cyan=gv("--cyan"),labels=["🐣","🚀","💼","🏢","👑"];const gy=h-20,px=12,slot=(w-2*px)/total;
@@ -918,6 +1025,10 @@ function shareCard(){
 let cur="home";
 const RENDER={home:vHome,habits:vHabits,tasks:vTasks,money:vMoney,body:vBody,shop:vShop};
 function render(){
+  try{ draw(); }
+  catch(err){ rescue(err); }
+}
+function draw(){
   const xp=totalXP(),li=levelIdx(xp);
   // празднуем пересечение уровня вверх (первый рендер — тихо запоминаем)
   if(S.lastLvl==null) S.lastLvl=li;
@@ -929,9 +1040,41 @@ function render(){
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
   const root=document.getElementById("v-"+cur); root.classList.add("on"); RENDER[cur](root);
 }
+// если что-то всё же сломалось — не белый экран, а экран спасения с выгрузкой данных
+function rescue(err){
+  console.error(err);
+  const root=document.getElementById("v-"+cur)||document.getElementById("v-home");
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
+  root.classList.add("on");
+  root.innerHTML=`<div class="glass card" style="text-align:center;padding:30px 18px">
+    <div style="font-size:40px">🛠</div>
+    <h3 style="text-transform:none;font-size:16px;color:var(--ink);margin:12px 0 6px">Экран не построился</h3>
+    <p style="color:var(--mut);font-size:13.5px;line-height:1.55">Данные целы — сначала скачай копию, потом можно чинить.</p>
+    <div class="bkrow"><button class="bk" id="rsSave">💾 Скачать копию</button><button class="bk" id="rsFix">🧹 Починить данные</button></div>
+    <p class="bknote" style="word-break:break-word">${esc(String(err&&err.message||err))}</p></div>`;
+  root.querySelector("#rsSave").addEventListener("click",downloadBackup);
+  root.querySelector("#rsFix").addEventListener("click",()=>{ S=normalize(S); save(); render(); });
+}
+function downloadBackup(){
+  const blob=new Blob([JSON.stringify(S)],{type:"application/json"});
+  const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download="magnat-backup-"+TODAY+".json"; a.click();
+  URL.revokeObjectURL(url); toast("Копия сохранена 💾");
+}
 const tabsEl=document.getElementById("tabs");
 TABS.forEach(([id,label])=>{const b=el(`<div class="tab" data-t="${id}">${label}</div>`);b.addEventListener("click",()=>{cur=id;render();window.scrollTo(0,0);});tabsEl.appendChild(b);});
-let rzT; window.addEventListener("resize",()=>{clearTimeout(rzT);rzT=setTimeout(render,150);});
+// перерисовываем только при смене ШИРИНЫ: на телефоне resize стреляет от прячущейся
+// адресной строки при каждом скролле — раньше это дёргало экран и сбрасывало календарь
+let rzT, lastW=innerWidth;
+window.addEventListener("resize",()=>{
+  if(innerWidth===lastW) return; lastW=innerWidth;
+  clearTimeout(rzT); rzT=setTimeout(render,150);
+});
+// смена суток: галочки должны попадать в новый день, а не во вчерашний
+function dayWatch(){ if(refreshToday()) render(); }
+setInterval(dayWatch,30000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) dayWatch(); });
+window.addEventListener("focus",dayWatch);
 
 // кошелёк в шапке ведёт в награды (куда ещё тратить монеты?)
 (function(){
@@ -958,4 +1101,9 @@ function showOnboarding(){
 
 render();
 if(FIRST_RUN) showOnboarding();
+
+// офлайн: с домашнего экрана приложение должно открываться и без сети
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
 </script>
