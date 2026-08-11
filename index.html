@@ -1,1487 +1,1109 @@
 <!doctype html>
 <html lang="ru">
 <meta charset="utf-8">
-<title>Магнат — планер, который играет с тобой</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="5 живых дашбордов в Google-таблицах с игровой механикой: привычки, задачи, фитнес, неделя, финансы. KPI, графики, инсайты. Галочки дают монеты, монеты растят уровень. 990 ₽ навсегда.">
-<meta name="theme-color" content="#070a0f">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%8F%9B%3C/text%3E%3C/svg%3E">
+<title>Магнат</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Магнат">
+<meta name="theme-color" content="#080b11">
+<link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
-<!-- превью ссылки в Telegram/VK/WhatsApp -->
-<meta property="og:type" content="website">
-<meta property="og:title" content="Магнат — планер, который играет с тобой">
-<meta property="og:description" content="5 Google-таблиц с механикой тайкуна: галочки дают монеты, монеты растят уровень. 990 ₽ навсегда.">
-<meta property="og:url" content="https://magnat-planer.ru/">
-<meta property="og:image" content="https://magnat-planer.ru/og.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:locale" content="ru_RU">
-<meta property="og:site_name" content="Магнат">
-<meta name="twitter:card" content="summary_large_image">
-<link rel="canonical" href="https://magnat-planer.ru/">
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"Product","name":"Набор планеров «Магнат 5 в 1»",
-"description":"5 Google-таблиц с игровой механикой тайкуна: привычки, задачи, фитнес, неделя, финансы. Веб-приложение в подарок.",
-"image":"https://magnat-planer.ru/og.png",
-"offers":{"@type":"Offer","price":"990","priceCurrency":"RUB","availability":"https://schema.org/InStock","url":"https://magnat-planer.ru/"}}
-</script>
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"Почему Google-таблицы, а не приложение?","acceptedAnswer":{"@type":"Answer","text":"Данные принадлежат тебе: таблицы лежат в твоём Google-аккаунте и не исчезнут, если сервис закроется. Их можно настроить под себя, а для быстрых отметок в наборе есть веб-приложение «Магнат»."}},
-{"@type":"Question","name":"Мне нужно что-то уметь в таблицах?","acceptedAnswer":{"@type":"Answer","text":"Нет. Все формулы уже внутри, ты только ставишь галочки. Настройка своих привычек — на отдельном листе, по инструкции."}},
-{"@type":"Question","name":"Мои данные сохранятся?","acceptedAnswer":{"@type":"Answer","text":"Да. Таблица живёт в твоём Google-аккаунте: смена телефона или чистка кэша — ничего не теряется."}},
-{"@type":"Question","name":"Надо платить каждый месяц?","acceptedAnswer":{"@type":"Answer","text":"Нет. Платишь один раз — набор твой навсегда, включая будущие обновления."}},
-{"@type":"Question","name":"Это работает на телефоне?","acceptedAnswer":{"@type":"Answer","text":"Да, через бесплатное приложение Google Таблицы. Для быстрых отметок в бандле есть веб-приложение «Магнат»."}},
-{"@type":"Question","name":"Чем это лучше бесплатных шаблонов?","acceptedAnswer":{"@type":"Answer","text":"Бесплатные шаблоны — пустые сетки. Здесь — игровая система с монетами, серией и уровнями, дашборды с KPI и инсайтами, автоформулы и приложение в подарок."}},
-{"@type":"Question","name":"Если что-то не получится?","acceptedAnswer":{"@type":"Answer","text":"Напиши на почту — поможем с настройкой. Условия возврата описаны в оферте."}}
-]}
-</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%8F%9B%3C/text%3E%3C/svg%3E">
 <style>
   :root{
-    --bg:#070a0f; --bg2:#0a0e15;
-    --panel:#0e141e; --panel2:#121b28;
-    --line:#1a2431; --line2:#28394e;
-    --emerald:#34e39a; --emerald2:#12b978; --em-deep:#0a3b29;
-    --gold:#f6c85a; --gold2:#d8a63d; --cyan:#3dd6ff; --rose:#ff7a8a; --violet:#b98bff; --amber:#ffab5e;
-    --ink:#eaf2fb; --mut:#9fb0c6; --mut2:#6b7f99;
-    /* светлая палитра «настоящей» таблицы */
-    --s-bg:#ffffff; --s-alt:#f6f8fc; --s-head:#eef2f8; --s-grid:#e0e6ef;
-    --s-ink:#212a36; --s-mut:#637184; --s-mut2:#8a97a8;
-    --s-grn:#12a565; --s-grnb:#d6f1e4; --s-blu:#2f8fd8; --s-blub:#d9ecfb;
-    --s-gold:#c98a12; --s-goldb:#faedc9; --s-vio:#7a52d0; --s-viob:#e7ddf8;
-    --s-red:#e0556a; --s-redb:#fbdde2; --s-cyan:#1697bd;
+    --bg:#080b11; --bg2:#0b0f17; --panel:#0f1520; --panel2:#131b28;
+    --line:#1c2735; --line2:#26374b;
+    --emerald:#2fe38f; --cyan:#35d0ff; --gold:#f5c451; --violet:#b06bff; --danger:#ff6b6b; --orange:#ff9f43;
+    --ink:#eef4fb; --mut:#93a6bd; --mut2:#68809b;
     --fd:Georgia,"Times New Roman",serif; --fb:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    --fm:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-    --r:18px;
-    --ease:cubic-bezier(.16,1,.3,1);
-    --shadow:0 24px 60px -20px #000c, 0 4px 16px -6px #0009;
   }
   *{box-sizing:border-box; margin:0; padding:0}
-  html{scroll-behavior:smooth; overflow-x:clip;}
-  ::selection{background:#34e39a3d; color:var(--ink);}
+  ::selection{background:#2fe38f3d; color:var(--ink);}
   :focus-visible{outline:2px solid var(--emerald); outline-offset:2px; border-radius:4px;}
-  body{background:var(--bg); color:var(--ink); font-family:var(--fb); line-height:1.55;
-    -webkit-font-smoothing:antialiased; overflow-x:hidden; position:relative;}
-  body::before{content:""; position:fixed; inset:0; z-index:-2; pointer-events:none;
-    background:
-      radial-gradient(1100px 620px at 82% -8%, #0f3a2a55, transparent 60%),
-      radial-gradient(900px 560px at 6% 12%, #123a5233, transparent 62%),
-      radial-gradient(760px 620px at 60% 108%, #2a220a3a, transparent 60%),
-      linear-gradient(180deg, #070a0f, #080c12 60%, #070a0f);}
-  body::after{content:""; position:fixed; inset:0; z-index:-2; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
-    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>");}
-  .glows{position:fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden;}
-  .glow{position:absolute; border-radius:50%; filter:blur(100px); opacity:.5;}
-  .glow.g1{width:640px;height:640px; background:#0e3a2b; top:-190px; right:-150px; animation:drift1 28s ease-in-out infinite alternate;}
-  .glow.g2{width:560px;height:560px; background:#123048; top:34%; left:-210px; animation:drift2 34s ease-in-out infinite alternate;}
-  .glow.g3{width:440px;height:440px; background:#2a2109; bottom:-160px; right:16%; opacity:.4; animation:drift1 40s ease-in-out infinite alternate;}
-  @keyframes drift1{to{transform:translate(-60px,80px) scale(1.16)}}
-  @keyframes drift2{to{transform:translate(70px,-60px) scale(1.12)}}
+  body{background:radial-gradient(1100px 620px at 82% -6%,#123044 0%,transparent 55%),radial-gradient(800px 560px at 6% 3%,#0f2a20 0%,transparent 55%),linear-gradient(180deg,var(--bg2),var(--bg));
+    color:var(--ink); font-family:var(--fb); line-height:1.45; -webkit-font-smoothing:antialiased; min-height:100vh;
+    padding-bottom:calc(80px + env(safe-area-inset-bottom));}
+  /* вырез и скруглённые углы телефона не должны срезать содержимое */
+  .wrap{max-width:1120px; margin:0 auto;
+    padding-left:max(16px,env(safe-area-inset-left)); padding-right:max(16px,env(safe-area-inset-right));}
+  .glass{background:linear-gradient(168deg,rgba(20,28,42,.62),rgba(15,21,32,.62)); backdrop-filter:blur(11px) saturate(1.15); -webkit-backdrop-filter:blur(11px) saturate(1.15); border:1px solid var(--line2); border-radius:16px; box-shadow:inset 0 1px 0 #ffffff0e,0 8px 26px #00000038;}
+  .card{padding:15px 15px;} .card>h3{font-size:11px; letter-spacing:1.1px; text-transform:uppercase; color:var(--mut2); font-weight:600; margin-bottom:11px; display:flex; justify-content:space-between; align-items:center;}
+  canvas{display:block; width:100%; height:auto;}
+  .grid{display:grid; gap:13px; grid-template-columns:repeat(auto-fit,minmax(250px,1fr));}
+  .num{font-variant-numeric:tabular-nums;}
 
-  .wrap{max-width:1140px; margin:0 auto; padding:0 22px;}
-  section{padding:84px 0;}
-  section[id]{scroll-margin-top:80px;}
-  h2{font-family:var(--fd); font-size:clamp(27px,4.6vw,42px); line-height:1.12; letter-spacing:-.015em; text-wrap:balance; position:relative; display:inline-block;}
-  h2.uline::after{content:""; position:absolute; left:0; bottom:-10px; height:3px; width:0; border-radius:3px;
-    background:linear-gradient(90deg,var(--emerald),var(--gold) 90%,transparent); transition:width 1.1s var(--ease) .2s; box-shadow:0 0 14px #34e39a55;}
-  .rv.in h2.uline::after, h2.uline.in::after{width:72px;}
-  .kicker{font-size:12px; letter-spacing:2.4px; text-transform:uppercase; color:var(--gold); font-weight:700; margin-bottom:14px; display:flex; align-items:center; gap:10px;}
-  .kicker::before{content:""; width:26px; height:1px; background:linear-gradient(90deg,var(--gold),transparent);}
-  .sub{color:var(--mut); max-width:600px; margin-top:16px; font-size:clamp(15px,2vw,17px);}
+  /* top bar */
+  header{position:sticky; top:0; z-index:20; background:#080b11d9; backdrop-filter:blur(10px); border-bottom:1px solid var(--line);}
+  .bar{display:flex; align-items:center; gap:12px; height:60px;}
+  .brand{display:flex; align-items:center; gap:9px; margin-right:auto;}
+  .brand .c{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:19px;background:linear-gradient(150deg,#0e3327,#0a1a24);border:1px solid var(--line2);box-shadow:0 0 14px #2fe38f22;}
+  .brand b{font-family:var(--fd); font-size:20px;}
+  .chip{display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:99px; font-size:14px; font-weight:700; font-variant-numeric:tabular-nums;}
+  .chip.coin{background:linear-gradient(180deg,#1d1707,#120d04); border:1px solid #6e5320; color:var(--gold);}
+  .chip.lvl{background:#0e2f22; border:1px solid #1c7a54; color:var(--emerald); font-family:var(--fd);}
+  @media(max-width:520px){ .chip.lvl{display:none} }
 
-  .glass{background:linear-gradient(168deg,#141d2b9e,#0d1420b0);
-    backdrop-filter:blur(14px) saturate(1.15); -webkit-backdrop-filter:blur(14px) saturate(1.15);
-    border:1px solid var(--line2); border-radius:var(--r);
-    box-shadow:inset 0 1px 0 #ffffff12, var(--shadow);}
+  /* tabs */
+  .tabs{display:flex; gap:8px; overflow-x:auto; padding:11px 0 3px; -webkit-overflow-scrolling:touch; scrollbar-width:none;
+    mask-image:linear-gradient(90deg,#000 91%,transparent); -webkit-mask-image:linear-gradient(90deg,#000 91%,transparent);}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex:none; padding:8px 13px; border-radius:11px; font-size:13px; color:var(--mut); background:var(--panel); border:1px solid var(--line); cursor:pointer; white-space:nowrap; transition:all .15s;}
+  .tab.on{color:#04120b; background:var(--emerald); border-color:var(--emerald); font-weight:700; box-shadow:0 0 16px #2fe38f44;}
 
-  .btn{display:inline-flex; align-items:center; justify-content:center; gap:9px;
-    padding:15px 27px; border-radius:14px; font-size:16px; font-weight:700; cursor:pointer;
-    border:none; text-decoration:none; color:var(--ink); position:relative; overflow:hidden;
-    transition:transform .18s var(--ease), box-shadow .3s ease; will-change:transform;}
-  .btn:active{transform:scale(.97)}
-  .btn-p{background:linear-gradient(180deg,var(--emerald),var(--emerald2)); color:#03150d;
-    box-shadow:0 0 0 1px #ffffff22 inset, 0 10px 30px -6px #34e39a66;}
-  .btn-p:hover{transform:translateY(-2px); box-shadow:0 0 0 1px #ffffff2e inset, 0 16px 40px -8px #34e39a80;}
-  .btn-p::after{content:""; position:absolute; top:0; left:-80%; width:48%; height:100%;
-    background:linear-gradient(100deg,transparent,#ffffff66,transparent); transform:skewX(-20deg);
-    animation:shine 4.6s ease-in-out infinite;}
-  @keyframes shine{0%,72%{left:-80%} 88%,100%{left:150%}}
-  .btn-g{background:#ffffff05; border:1px solid var(--line2); backdrop-filter:blur(6px);}
-  .btn-g:hover{border-color:var(--emerald); color:var(--emerald); transform:translateY(-2px);}
-
-  .rv{opacity:0; transform:translateY(26px) scale(.985);
-    transition:opacity .7s var(--ease), transform .8s var(--ease);
-    transition-delay:calc(var(--i,0)*75ms); will-change:opacity,transform;}
-  .rv.in{opacity:1; transform:none;}
-  @media(prefers-reduced-motion:reduce){
-    .rv{opacity:1; transform:none; transition:none}
-    /* hero оживает анимацией из opacity:0 — под reduced-motion анимация выключена,
-       поэтому возвращаем видимость явно, иначе весь первый экран пустой */
-    .hero .h-el, .hero .demo-wrap, .hero h1 .w{opacity:1!important; transform:none!important;}
-    *{animation:none!important; transition-duration:.001s!important}
-    html{scroll-behavior:auto}
-  }
-
-  nav{position:sticky; top:0; z-index:30; backdrop-filter:blur(14px); background:#070a0fcc; border-bottom:1px solid var(--line);
-    transition:box-shadow .3s var(--ease), background .3s;}
-  nav.scrolled{box-shadow:0 12px 34px #0008; background:#070a0fe6;}
-  nav .wrap{display:flex; align-items:center; justify-content:space-between; height:66px;}
-  .logo{display:flex; align-items:center; gap:11px; font-family:var(--fd); font-weight:700; font-size:21px; letter-spacing:.2px;}
-  .logo .c{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:18px;
-    background:linear-gradient(150deg,#123c2c,#0a1a24); border:1px solid var(--line2); box-shadow:0 0 16px #34e39a2e, inset 0 1px 0 #ffffff14;}
-  nav .btn{padding:10px 19px; font-size:14px;}
-  nav .btn-p::after{display:none}
-  nav .nl{display:flex; gap:26px; font-size:13.5px;}
-  nav .nl a{color:var(--mut); text-decoration:none; transition:color .2s;}
-  nav .nl a:hover{color:var(--ink);}
-  @media(max-width:860px){nav .nl{display:none}}
+  .view{padding:15px 0 30px; display:none;} .view.on{display:block;}
+  .row2{display:grid; gap:13px; grid-template-columns:1fr 1fr;} @media(max-width:560px){.row2{grid-template-columns:1fr}}
+  /* без этого длинное название в flex:1 раздвигает карточку и рождает
+     горизонтальный скролл всей страницы на узких экранах (320px) */
+  .grid>*, .row2>*{min-width:0;}
+  .prow .nm, .q .nm, .frow .cat{min-width:0;}
 
   /* hero */
-  .hero{display:grid; grid-template-columns:1.06fr .94fr; gap:48px; align-items:center; padding:66px 0 40px;}
-  .hero h1{font-family:var(--fd); font-size:clamp(34px,5.3vw,56px); line-height:1.06; letter-spacing:-.02em; text-wrap:balance;}
-  .hero h1 .hl{background:linear-gradient(96deg,var(--emerald),#8fead0,var(--gold),var(--emerald));
-    background-size:280% 100%; -webkit-background-clip:text; background-clip:text; color:transparent;
-    animation:hue 8s linear infinite; filter:drop-shadow(0 0 26px #34e39a3a);}
-  @keyframes hue{to{background-position:280% 0}}
-  .hero .lead{color:var(--mut); font-size:clamp(16px,2.1vw,18.5px); margin-top:20px; max-width:490px;}
-  .hero .cta{display:flex; gap:12px; margin-top:28px; flex-wrap:wrap;}
-  .hero .trust{display:flex; gap:20px; margin-top:26px; flex-wrap:wrap; color:var(--mut2); font-size:12.5px;}
-  .hero .trust span{display:inline-flex; align-items:center; gap:7px;}
-  .hero .trust .dot{width:6px;height:6px;border-radius:50%;background:var(--emerald); box-shadow:0 0 8px var(--emerald);}
-  .hero h1 .w{display:inline-block; opacity:0; transform:translateY(24px) rotate(1.4deg);
-    animation:wup .75s var(--ease) forwards; animation-delay:calc(var(--w,0)*75ms);}
-  .hero h1 .hl.w{animation:wup .75s var(--ease) forwards, hue 8s linear infinite;
-    animation-delay:calc(var(--w,0)*75ms), 0s;}
-  @keyframes wup{to{opacity:1; transform:none}}
-  .hero .h-el{opacity:0; transform:translateY(20px); animation:hin .9s var(--ease) forwards;}
-  .hero .h-el:nth-child(2){animation-delay:.1s}.hero .h-el:nth-child(3){animation-delay:.2s}.hero .h-el:nth-child(4){animation-delay:.3s}
-  .hero .demo-wrap{opacity:0; transform:translateY(24px) scale(.97); animation:hin .95s var(--ease) .24s forwards;}
-  @keyframes hin{to{opacity:1; transform:none}}
+  .hero{padding:18px;} .hero-row{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .lvl-tag{font-size:11px; color:var(--emerald); letter-spacing:1.4px; text-transform:uppercase;}
+  .lvl-name{font-family:var(--fd); font-size:26px; margin-top:3px;} .building{font-size:44px; filter:drop-shadow(0 0 10px #2fe38f55);}
+  .bar-t{height:11px; border-radius:99px; background:#0a1119; border:1px solid var(--line); overflow:hidden; margin-top:15px;}
+  .bar-t span{display:block; height:100%; background:linear-gradient(90deg,#178a5a,var(--emerald)); box-shadow:0 0 13px #2fe38f88;}
+  .bar-m{display:flex; justify-content:space-between; font-size:12px; color:var(--mut); margin-top:7px;} .bar-m b{color:var(--ink)}
+  .tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-top:12px;}
+  .tile{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 6px; text-align:center;}
+  .tile .v{font-size:19px; font-weight:700; line-height:1;} .tile .l{font-size:9.5px; color:var(--mut2); text-transform:uppercase; letter-spacing:.6px; margin-top:5px;}
+  .g{color:var(--gold)} .e{color:var(--emerald)} .cy{color:var(--cyan)} .vi{color:var(--violet)} .dn{color:var(--danger)} .or{color:var(--orange)}
 
-  .demo{padding:22px 20px 18px; position:relative;}
-  .demo .cap{font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--emerald); margin-bottom:14px; font-weight:700; display:flex; align-items:center; gap:8px;}
-  .demo .cap::before{content:""; width:7px;height:7px;border-radius:50%;background:var(--emerald); box-shadow:0 0 9px var(--emerald); animation:pulse 2s ease-in-out infinite;}
-  @keyframes pulse{50%{opacity:.35; transform:scale(.7)}}
-  .demo table{border-collapse:collapse; width:100%; font-size:12.5px;}
-  .demo th{color:var(--mut2); font-weight:600; padding:4px 6px; text-align:center; font-size:11px;}
-  .demo td{padding:4px 6px;}
-  .demo td.nm{color:var(--ink); white-space:nowrap; font-size:13px;}
-  .cell{width:27px; height:27px; margin:0 auto; border-radius:8px; background:#0b131c; border:1px solid var(--line2);
-    cursor:pointer; display:grid; place-items:center; color:#03150d; font-weight:900; font-size:13px; position:relative;
-    transition:background .18s, box-shadow .22s, transform .12s var(--ease);}
-  .cell:hover{border-color:var(--emerald)}
-  .cell:active{transform:scale(.86)}
-  .cell.on{background:linear-gradient(160deg,var(--emerald),var(--emerald2)); border-color:var(--emerald); box-shadow:0 0 14px #34e39a7a, inset 0 1px 0 #ffffff44;}
-  .cell.on::before{content:"✓"}
-  .demo .tally{display:flex; align-items:center; justify-content:space-between; margin-top:15px; padding-top:13px; border-top:1px solid var(--line);}
-  .demo .coins{font-size:21px; font-weight:800; color:var(--gold); font-variant-numeric:tabular-nums; text-shadow:0 0 20px #f6c85a44;}
-  .demo .coins.bump{animation:bump .38s ease;}
-  @keyframes bump{40%{transform:scale(1.24)}}
-  .demo .lvl{font-size:12.5px; color:var(--emerald); font-family:var(--fd);}
-  .demo .hint{font-size:11.5px; color:var(--mut2); margin-top:9px; text-align:center;}
-  /* мини-империя в демо: здания загораются с уровнями */
-  .demo .emp{display:flex; justify-content:center; align-items:flex-end; gap:12px; margin-top:13px;}
-  .demo .emp i{font-style:normal; font-size:17px; line-height:1; filter:grayscale(1); opacity:.25;
-    transition:filter .45s, opacity .45s;}
-  .demo .emp i.on{filter:none; opacity:1; text-shadow:0 0 13px #34e39a66;}
-  .demo .emp i.pop, .demo .lvl.pop{animation:epop .65s var(--ease);}
-  @keyframes epop{35%{transform:scale(1.55) rotate(-6deg)}}
-  /* пульс-приглашение на первой клетке */
-  .cell.nudge::after{content:""; position:absolute; inset:-5px; border-radius:12px; border:2px solid var(--emerald);
-    animation:nudgep 1.7s ease-out infinite; pointer-events:none;}
-  @keyframes nudgep{0%{opacity:.9; transform:scale(.7)} 70%,100%{opacity:0; transform:scale(1.3)}}
+  .stat .v{font-size:26px; font-weight:700; font-family:var(--fd); line-height:1;} .stat .l{font-size:12px; color:var(--mut); margin-top:5px;}
+  .donut-wrap{position:relative; display:flex; justify-content:center;} .donut-c{position:absolute; text-align:center; top:50%; transform:translateY(-50%);}
+  .donut-c .p{font-size:24px; font-weight:700; font-family:var(--fd);} .donut-c .t{font-size:10px; color:var(--mut2); text-transform:uppercase;}
 
-  /* ====== планеры: КАРУСЕЛЬ карточек с рамкой «настоящей Google-таблицы» ====== */
-  .pcarousel{position:relative; margin-top:34px;}
-  /* snap не через CSS, а точным JS-доводом до карточки — так последняя встаёт
-     ровно в край, без «лишнего хода вправо» на любом экране */
-  .planners{display:flex; gap:16px; overflow-x:auto;
-    padding:4px 0 10px; scrollbar-width:none; -ms-overflow-style:none; -webkit-overflow-scrolling:touch;}
-  .planners::-webkit-scrollbar{display:none;}
-  .planner{flex:0 0 min(86%, 550px); padding:16px 16px 18px; position:relative; overflow:hidden;}
-  .planner::before{content:""; position:absolute; inset:0 0 auto 0; height:2px; opacity:.9;
-    background:linear-gradient(90deg,transparent,var(--ac,var(--emerald)),transparent);}
-  .p1{--ac:var(--emerald)} .p2{--ac:var(--amber)} .p3{--ac:var(--rose)} .p4{--ac:var(--violet)} .p5{--ac:var(--gold)}
-  .p-head{display:flex; align-items:center; gap:12px; margin-bottom:14px;}
-  .p-head .ic{width:42px;height:42px;border-radius:12px; display:grid; place-items:center; font-size:21px; flex:none;
-    background:color-mix(in srgb, var(--ac) 16%, #0c1420); border:1px solid color-mix(in srgb, var(--ac) 34%, transparent);}
-  .p-head h3{font-size:18px; letter-spacing:-.01em;}
-  .p-head .st{font-size:11px; color:var(--mut2); letter-spacing:1px; text-transform:uppercase; margin-top:2px;}
-  .p-head .core{margin-left:auto; align-self:flex-start; font-size:9px; letter-spacing:1.2px; text-transform:uppercase;
-    color:var(--gold); border:1px solid #6e5320; background:#1a140744; padding:4px 9px; border-radius:99px; font-weight:700;}
+  /* habit grid */
+  .hscroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  table.hg{border-collapse:collapse; font-size:11px; min-width:100%;}
+  table.hg th,table.hg td{border:1px solid var(--line); padding:0; text-align:center;}
+  table.hg th{background:var(--panel2); color:var(--mut2); font-weight:600; padding:5px 4px;}
+  table.hg th.tdy{color:var(--emerald); background:#0e2f22;}
+  table.hg td.name{text-align:left; padding:6px 9px; white-space:nowrap; background:var(--panel); color:var(--ink); font-size:12.5px;
+    position:sticky; left:0; z-index:2;}
+  table.hg th.name{position:sticky; left:0; z-index:3; background:var(--panel2);}
+  .hcell{width:24px; height:27px; cursor:pointer; display:grid; place-items:center; line-height:1;}
+  .hcell.on{background:var(--emerald); box-shadow:inset 0 0 5px #0a3d28;}
+  .hcell.on:after{content:"✓"; color:#04120b; font-weight:900; font-size:12px;}
+  .hcell.fut{opacity:.22; cursor:default;}
+  table.hg td.name.hedit{cursor:pointer;}
+  /* на телефоне длинные названия съедали календарь — обрезаем, чтобы влезло больше дней */
+  .hn{display:inline-block; vertical-align:bottom; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:230px;}
+  @media(max-width:560px){ .hn{max-width:124px} }
+  .prow{display:flex; align-items:center; gap:10px; padding:9px 2px; border-bottom:1px solid var(--line);}
+  .prow:last-child{border:none} .prow .nm{flex:1; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .ptrack{width:90px; height:8px; border-radius:99px; background:#0a1119; border:1px solid var(--line); overflow:hidden; flex:none;}
+  .pfill{display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#7a3ecf,var(--violet)); box-shadow:0 0 7px #b06bff66;}
+  .prow .pc{font-size:12px; color:var(--violet); width:38px; text-align:right; font-variant-numeric:tabular-nums;}
 
-  /* карусель: точки, стрелки, подсказка */
-  .pdots{display:flex; justify-content:center; gap:3px; margin-top:12px;}
-  .pdots button{width:20px;height:20px;border-radius:99px;border:6px solid transparent;background-color:#2a3a4e;cursor:pointer;padding:0;
-    background-clip:content-box; transition:width .35s var(--ease), background-color .3s;}
-  .pdots button.on{background-color:var(--emerald); width:36px;}
-  .phint{display:none; text-align:center; color:var(--mut2); font-size:12.5px; margin-top:8px;}
-  @media(max-width:860px){.phint{display:block;}}
-  .parrow{position:absolute; top:44%; z-index:4; width:44px;height:44px;border-radius:50%; cursor:pointer;
-    display:grid;place-items:center; background:#0e1622ee; border:1px solid var(--line2); color:var(--ink); font-size:19px;
-    backdrop-filter:blur(6px); box-shadow:0 8px 24px #000a; transition:transform .2s var(--ease), border-color .3s, opacity .3s;}
-  .parrow:hover{border-color:var(--emerald); color:var(--emerald); transform:translateY(-50%) scale(1.08);}
-  .parrow{transform:translateY(-50%);}
-  .parrow.l{left:-14px} .parrow.r{right:-14px}
-  .parrow[disabled]{opacity:.25; pointer-events:none;}
+  /* quests / lists */
+  .q{display:flex; align-items:center; gap:11px; padding:12px 13px; border-radius:11px; background:var(--panel); border:1px solid var(--line); cursor:pointer; margin-bottom:8px; transition:all .15s;}
+  .q .box{width:22px;height:22px;border-radius:6px;border:2px solid var(--line2);flex:none;display:grid;place-items:center;color:#04120b;font-weight:900;font-size:13px;}
+  .q.done{background:linear-gradient(90deg,#0e2f22,var(--panel)); border-color:#1c7a54;} .q.done .box{background:var(--emerald);border-color:var(--emerald);}
+  .q .nm{flex:1; font-size:14px;} .q.done .nm{color:#e9fff6} .q .cn{color:var(--gold); font-size:12.5px; font-variant-numeric:tabular-nums;}
+  .q .meta{font-size:11px; color:var(--mut2);}
+  .tag{font-size:10px; padding:2px 8px; border-radius:99px; font-weight:700;}
+  .tag.hi{background:#3a1620;color:#ff8fa3;border:1px solid #7a2b3d} .tag.md{background:#2a2410;color:var(--gold);border:1px solid #6e5320} .tag.lo{background:#12243a;color:var(--cyan);border:1px solid #234b6e}
+  .addbtn{width:100%; padding:12px; border-radius:11px; background:var(--panel); border:1px dashed var(--line2); color:var(--mut); cursor:pointer; font-size:13.5px; margin-top:4px;}
+  .del{color:var(--danger); font-size:15px; padding:0 4px; cursor:pointer;}
 
-  /* рамка «настоящей Google-таблицы» */
-  .sheetbox{overflow:hidden; border-radius:11px;}
-  .sheet{background:#fff; border-radius:11px; overflow:hidden; border:1px solid #c4cddb;
-    box-shadow:0 16px 38px -20px #000b; color:var(--s-ink); font-size:11px;}
-  .sheet .win{display:flex; align-items:center; gap:7px; padding:7px 10px; background:#eef1f6; border-bottom:1px solid #dde3ec;}
-  .sheet .win .tl{display:flex; gap:5px; flex:none;}
-  .sheet .win .tl i{width:8px;height:8px;border-radius:50%;display:block;}
-  .sheet .win .gi{width:16px;height:16px;border-radius:4px;flex:none;display:grid;place-items:center; margin-left:2px;
-    background:linear-gradient(160deg,#19b26b,#0c7a4a);}
-  .sheet .win .gi::after{content:"";width:6px;height:8px;border:1.4px solid #fff;border-top:none;border-radius:0 0 2px 2px;}
-  .sheet .win .fn{font-weight:700;font-size:11px;color:#33404f; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .sheet .win .tools{margin-left:auto;display:flex;gap:9px;color:#b3bdca;font-size:11px;letter-spacing:1px;flex:none;}
-  .sheet .cols{display:flex;background:#f6f8fb;border-bottom:1px solid #e4e9f1;color:#a7b1c0;font-size:8px;font-weight:700;}
-  .sheet .cols .cnr{width:20px;flex:none;border-right:1px solid #e4e9f1;}
-  .sheet .cols span{flex:1;text-align:center;padding:2px 0;border-right:1px solid #edf1f6;}
-  .sheet .grip{display:flex;}
-  .sheet .rows{width:20px;flex:none;background:#f6f8fb;border-right:1px solid #e4e9f1;color:#a7b1c0;font-size:8px;font-weight:700;
-    display:flex;flex-direction:column;}
-  .sheet .rows span{flex:1;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #edf1f6;min-height:16px;}
-  .sheet .content{flex:1;min-width:0;padding:10px 11px;}
-  .sheet .ttl{display:flex;align-items:center;gap:7px;margin-bottom:9px;}
-  .sheet .ttl b{font-size:12px;color:#33404f;letter-spacing:.3px;}
-  .sheet .ttl .sq{width:10px;height:10px;border-radius:3px;background:var(--ac,var(--s-grn));flex:none;}
-  .sheet .ttl .pct{margin-left:auto;color:var(--s-grn);font-size:12px;font-weight:800;}
-  .fin3{display:grid; grid-template-columns:110px 1fr; gap:12px; align-items:center;}
-  table.grid{border-collapse:collapse; width:100%; font-size:10.5px; color:#2c3542;}
-  table.grid th{background:var(--s-head); color:#5b6b82; font-weight:600; padding:4px 5px; border:1px solid var(--s-grid); font-size:9px; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap;}
-  table.grid td{border:1px solid var(--s-grid); padding:4px 6px; white-space:nowrap;}
-  table.grid td.nm{color:#212a36; font-weight:500; text-align:left;}
-  table.grid tr:nth-child(even) td{background:var(--s-alt);}
-  .ck2{text-align:center; color:#12a565; font-weight:800; width:16px;}
-  .ck2.on{background:var(--s-grnb)!important;}
-  .ck2.off{color:#c3ccd8;}
-  .num{text-align:right; font-variant-numeric:tabular-nums; color:#3a4552;}
-  .pcell{text-align:right; font-weight:700; color:var(--s-vio);}
-  .pill{display:inline-block; font-size:8.5px; padding:2px 8px; border-radius:99px; font-weight:700;}
-  .pill.hi{background:var(--s-redb); color:#c0344a;} .pill.md{background:var(--s-goldb); color:#a5720a;}
-  .pill.lo{background:var(--s-blub); color:#1d6fb0;} .pill.ur{background:#f6d3d3; color:#c0344a;}
-  .strike{text-decoration:line-through; color:#9aa6b4;}
-  .neg{color:#e0556a; text-align:right; font-variant-numeric:tabular-nums;}
-  .cat{color:#5b6b82;}
+  /* finance rows */
+  .frow{display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--line); font-size:13.5px;}
+  .frow:last-child{border:none} .frow .cat{flex:1} .frow .amt{font-variant-numeric:tabular-nums; font-weight:700;}
+  .frow .fdt{font-size:10.5px; color:var(--mut2); font-variant-numeric:tabular-nums;}
+  .hedit2{color:var(--emerald); font-size:10.5px; cursor:pointer; text-transform:none; letter-spacing:0; font-weight:600;}
+  .si .cnt{font-size:9.5px; color:var(--emerald); margin-top:4px;}
+  .modal input[type=date]{color-scheme:dark;}
 
-  /* мини-бар в ячейке */
-  .hbar{height:8px; border-radius:3px; background:#eef2f7; overflow:hidden; min-width:52px;}
-  .hbar i{display:block; height:100%; width:0; border-radius:3px; transition:width 1.1s var(--ease) calc(var(--k,0)*70ms + .2s);}
-  .planner.in .hbar i{width:var(--w,60%);}
+  /* reward shop */
+  .shop{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px;}
+  .si{background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:14px 8px; text-align:center; cursor:pointer; transition:all .18s; position:relative;}
+  .si .i{font-size:26px} .si .n{font-size:11.5px; color:var(--mut); margin:8px 0 6px; min-height:30px; display:flex; align-items:center; justify-content:center;}
+  .si .pr{font-size:13px; color:#8a6f2e; font-weight:700; font-variant-numeric:tabular-nums;}
+  .si.afford{border-color:#1c7a54; box-shadow:0 0 14px #2fe38f22;} .si.afford .pr{color:var(--emerald)}
 
-  /* волна прогресса (area) */
-  .wavebox{background:linear-gradient(180deg,#f2fbf6,#ffffff); border:1px solid var(--s-grid); border-radius:9px; padding:8px 8px 2px; position:relative;}
-  .wavebox .lab{position:absolute; top:7px; left:10px; font-size:8.5px; color:#7d8a99; letter-spacing:.5px; text-transform:uppercase; font-weight:600;}
-  .wave{width:100%; height:66px; display:block;}
-  .wave .warea{opacity:0; transition:opacity .6s ease .3s;}
-  .planner.in .wave .warea{opacity:1;}
-  .wave .wline{fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round;
-    stroke-dasharray:600; stroke-dashoffset:600; transition:stroke-dashoffset 1.5s var(--ease) .2s;}
-  .planner.in .wave .wline{stroke-dashoffset:0;}
-
-  /* кольцо-пончик (donut) */
-  .ring{width:100%; height:100%; display:block;}
-  .ring .track{stroke:#e9edf3;}
-  .ring .val{stroke-linecap:round; stroke-dasharray:0 100; transition:stroke-dasharray 1.3s var(--ease) .3s; transform:rotate(-90deg); transform-origin:21px 21px;}
-  .planner.in .ring .val{stroke-dasharray:var(--v,75) 100;}
-  .ring text{font-family:var(--fb); font-weight:800; fill:#212a36;}
-  .ring .cap{fill:#8a97a8; font-weight:600;}
-
-  /* ====== премиум-дашборды внутри листов ====== */
-  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin-bottom:9px;}
-  .kpis.k3{grid-template-columns:repeat(3,1fr);}
-  .kpi{background:#fff; border:1px solid var(--s-grid); border-radius:9px; padding:7px 9px 8px; position:relative; overflow:hidden; min-width:0;}
-  .kpi::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--kc,var(--s-grn));}
-  .kpi .kl{font-size:7.5px; color:#8a97a8; text-transform:uppercase; letter-spacing:.5px; font-weight:700; white-space:nowrap;}
-  .kpi .kv{font-size:14px; font-weight:800; color:#212a36; font-variant-numeric:tabular-nums; margin-top:3px; white-space:nowrap;}
-  .kpi .kd{font-size:8px; font-weight:700; margin-top:4px; display:inline-block; padding:1.5px 6px; border-radius:99px; white-space:nowrap;}
-  .kd.up{background:var(--s-grnb); color:#0d7a4c;} .kd.dn{background:var(--s-redb); color:#c0344a;} .kd.nt{background:#eef2f7; color:#637184;}
-  /* инсайт-строка (аналитика считается формулами) */
-  .insight{display:flex; gap:7px; align-items:flex-start; background:linear-gradient(90deg,#fdf7e7,#fff); border:1px solid #f0e2b6; border-radius:8px; padding:7px 9px; margin-top:9px; font-size:9.5px; color:#5b6b82; line-height:1.5; text-align:left;}
-  .insight b{color:#212a36} .insight .ii{flex:none; font-size:12px; line-height:1.2;}
-  /* столбчатый мини-график */
-  .lab2{font-size:8.5px; color:#7d8a99; letter-spacing:.5px; text-transform:uppercase; font-weight:600; margin-bottom:4px; display:block;}
-  .cbars{display:flex; align-items:flex-end; justify-content:space-between; gap:4px; height:52px;}
-  .cbars i{flex:1; max-width:38px; border-radius:3px 3px 0 0; background:var(--cb,#12a565); height:4%; transition:height .9s var(--ease) calc(var(--k,0)*60ms + .2s); min-width:6px;}
-  .planner.in .cbars i{height:var(--h,50%);}
-  .cbl{display:flex; justify-content:space-between; gap:4px; margin-top:3px;}
-  .cbl span{flex:1; max-width:38px; text-align:center; font-size:7px; color:#a7b1c0; font-weight:700; text-transform:uppercase;}
-  /* прогресс уровня внутри листа */
-  .lvlrow{display:flex; align-items:center; gap:8px; margin-top:9px; font-size:9px; color:#5b6b82; white-space:nowrap;}
-  .lvlrow b{color:#212a36}
-  .lvlbar{flex:1; height:8px; border-radius:99px; background:#eef2f7; overflow:hidden; min-width:60px;}
-  .lvlbar i{display:block; height:100%; width:0; border-radius:99px; background:linear-gradient(90deg,#12a565,#0c7a4a); transition:width 1.2s var(--ease) .3s;}
-  .planner.in .lvlbar i{width:var(--w,50%);}
-  /* радар баланса мышц */
-  .radar{width:100%; height:auto; display:block;}
-  .radar .rgrid{fill:none; stroke:#e9edf3; stroke-width:1;}
-  .radar .rpoly{fill:#e0556a2b; stroke:#e0556a; stroke-width:1.6; stroke-linejoin:round; opacity:0; transition:opacity .8s ease .35s;}
-  .planner.in .radar .rpoly{opacity:1;}
-  .radar text{font-family:var(--fb); font-size:6.5px; fill:#8a97a8; font-weight:600;}
-  /* вкладки листов снизу — как в настоящих Google Таблицах */
-  .sheet .tabsg{display:flex; align-items:center; gap:3px; background:#f1f4f9; border-top:1px solid #e4e9f1; padding:4px 8px; font-size:8px; color:#7d8a99; white-space:nowrap;}
-  .sheet .tabsg span{padding:2.5px 9px; border-radius:5px;}
-  .sheet .tabsg span.on{background:#fff; color:#212a36; font-weight:700; border:1px solid #dfe5ee;}
-  /* фокус-цели недели */
-  .focus{display:flex; gap:6px; margin-top:9px; flex-wrap:wrap;}
-  .focus span{font-size:8.5px; padding:3.5px 8px; border-radius:99px; border:1px solid var(--s-grid); background:var(--s-alt); color:#5b6b82; font-weight:600;}
-  .focus span.dn2{background:var(--s-grnb); border-color:#bfe6d3; color:#0d7a4c;}
-  /* тепловая карта месяца (в Sheets: условное форматирование «шкала цвета») */
-  .heat{margin-top:9px;}
-  .heat .hdays{display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin:4px 0 3px;}
-  .heat .hdays span{text-align:center; font-size:6.5px; color:#a7b1c0; font-weight:700; text-transform:uppercase; letter-spacing:.4px;}
-  .heatgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:3px;}
-  .heatgrid i{height:11px; border-radius:3px; background:#eef2f7; opacity:0; transition:opacity .5s ease calc(var(--k,0)*14ms + .2s);}
-  .planner.in .heatgrid i{opacity:1;}
-  .heatgrid i.h1{background:#d9f0e4} .heatgrid i.h2{background:#a9e0c6}
-  .heatgrid i.h3{background:#5ec392} .heatgrid i.h4{background:#12a565}
-  .heatgrid i.tod{outline:1.5px solid #c98a12; outline-offset:1px;}
-  .heatgrid i.fut{background:transparent; border:1px dashed #dfe6ef;}
-  .heatleg{display:flex; align-items:center; gap:4px; justify-content:flex-end; margin-top:5px;
-    font-size:6.5px; color:#a7b1c0; font-weight:600; text-transform:uppercase; letter-spacing:.4px;}
-  .heatleg i{width:8px; height:8px; border-radius:2px; background:#eef2f7; flex:none;}
-  .heatleg i.h2{background:#a9e0c6} .heatleg i.h4{background:#12a565}
-  /* ТЕЛЕФОН: планеры — статичная карусель, без анимации отрисовки графиков.
-     Листаешь готовые дашборды, ничего не «рисуется» на ходу. */
-  @media (max-width:640px){
-    .planner.rv{opacity:1 !important; transform:none !important;}
-    .planner *, .planner *::before, .planner *::after{animation:none !important; transition:none !important;}
-    .planner .cbars i{height:var(--h,50%);}
-    .planner .hbar i{width:var(--w,60%);}
-    .planner .lvlbar i{width:var(--w,50%);}
-    .planner .heatgrid i{opacity:1;}
-    .planner .wave .warea{opacity:1;}
-    .planner .wave .wline{stroke-dashoffset:0;}
-    .planner .ring .val{stroke-dasharray:var(--v,75) 100;}
-    .planner .radar .rpoly{opacity:1;}
-  }
-  /* волна в row2 растягивается на высоту колонки — без пустых полос */
-  .row2 .wavebox{display:flex; flex-direction:column; padding:8px 8px 4px;}
-  .row2 .wavebox .lab{position:static; margin-bottom:2px;}
-  .row2 .wave{flex:1; height:auto; min-height:56px;}
-  /* мини-легенда пончика (в Sheets — легенда диаграммы) */
-  .dleg{display:flex; flex-direction:column; gap:3px; margin-top:7px; font-size:7.5px; color:#5b6b82; font-weight:600;}
-  .dleg span{display:flex; align-items:center; gap:5px; white-space:nowrap;}
-  .dleg i{width:7px; height:7px; border-radius:2px; flex:none;}
-  .dleg b{margin-left:auto; color:#212a36; font-variant-numeric:tabular-nums;}
-
-  /* компоновка листов */
-  .row2{display:grid; grid-template-columns:1fr 120px; gap:12px; align-items:stretch;}
-  .rightcol{display:flex; flex-direction:column; gap:10px; justify-content:center;}
-  .donutwrap{width:100%; aspect-ratio:1/1; max-width:118px; margin:0 auto;}
-  .totrow{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
-  .stat{flex:1; min-width:88px; background:var(--s-alt); border:1px solid var(--s-grid); border-radius:9px; padding:8px 10px; text-align:center;}
-  .stat b{display:block; font-size:16px; color:#212a36; font-variant-numeric:tabular-nums;}
-  .stat.g b{color:var(--s-grn)} .stat.r b{color:var(--s-red)} .stat.gd b{color:var(--s-gold)} .stat.v b{color:var(--s-vio)}
-  .stat span{font-size:8px; color:#8a97a8; text-transform:uppercase; letter-spacing:.5px;}
-
-  .weekgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:5px;}
-  .wd{background:var(--s-alt); border:1px solid var(--s-grid); border-radius:8px; padding:7px 5px; text-align:center;}
-  .wd .dh{font-size:8.5px; color:#5b6b82; font-weight:700; text-transform:uppercase; margin-bottom:5px;}
-  .wd .tk{display:flex; flex-direction:column; gap:3px; margin-bottom:6px;}
-  .wd .tk i{height:5px; border-radius:2px; background:#dfe6ef;}
-  .wd .tk i.d{background:var(--s-vio);}
-  .wd .en{display:flex; justify-content:center; gap:2px; margin-bottom:4px;}
-  .wd .en i{width:4px;height:12px;border-radius:1px; background:#e2e7ee;}
-  .wd .en i.f{background:linear-gradient(180deg,#f6c85a,#e0a93a);}
-  .wd .mo{font-size:12px;}
-  .wd .ring{margin:2px auto 0; width:34px; height:34px;}
-
-  .p-feats{display:grid; grid-template-columns:1fr 1fr; gap:9px 14px; margin-top:15px;}
-  .p-feats .f{display:flex; gap:7px; align-items:flex-start; font-size:12px; color:var(--mut);}
-  .p-feats .f::before{content:"✓"; color:var(--ac,var(--emerald)); font-weight:800; flex:none;}
-  .p-feats .f b{color:var(--ink); font-weight:600;}
-
-  /* ====== система дисциплины ====== */
-  .disc{margin-top:30px; padding:30px 26px;}
-  .disc .top{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:22px;}
-  .disc .top .fire{font-size:30px; filter:drop-shadow(0 0 14px #ff8a3a66);}
-  .disc .top h3{font-family:var(--fd); font-size:clamp(20px,3vw,26px);}
-  .disc .top p{color:var(--mut); font-size:13.5px; width:100%; max-width:620px;}
-  .ladder{display:grid; grid-template-columns:repeat(5,1fr); gap:10px; position:relative;}
-  .ladder .lv{background:linear-gradient(180deg,#0f1826,#0c111b); border:1px solid var(--line2); border-radius:13px; padding:16px 10px 14px; text-align:center; position:relative; overflow:hidden;
-    transform:translateY(16px); opacity:0; transition:transform .6s var(--ease), opacity .6s ease; transition-delay:calc(var(--i,0)*90ms);}
-  .disc.in .ladder .lv{transform:none; opacity:1;}
-  .disc.in .ladder .lv:hover{transform:translateY(-4px); border-color:#1c7a54; transition-delay:0s;}
-  .ladder .lv .em{font-size:26px;}
-  .ladder .lv .nm{font-family:var(--fd); font-size:14px; margin-top:6px;}
-  .ladder .lv .cn{font-size:10.5px; color:var(--mut2); margin-top:3px; font-variant-numeric:tabular-nums;}
-  .ladder .lv.cur{border-color:var(--emerald); box-shadow:0 0 0 1px #34e39a55, 0 0 30px -6px #34e39a55;}
-  .ladder .lv.cur::before{content:"ты здесь"; position:absolute; top:8px; left:50%; transform:translateX(-50%); font-size:8px; letter-spacing:1px; text-transform:uppercase; color:#03150d; background:var(--emerald); padding:2px 8px; border-radius:99px; font-weight:800;}
-  .ladder .lv.cur .em{margin-top:12px;}
-  .disc .strip{display:flex; gap:12px; margin-top:20px; flex-wrap:wrap;}
-  .disc .chip{flex:1; min-width:150px; background:#0c1420; border:1px solid var(--line2); border-radius:12px; padding:14px 16px; display:flex; align-items:center; gap:12px;}
-  .disc .chip .big{font-size:26px;}
-  .disc .chip b{font-size:17px; color:var(--gold); display:block; font-variant-numeric:tabular-nums;}
-  .disc .chip span{font-size:11.5px; color:var(--mut);}
-
-  /* шаги механики */
-  .steps{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:42px;}
-  .step{padding:24px 20px; text-align:center; transition:transform .3s var(--ease), border-color .3s;}
-  .step:hover{transform:translateY(-5px); border-color:#1c7a54;}
-  .step .ico{font-size:32px; display:inline-block;}
-  .step:hover .ico{animation:pop .45s ease;}
-  @keyframes pop{50%{transform:scale(1.28) rotate(-7deg)}}
-  .step .n{font-size:10px; color:var(--gold); letter-spacing:2px; font-weight:700; margin-bottom:6px;}
-  .step h3{font-size:16px; margin:10px 0 6px;}
-  .step p{font-size:13px; color:var(--mut);}
-
-  /* сравнение: мёртвая таблица vs магнат */
-  .vs{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:36px;}
-  .vcol{padding:24px 22px;}
-  .vcol h3{font-size:16.5px; margin-bottom:8px; display:flex; align-items:center; gap:9px;}
-  .vcol .vi{font-size:13px; color:var(--mut); padding:9px 0; border-top:1px solid var(--line); display:flex; gap:9px; align-items:flex-start;}
-  .vcol .vi::before{font-weight:800; flex:none;}
-  .vcol.dead{opacity:.85;} .vcol.dead .vi::before{content:"✕"; color:var(--rose);}
-  .vcol.alive{border-color:#1c7a54; box-shadow:0 0 46px -14px #34e39a33, var(--shadow);}
-  .vcol.alive .vi::before{content:"✓"; color:var(--emerald);}
-  .vcol.alive .vi{color:var(--ink);}
-  @media(max-width:700px){.vs{grid-template-columns:1fr}}
-
-  /* закреплённая кнопка на мобиле */
-  .mcta{position:fixed; left:0; right:0; bottom:0; z-index:25; padding:10px 14px calc(10px + env(safe-area-inset-bottom));
-    background:#070a0ff0; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-top:1px solid var(--line); display:none;}
-  .mcta .btn{width:100%; padding:13px;}
-  /* плашка плавно выезжает снизу и так же плавно уезжает — без резкого всплытия */
-  @media(max-width:640px){
-    .mcta{display:block; transform:translateY(130%); opacity:0; will-change:transform;
-      transition:transform .5s var(--ease), opacity .4s ease;}
-    .mcta.show{transform:translateY(0); opacity:1;}
-  }
-
-  /* бандл */
-  .bundle{display:grid; grid-template-columns:.9fr 1.1fr; gap:48px; align-items:center;}
-  .phone{width:256px; margin:0 auto; border-radius:36px; padding:12px; background:linear-gradient(160deg,#1b2635,#0b1018);
-    border:1px solid var(--line2); box-shadow:0 30px 80px -20px #000e, 0 0 60px -14px #34e39a22;
-    animation:floaty 7s ease-in-out infinite;}
-  @keyframes floaty{0%,100%{transform:translateY(0) rotate(0)} 50%{transform:translateY(-10px) rotate(-.9deg)}}
-  .screen{background:linear-gradient(180deg,#0b0f17,#070a0f); border-radius:26px; padding:15px 13px; overflow:hidden;}
-  .m-lvl{font-family:var(--fd); font-size:17px;}
-  .m-tag{font-size:8.5px; color:var(--emerald); letter-spacing:1.2px; text-transform:uppercase;}
-  .m-bar{height:9px; border-radius:99px; background:#0a1119; border:1px solid var(--line); margin-top:10px; overflow:hidden;}
-  .m-bar i{display:block; height:100%; width:64%; background:linear-gradient(90deg,#178a5a,var(--emerald)); box-shadow:0 0 10px #34e39a7a;
-    animation:fillup 1.7s var(--ease);}
-  @keyframes fillup{from{width:8%}}
-  .m-tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px;}
-  .m-tile{background:#0e141e; border:1px solid var(--line); border-radius:10px; padding:8px 3px; text-align:center;}
-  .m-tile b{font-size:14px;} .m-tile span{display:block; font-size:7.5px; color:var(--mut2); text-transform:uppercase; letter-spacing:.5px; margin-top:2px;}
-  .m-q{display:flex; align-items:center; gap:8px; padding:9px 10px; border-radius:10px; margin-top:8px; font-size:11px; background:#0e141e; border:1px solid var(--line);}
-  .m-q.done{background:linear-gradient(90deg,#0e2f22,#0e141e); border-color:#1c7a54;}
-  .m-q .b{width:16px;height:16px;border-radius:5px;border:2px solid var(--line2); flex:none; display:grid; place-items:center; font-size:9px; font-weight:900; color:#03150d;}
-  .m-q.done .b{background:var(--emerald); border-color:var(--emerald);}
-  .blist{list-style:none; display:flex; flex-direction:column; gap:14px; margin-top:22px;}
-  .blist li{display:flex; gap:12px; font-size:15px; color:var(--mut); align-items:flex-start;}
-  .blist li .plus{color:var(--emerald); font-weight:800; font-size:18px; line-height:1.3; flex:none;}
-  .blist li b{color:var(--ink)}
-
-  /* цена */
-  .price{max-width:470px; margin:40px auto 0; padding:38px 32px; text-align:center; border-color:#6e5320;
-    box-shadow:0 0 60px -18px #f6c85a3a, var(--shadow); position:relative; overflow:hidden;}
-  .price::before{content:""; position:absolute; inset:0 0 auto 0; height:2px; background:linear-gradient(90deg,transparent,var(--gold),transparent);}
-  .price .old{color:var(--mut2); text-decoration:line-through; font-size:17px;}
-  .price .now{font-family:var(--fd); font-size:58px; color:var(--gold); line-height:1; margin:4px 0 2px; text-shadow:0 0 44px #f6c85a55; font-variant-numeric:tabular-nums;}
-  .price .once{color:var(--emerald); font-size:14px; font-weight:600;}
-  .price ul{list-style:none; text-align:left; margin:24px 0; display:flex; flex-direction:column; gap:11px;}
-  .price li{font-size:14.5px; display:flex; gap:10px; align-items:flex-start;}
-  .price li:before{content:"✓"; color:var(--emerald); font-weight:700; flex:none;}
-  .price .btn{width:100%;}
-  .price .pay-note{color:var(--mut2); font-size:12px; margin-top:13px;}
-
-  /* как получить */
-  .how{max-width:660px; margin:38px auto 0; display:flex; flex-direction:column; gap:12px;}
-  .h-step{display:flex; gap:16px; align-items:flex-start; padding:19px 22px; transition:transform .3s var(--ease), border-color .3s;}
-  .h-step:hover{transform:translateX(4px); border-color:#1c7a54;}
-  .h-step .n{width:36px; height:36px; flex:none; border-radius:11px; display:grid; place-items:center; font-weight:800;
-    background:linear-gradient(150deg,#123c2c,#0a1a24); border:1px solid #1c7a54; color:var(--emerald); box-shadow:inset 0 1px 0 #ffffff14;}
-  .h-step h4{font-size:15.5px;} .h-step p{font-size:13.5px; color:var(--mut); margin-top:3px;}
-
-  /* FAQ */
-  .faq{max-width:740px; margin:36px auto 0; display:flex; flex-direction:column; gap:12px;}
-  .qa{padding:0;}
-  .qa summary{list-style:none; cursor:pointer; padding:18px 22px; font-size:16px; font-weight:700;
-    display:flex; justify-content:space-between; align-items:center; gap:12px;}
-  .qa summary::-webkit-details-marker{display:none}
-  .qa summary::after{content:"+"; color:var(--emerald); font-size:22px; font-weight:400; flex:none;
-    transition:transform .35s var(--ease);}
-  .qa[open] summary::after{transform:rotate(45deg);}
-  .qa .a{padding:0 22px; color:var(--mut); font-size:14px; max-height:0; overflow:hidden;
-    transition:max-height .5s var(--ease), padding .35s;}
-  .qa[open] .a{max-height:240px; padding:0 22px 18px;}
-
-  .final{text-align:center; padding:92px 0;}
-  .final h2{font-size:clamp(28px,5vw,46px);}
-  .final .btn{margin-top:28px;}
-  /* растущий город: путь Новичок → Магнат одним взглядом */
-  .final .skyline{display:flex; justify-content:center; align-items:flex-end; gap:16px; margin-bottom:22px;}
-  .final .skyline i{font-style:normal; line-height:1; opacity:.45; filter:grayscale(.65);}
-  .final .skyline i:nth-child(1){font-size:20px}
-  .final .skyline i:nth-child(2){font-size:26px}
-  .final .skyline i:nth-child(3){font-size:32px}
-  .final .skyline i:nth-child(4){font-size:39px}
-  .final .skyline i:nth-child(5){font-size:44px; opacity:1; filter:none; text-shadow:0 0 22px #f6c85a55;}
-
-  footer{border-top:1px solid var(--line); padding:32px 0 36px; color:var(--mut2); font-size:12.5px; line-height:1.9; text-align:center;}
-  footer .flinks{display:flex; flex-direction:column; gap:6px; margin-bottom:18px;}
-  footer .flinks a{color:var(--mut); text-decoration:none; border-bottom:1px solid #2a3a4d; display:inline-block; margin:0 auto; padding-bottom:1px; transition:color .2s, border-color .2s;}
-  footer .flinks a:hover{color:var(--emerald); border-color:var(--emerald);}
-  footer a{color:var(--mut); text-decoration:underline;}
-
-  /* модалка покупки */
-  .ovl{position:fixed; inset:0; background:#000d; backdrop-filter:blur(6px); display:none; align-items:center; justify-content:center; z-index:50; padding:20px;}
-  .ovl.show{display:flex;}
-  .modal{width:100%; max-width:390px; background:linear-gradient(168deg,#16223a,#0e141e); border:1px solid var(--line2); border-radius:22px; padding:28px 24px; box-shadow:0 24px 70px #000c; text-align:center;
-    animation:mopen .38s var(--ease);}
-  @keyframes mopen{from{opacity:0; transform:translateY(18px) scale(.97)}}
-  .modal .big{font-size:40px;}
-  .modal h4{font-family:var(--fd); font-size:21px; margin:10px 0 8px;}
-  .modal p{color:var(--mut); font-size:13.5px; margin-bottom:18px;}
-  .modal .btn{width:100%;}
-  .modal .close{margin-top:11px; background:none; border:none; color:var(--mut2); font-size:12.5px; cursor:pointer; text-decoration:underline;}
-  .modal .mailbox{background:#0a1119; border:1px dashed var(--line2); border-radius:12px; padding:12px;
-    font-size:14.5px; color:var(--emerald); margin-bottom:12px; user-select:all; -webkit-user-select:all; word-break:break-all;}
-  .modal .maillink{display:block; margin-top:10px; color:var(--mut2); font-size:12.5px; text-decoration:underline;}
-
-  @media (max-width:860px){
-    .hero{grid-template-columns:minmax(0,1fr); gap:34px; padding:42px 0 14px;}
-    .bundle{grid-template-columns:1fr; gap:32px;}
-    .steps{grid-template-columns:repeat(2,minmax(0,1fr));}
-    .p-feats{grid-template-columns:repeat(2,minmax(0,1fr));}
-    .row2{grid-template-columns:minmax(0,1fr) 104px;}
-    .donutwrap{max-width:100px;}
-    .parrow{display:none;}
-    .ladder{grid-template-columns:repeat(5,1fr); gap:6px;}
-    .ladder .lv{padding:12px 4px 10px;}
-    .ladder .lv .nm{font-size:11px;}
-    .ladder .lv .em{font-size:20px;}
-    section{padding:60px 0;}
-  }
-  @media (max-width:560px){
-    .planner{flex:0 0 85%; padding:12px 12px 13px;}
-    .p-head{margin-bottom:10px; gap:10px;}
-    .p-head .ic{width:36px; height:36px; font-size:18px; border-radius:10px;}
-    .p-head h3{font-size:16px;}
-    .p-head .st{font-size:10px;}
-    .sheet{font-size:10px;}
-    .sheet .content{padding:8px 9px;}
-    .sheet .ttl{margin-bottom:7px;}
-    .sheet .win{padding:5px 8px;}
-    .sheet .tabsg{padding:3px 6px; font-size:7px;}
-    .wave{height:50px;}
-    .kpis{gap:5px; margin-bottom:7px;}
-    .kpi{padding:5px 7px 6px;}
-    .kpi .kv{font-size:12px; margin-top:2px;}
-    .kpi .kd{font-size:7px; margin-top:3px;}
-    .insight{padding:5px 7px; font-size:8.5px; margin-top:7px;}
-    .cbars{height:38px;}
-    .lvlrow{margin-top:7px; font-size:8px;}
-    .focus{margin-top:7px;}
-    table.grid{font-size:9.3px;}
-    table.grid th,table.grid td{padding:3px 2px;}
-    .row2{grid-template-columns:minmax(0,1fr) 90px;}
-    .donutwrap{max-width:86px;}
-    .stat{min-width:0; padding:7px 6px;} .stat b{font-size:13px;} .totrow{gap:6px;}
-    /* KPI в 2 колонки: лист становится уже -> scale-to-fit крупнее и читабельнее */
-    .kpis{grid-template-columns:repeat(2,1fr);}
-    .kpis.k3{grid-template-columns:repeat(2,1fr);}
-    .weekgrid{gap:3px;}
-    .wd{padding:5px 1px;}
-    .wd .ring{width:24px; height:24px;}
-    .wd .dh{font-size:7px;}
-    .wd .mo{font-size:10px;}
-    .wd .en i{width:3px; height:9px;}
-    .p-feats{grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 10px; margin-top:11px;}
-    .p-feats .f{font-size:10.5px; gap:5px;}
-    .steps{grid-template-columns:1fr; gap:10px;}
-    .ladder{grid-template-columns:repeat(2,minmax(0,1fr));}
-    .fin3{grid-template-columns:1fr;}
-    /* демо-таблица в hero: компактнее, чтобы влезала на узкий экран */
-    .demo{padding:16px 12px 14px;}
-    .demo table{font-size:11px; table-layout:fixed;}
-    .demo th,.demo td{padding:3px 2px;}
-    .demo td.nm{font-size:11px; white-space:normal;}
-    .cell{width:100%; max-width:26px; height:23px;}
-    .step{padding:18px 16px;}
-    .step .ico{font-size:26px;}
-    .ladder .lv:last-child{grid-column:1 / -1;}
-  }
+  .sec-h{font-size:15px; margin:22px 2px 12px;}
+  .ins-t b{color:var(--gold);}
+  /* заметка про демо-данные */
+  .demonote{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:13px; font-size:12.5px; color:var(--mut); padding:12px 14px;}
+  .demonote .ok2{padding:8px 12px; border-radius:10px; border:none; background:linear-gradient(180deg,var(--emerald),#17a768); color:#04120b; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap;}
+  /* кликабельные сводки на Обзоре */
+  .card[data-go]{cursor:pointer;}
+  .card .go{color:var(--mut2); font-size:14px; font-weight:400;}
+  /* редактирование задачи и своя награда */
+  .ted{color:var(--mut2); font-size:13px; padding:0 3px; cursor:pointer;}
+  .si .rm{position:absolute; top:5px; right:8px; color:var(--mut2); font-size:11px; cursor:pointer;}
+  /* аккуратная форма добавления (вместо системных prompt) */
+  .ovl{position:fixed; inset:0; background:#000b; backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px;}
+  .modal{width:100%; max-width:360px; background:linear-gradient(168deg,#16223a,#0f1520); border:1px solid var(--line2); border-radius:20px; padding:22px; box-shadow:0 20px 60px #000a;}
+  .modal h4{font-size:18px; margin-bottom:6px; font-family:var(--fd);}
+  .modal .lab{font-size:12px; color:var(--mut2); text-transform:uppercase; letter-spacing:.6px; display:block; margin:14px 0 6px;}
+  .modal input, .modal select{width:100%; padding:13px 13px; border-radius:12px; background:var(--panel); border:1px solid var(--line2); color:var(--ink); font-size:16px; outline:none;}
+  .modal input:focus, .modal select:focus{border-color:var(--emerald);}
+  .modal .btns{display:flex; gap:10px; margin-top:20px;}
+  .modal .btns button{flex:1; padding:13px; border-radius:12px; border:none; font-size:15px; font-weight:700; cursor:pointer;}
+  .modal .ok{background:linear-gradient(180deg,var(--emerald),#17a768); color:#04120b; box-shadow:0 0 18px #2fe38f44;}
+  .modal .no{background:var(--panel); color:var(--mut); border:1px solid var(--line2);}
+  /* сетка категорий в форме финансов (как Monarch/Copilot) */
+  .amt-in{font-size:30px !important; text-align:center; font-family:var(--fd); font-variant-numeric:tabular-nums;}
+  .catgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:6px;}
+  .catopt{padding:11px 4px; border-radius:12px; background:var(--panel); border:1px solid var(--line); text-align:center; cursor:pointer; font-size:10.5px; color:var(--mut); transition:all .15s;}
+  .catopt:active{transform:scale(.95)}
+  .catopt .ci{font-size:23px; display:block; margin-bottom:4px;}
+  .catopt.sel{border-color:var(--emerald); background:#0e2f22; color:#e9fff6; box-shadow:0 0 12px #2fe38f33;}
+  /* чипы «Сегодня» */
+  .tchips{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;}
+  .tchip{padding:9px 13px; border-radius:12px; background:var(--panel); border:1px solid var(--line); font-size:13.5px; cursor:pointer; display:flex; align-items:center; gap:8px; user-select:none; transition:all .15s;}
+  .tchip:active{transform:scale(.96)}
+  .tchip .d{width:17px; height:17px; border-radius:5px; border:2px solid var(--line2); display:grid; place-items:center; font-size:11px; font-weight:900; color:#04120b;}
+  .tchip.on{background:linear-gradient(90deg,#0e2f22,var(--panel)); border-color:#1c7a54; color:#e9fff6;}
+  .tchip.on .d{background:var(--emerald); border-color:var(--emerald);}
+  .toast{position:fixed; left:50%; bottom:calc(80px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(16px); opacity:0; z-index:40; background:#0e1c14; border:1px solid #1c7a54; color:var(--ink); padding:11px 18px; border-radius:12px; font-size:13px; box-shadow:0 0 24px #2fe38f2e; transition:all .3s; pointer-events:none;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .share-btn{width:100%; margin-top:13px; padding:15px; border-radius:14px; border:none; cursor:pointer; font-size:16px; font-weight:700;
+    background:linear-gradient(180deg,var(--emerald),#17a768); color:#04120b; box-shadow:0 0 24px #2fe38f40; transition:transform .1s;}
+  .share-btn:active{transform:scale(.99)}
+  .reset{display:block; margin:20px auto 0; background:none; border:none; color:var(--mut2); font-size:11px; text-decoration:underline; cursor:pointer;}
+  .bkrow{display:flex; gap:10px; margin-top:22px;}
+  .bk{flex:1; padding:11px 8px; border-radius:11px; background:var(--panel); border:1px solid var(--line2); color:var(--mut); font-size:12.5px; cursor:pointer;}
+  .bknote{text-align:center; font-size:10.5px; color:var(--mut2); margin-top:8px; line-height:1.5;}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
-<div class="glows" aria-hidden="true"><div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div></div>
-
-<nav><div class="wrap">
-  <div class="logo"><div class="c">🏛</div>Магнат</div>
-  <div class="nl">
-    <a href="#set">Что внутри</a>
-    <a href="#vs">Отличия</a>
-    <a href="#price">Цена</a>
-    <a href="#faq">FAQ</a>
+<header><div class="wrap">
+  <div class="bar">
+    <div class="brand"><div class="c">🏛</div><b>Магнат</b></div>
+    <div class="chip lvl" id="lvlChip">🐣 Новичок</div>
+    <div class="chip coin">🪙 <span id="wallet">0</span></div>
   </div>
-  <a href="#price" class="btn btn-p">Получить</a>
-</div></nav>
-
-<header class="wrap"><div class="hero">
-  <div>
-    <div class="kicker h-el">Планер · игра · тайкун</div>
-    <h1 class="h-el"><span class="w">Планер,</span> <span class="w">который</span> <span class="hl w">играет</span> <span class="hl w">с</span> <span class="hl w">тобой</span></h1>
-    <p class="lead h-el">Хватит бросать всё на третий день. 5 Google-таблиц с механикой тайкуна: галочки дают монеты, серия множит доход, монеты растят уровень — дисциплина затягивает, как игра.</p>
-    <div class="cta h-el">
-      <a href="#price" class="btn btn-p">🏛 Получить за 990 ₽</a>
-      <a href="#set" class="btn btn-g">Что внутри</a>
-    </div>
-    <div class="trust h-el">
-      <span><i class="dot"></i>5 таблиц в наборе</span>
-      <span><i class="dot"></i>Данные в твоём Google</span>
-      <span><i class="dot"></i>Доступ навсегда</span>
-    </div>
-  </div>
-  <div class="demo-wrap"><div class="glass demo">
-    <div class="cap">Живая механика · попробуй прямо тут</div>
-    <table>
-      <tr><th style="text-align:left">Привычка</th><th>пн</th><th>вт</th><th>ср</th><th>чт</th><th>пт</th></tr>
-      <tr><td class="nm">🏋️ Тренировка</td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td></tr>
-      <tr><td class="nm">📚 Час на дело</td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td><td><span class="cell" data-c="25"></span></td></tr>
-      <tr><td class="nm">💰 Шаг к деньгам</td><td><span class="cell" data-c="30"></span></td><td><span class="cell" data-c="30"></span></td><td><span class="cell" data-c="30"></span></td><td><span class="cell" data-c="30"></span></td><td><span class="cell" data-c="30"></span></td></tr>
-    </table>
-    <div class="emp" id="dEmp"><i class="on">🛖</i><i>🏠</i><i>🏢</i><i>🏙</i><i>👑</i></div>
-    <div class="tally">
-      <div class="coins" id="dCoins">🪙 0</div>
-      <div class="lvl" id="dLvl">🐣 Новичок</div>
-    </div>
-    <div class="hint" id="dHint">жми клетки — монеты капают, империя строится</div>
-  </div></div>
+  <div class="tabs" id="tabs"></div>
 </div></header>
 
-<section id="set"><div class="wrap">
-  <div class="kicker rv">Набор 5 в 1</div>
-  <h2 class="rv uline">Пять живых дашбордов, одна игра</h2>
-  <p class="sub rv">Не скучные списки, а полноценные дашборды в Google-таблицах: KPI-карточки, живые графики, инсайты и уровни, которые считаются сами. Как топовый SaaS — только твоё навсегда. Листай →</p>
-
-  <div class="pcarousel rv">
-   <button class="parrow l" id="arrPrev" aria-label="предыдущий">‹</button>
-   <button class="parrow r" id="arrNext" aria-label="следующий">›</button>
-   <div class="planners" id="planners">
-    <!-- 1. ПРИВЫЧКИ -->
-    <article class="glass planner p1 rv">
-      <div class="p-head"><div class="ic">✅</div><div><h3>Планер привычек</h3><div class="st">штаб дисциплины · ядро игры</div></div><span class="core">ядро</span></div>
-      <div class="sheet" data-cols="8" data-rows="13">
-        <div class="win"><span class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span><span class="gi"></span><span class="fn">Магнат · Привычки.gsheet</span><span class="tools">▦ Σ ⌄</span></div>
-        <div class="cols"></div>
-        <div class="grip"><div class="rows"></div><div class="content">
-          <div class="ttl"><span class="sq"></span><b>ШТАБ ДИСЦИПЛИНЫ</b><span class="pct">82%</span></div>
-          <div class="kpis">
-            <div class="kpi" style="--kc:#c98a12"><div class="kl">Серия</div><div class="kv">🔥 6 дней</div><span class="kd up">рекорд месяца</span></div>
-            <div class="kpi"><div class="kl">Множитель</div><div class="kv">×1.6</div><span class="kd nt">максимум ×2</span></div>
-            <div class="kpi" style="--kc:#c98a12"><div class="kl">Сегодня</div><div class="kv">+136 🪙</div><span class="kd up">+18% к вчера</span></div>
-            <div class="kpi" style="--kc:#7a52d0"><div class="kl">Уровень</div><div class="kv">💼 3 из 5</div><span class="kd nt">Предприниматель</span></div>
-          </div>
-          <div class="row2">
-            <div class="wavebox">
-              <span class="lab">Кривая прогресса</span>
-              <svg class="wave" viewBox="0 0 300 60" preserveAspectRatio="none">
-                <defs><linearGradient id="wg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#12a565" stop-opacity=".32"/><stop offset="1" stop-color="#12a565" stop-opacity="0"/></linearGradient></defs>
-                <path class="warea" fill="url(#wg1)" d="M0,44 C22,40 38,42 60,36 S104,40 132,30 S186,34 212,22 S270,18 300,12 L300,60 L0,60 Z"/>
-                <path class="wline" stroke="#12a565" d="M0,44 C22,40 38,42 60,36 S104,40 132,30 S186,34 212,22 S270,18 300,12"/>
-              </svg>
-            </div>
-            <div class="donutwrap">
-              <svg class="ring" viewBox="0 0 42 42">
-                <circle class="track" cx="21" cy="21" r="15.9" fill="none" stroke-width="4.4" pathLength="100"/>
-                <circle class="val" cx="21" cy="21" r="15.9" fill="none" stroke="#12a565" stroke-width="4.4" pathLength="100" style="--v:82"/>
-                <text x="21" y="20.5" text-anchor="middle" font-size="9">82%</text>
-                <text x="21" y="27" text-anchor="middle" font-size="3.3" class="cap">МЕСЯЦ</text>
-              </svg>
-            </div>
-          </div>
-          <div class="heat">
-            <span class="lab2" style="margin:0">Карта активности · месяц</span>
-            <div class="hdays"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
-            <div class="heatgrid" id="heatgrid"></div>
-            <div class="heatleg"><span>пропуск</span><i></i><i class="h2"></i><i class="h4"></i><span>идеальный день</span></div>
-          </div>
-          <table class="grid" style="margin-top:9px">
-            <tr><th style="text-align:left">Привычка</th><th>пн</th><th>вт</th><th>ср</th><th>чт</th><th>пт</th><th>сб</th><th>вс</th><th>%</th></tr>
-            <tr><td class="nm">🏋️ Тренировка</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="pcell">86%</td></tr>
-            <tr><td class="nm">📚 Час на дело</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="pcell">86%</td></tr>
-            <tr><td class="nm">💰 Шаг к деньгам</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="pcell">71%</td></tr>
-            <tr><td class="nm">🧊 Холодный душ</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="pcell">86%</td></tr>
-            <tr><td class="nm">💧 Вода 2 литра</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 on">✓</td><td class="ck2 off">·</td><td class="ck2 on">✓</td><td class="pcell">90%</td></tr>
-          </table>
-          <div class="lvlrow"><b>💼 Предприниматель</b><span class="lvlbar"><i style="--w:28%"></i></span><span><b>2 480</b> / 5 000 🪙 до Директора</span></div>
-          <div class="insight"><span class="ii">💡</span><span><b>Пятница — твой сильный день: 94%.</b> Ещё 1 день серии — и множитель вырастет до <b>×1.7</b>.</span></div>
-        </div></div>
-        <div class="tabsg"><span class="on">📊 Дашборд</span><span>Привычки</span><span>История</span><span>Настройки</span><span style="margin-left:auto">＋</span></div>
-      </div>
-      <div class="p-feats">
-        <div class="f"><b>KPI-дашборд</b> серия · монеты · уровень</div>
-        <div class="f"><b>Тепловая карта</b> месяца + кривая</div>
-        <div class="f"><b>Инсайты недели</b> считаются сами</div>
-        <div class="f"><b>Уровни</b> Новичок → Магнат</div>
-      </div>
-    </article>
-
-    <!-- 2. ЗАДАЧИ -->
-    <article class="glass planner p2 rv">
-      <div class="p-head"><div class="ic">🎯</div><div><h3>Планер задач</h3><div class="st">приоритеты · сроки</div></div></div>
-      <div class="sheet" data-cols="7" data-rows="13">
-        <div class="win"><span class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span><span class="gi"></span><span class="fn">Магнат · Задачи.gsheet</span><span class="tools">▦ Σ ⌄</span></div>
-        <div class="cols"></div>
-        <div class="grip"><div class="rows"></div><div class="content">
-          <div class="ttl"><span class="sq" style="--ac:#e0a93a"></span><b>ЦЕНТР ЗАДАЧ</b><span class="pct" style="color:#c98a12">84% в срок</span></div>
-          <div class="kpis">
-            <div class="kpi" style="--kc:#c98a12"><div class="kl">Открыто</div><div class="kv">5</div><span class="kd nt">2 на сегодня</span></div>
-            <div class="kpi" style="--kc:#e0556a"><div class="kl">Горит</div><div class="kv">⚠ 1</div><span class="kd dn">просрочка 1 дн.</span></div>
-            <div class="kpi"><div class="kl">За неделю</div><div class="kv">12 ✓</div><span class="kd up">+4 к прошлой</span></div>
-            <div class="kpi"><div class="kl">В срок</div><div class="kv">84%</div><span class="kd up">+6%</span></div>
-          </div>
-          <table class="grid">
-            <tr><th style="text-align:left">Задача</th><th>Срок</th><th>Осталось</th><th>Приоритет</th><th>✓</th></tr>
-            <tr><td class="nm">🎬 Смонтировать ролик</td><td class="num">10 янв</td><td class="num" style="color:#12a565">сегодня</td><td><span class="pill hi">Высокий</span></td><td class="ck2 off">☐</td></tr>
-            <tr><td class="nm">✍️ Написать 5 сценариев</td><td class="num">11 янв</td><td class="num" style="color:#c98a12">1 дн.</td><td><span class="pill md">Средний</span></td><td class="ck2 off">☐</td></tr>
-            <tr><td class="nm strike">📚 Прочитать 20 страниц</td><td class="num strike">9 янв</td><td class="ck2 on">✓</td><td><span class="pill lo">Низкий</span></td><td class="ck2 on">✓</td></tr>
-            <tr><td class="nm">💸 Оплатить кредитку</td><td class="num">9 янв</td><td class="neg">-1 дн.</td><td><span class="pill ur">Срочно</span></td><td class="ck2 off">☐</td></tr>
-            <tr><td class="nm">📞 Позвонить маме</td><td class="num">13 янв</td><td class="num" style="color:#c98a12">3 дн.</td><td><span class="pill md">Средний</span></td><td class="ck2 off">☐</td></tr>
-          </table>
-          <div class="row2" style="margin-top:9px">
-            <div class="cbx"><span class="lab2">Закрыто по дням · 12 за неделю</span>
-              <div class="cbars" style="--cb:#e0a93a"><i style="--h:25%;--k:0"></i><i style="--h:75%;--k:1"></i><i style="--h:50%;--k:2"></i><i style="--h:100%;--k:3"></i><i style="--h:25%;--k:4"></i><i style="--h:25%;--k:5"></i><i style="--h:4%;--k:6"></i></div>
-              <div class="cbl"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
-            </div>
-            <div>
-              <span class="lab2">Приоритеты</span>
-              <div class="donutwrap" style="max-width:72px;margin:2px auto 0">
-                <svg class="ring" viewBox="0 0 42 42">
-                  <circle class="track" cx="21" cy="21" r="15.9" fill="none" stroke-width="5" pathLength="100"/>
-                  <circle class="val" cx="21" cy="21" r="15.9" fill="none" stroke="#e0556a" stroke-width="5" pathLength="100" stroke-dasharray="0 100" style="--v:40"/>
-                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#c98a12" stroke-width="5" pathLength="100" stroke-dasharray="40 100" stroke-dashoffset="-40" transform="rotate(-90 21 21)"/>
-                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#2f8fd8" stroke-width="5" pathLength="100" stroke-dasharray="20 100" stroke-dashoffset="-80" transform="rotate(-90 21 21)"/>
-                  <text x="21" y="20.5" text-anchor="middle" font-size="10">5</text>
-                  <text x="21" y="27" text-anchor="middle" font-size="3.3" class="cap">ОТКРЫТО</text>
-                </svg>
-              </div>
-              <div class="dleg">
-                <span><i style="background:#e0556a"></i>срочно + выс.<b>2</b></span>
-                <span><i style="background:#c98a12"></i>средний<b>2</b></span>
-                <span><i style="background:#2f8fd8"></i>низкий<b>1</b></span>
-              </div>
-            </div>
-          </div>
-          <div class="insight"><span class="ii">💡</span><span><b>Пик продуктивности — четверг.</b> «Оплатить кредитку» просрочена на 1 день — закрой её первой.</span></div>
-        </div></div>
-        <div class="tabsg"><span class="on">📊 Дашборд</span><span>Задачи</span><span>Архив</span><span style="margin-left:auto">＋</span></div>
-      </div>
-      <div class="p-feats">
-        <div class="f"><b>KPI-плитки</b> открыто · горит · в срок</div>
-        <div class="f"><b>Авторасчёт</b> дней до срока</div>
-        <div class="f"><b>Просрочка</b> краснеет сама</div>
-        <div class="f"><b>Графики</b> закрытий и приоритетов</div>
-      </div>
-    </article>
-
-    <!-- 3. ФИТНЕС -->
-    <article class="glass planner p3 rv">
-      <div class="p-head"><div class="ic">💪</div><div><h3>Фитнес-планер</h3><div class="st">мышцы · вес · калории</div></div></div>
-      <div class="sheet" data-cols="7" data-rows="13">
-        <div class="win"><span class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span><span class="gi"></span><span class="fn">Магнат · Тело.gsheet</span><span class="tools">▦ Σ ⌄</span></div>
-        <div class="cols"></div>
-        <div class="grip"><div class="rows"></div><div class="content">
-          <div class="ttl"><span class="sq" style="--ac:#e0556a"></span><b>ПАНЕЛЬ ФОРМЫ</b><span class="pct" style="color:#12a565">−5.1 кг</span></div>
-          <div class="kpis">
-            <div class="kpi"><div class="kl">Вес</div><div class="kv">78.9 кг</div><span class="kd up">−5.1 за месяц</span></div>
-            <div class="kpi" style="--kc:#e0556a"><div class="kl">Тренировки</div><div class="kv">4 / 7</div><span class="kd nt">план 5</span></div>
-            <div class="kpi" style="--kc:#c98a12"><div class="kl">Калории</div><div class="kv">2 350</div><span class="kd nt">цель 2 400</span></div>
-            <div class="kpi" style="--kc:#2f8fd8"><div class="kl">Сон</div><div class="kv">7.5 ч</div><span class="kd up">+0.4 ч</span></div>
-          </div>
-          <div class="row2">
-            <div class="wavebox" style="background:linear-gradient(180deg,#fef2f4,#fff)">
-              <span class="lab">Вес, кг</span>
-              <svg class="wave" viewBox="0 0 300 60" preserveAspectRatio="none">
-                <defs><linearGradient id="wg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0556a" stop-opacity=".26"/><stop offset="1" stop-color="#e0556a" stop-opacity="0"/></linearGradient></defs>
-                <path class="warea" fill="url(#wg3)" d="M0,12 C40,16 60,18 96,22 S168,28 208,34 S268,44 300,48 L300,60 L0,60 Z"/>
-                <path class="wline" stroke="#e0556a" d="M0,12 C40,16 60,18 96,22 S168,28 208,34 S268,44 300,48"/>
-                <path stroke="#c98a12" stroke-width="1.3" stroke-dasharray="5 4" fill="none" d="M0,55 L300,55"/>
-                <text x="297" y="52" text-anchor="end" font-size="7" fill="#c98a12" font-weight="700">цель 76</text>
-              </svg>
-            </div>
-            <div class="rightcol">
-              <svg class="radar" viewBox="0 0 120 102">
-                <polygon class="rgrid" points="60,19 88.6,35.5 88.6,68.5 60,85 31.4,68.5 31.4,35.5"/>
-                <polygon class="rgrid" points="60,30 79,41 79,63 60,74 41,63 41,41"/>
-                <polygon class="rgrid" points="60,41 69.5,46.5 69.5,57.5 60,63 50.5,57.5 50.5,46.5"/>
-                <path class="rgrid" d="M60,19 L60,85 M88.6,35.5 L31.4,68.5 M88.6,68.5 L31.4,35.5"/>
-                <polygon class="rpoly" points="60,25.6 80,40.5 87.1,67.7 60,71.8 44.3,61.1 35.7,38"/>
-                <text x="60" y="12" text-anchor="middle">Грудь</text>
-                <text x="91" y="33">Спина</text>
-                <text x="91" y="74">Ноги</text>
-                <text x="60" y="96" text-anchor="middle">Руки</text>
-                <text x="29" y="74" text-anchor="end">Плечи</text>
-                <text x="29" y="33" text-anchor="end">Пресс</text>
-              </svg>
-              <div style="text-align:center;font-size:7.5px;color:#8a97a8;letter-spacing:.5px;text-transform:uppercase;font-weight:600">Баланс мышц</div>
-            </div>
-          </div>
-          <div class="lvlrow"><b>🎯 Путь к цели</b><span class="lvlbar"><i style="--w:64%;background:linear-gradient(90deg,#e0556a,#c98a12)"></i></span><span><b>84 → 78.9 → 76 кг</b> · пройдено 64%</span></div>
-          <div class="totrow">
-            <div class="stat r"><b>17</b><span>тренировок · 30 дн</span></div>
-            <div class="stat g"><b>5 дн</b><span>лучшая серия</span></div>
-            <div class="stat gd"><b>79.1</b><span>ср. вес недели</span></div>
-          </div>
-          <span class="lab2" style="margin:10px 0 0">Тренировки недели</span>
-          <div class="focus" style="margin-top:5px"><span class="dn2">пн ✓</span><span>вт</span><span class="dn2">ср ✓</span><span class="dn2">чт ✓</span><span>пт</span><span class="dn2">сб ✓</span><span>вс</span></div>
-          <div class="insight"><span class="ii">💡</span><span><b>Ноги и пресс в тонусе.</b> Плечи отстают — добавь один подход в среду, и радар выровняется.</span></div>
-        </div></div>
-        <div class="tabsg"><span class="on">📊 Дашборд</span><span>Тренировки</span><span>Замеры</span><span style="margin-left:auto">＋</span></div>
-      </div>
-      <div class="p-feats">
-        <div class="f"><b>Баланс мышц</b> радаром</div>
-        <div class="f"><b>Вес</b> живым графиком</div>
-        <div class="f"><b>KPI-плитки</b> ккал · сон · тренировки</div>
-        <div class="f"><b>Путь к цели</b> и статистика</div>
-      </div>
-    </article>
-
-    <!-- 4. НЕДЕЛЯ -->
-    <article class="glass planner p4 rv">
-      <div class="p-head"><div class="ic">📅</div><div><h3>Планер недели</h3><div class="st">дела · энергия · итог</div></div></div>
-      <div class="sheet" data-cols="8" data-rows="14">
-        <div class="win"><span class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span><span class="gi"></span><span class="fn">Магнат · Неделя.gsheet</span><span class="tools">▦ Σ ⌄</span></div>
-        <div class="cols"></div>
-        <div class="grip"><div class="rows"></div><div class="content">
-          <div class="ttl"><span class="sq" style="--ac:#7a52d0"></span><b>ПУЛЬТ НЕДЕЛИ</b><span class="pct" style="color:#7a52d0">64%</span></div>
-          <div class="kpis">
-            <div class="kpi" style="--kc:#7a52d0"><div class="kl">Выполнено</div><div class="kv">25 / 39</div><span class="kd up">64% недели</span></div>
-            <div class="kpi" style="--kc:#c98a12"><div class="kl">Энергия</div><div class="kv">⚡ 3.4 / 5</div><span class="kd up">пик — пятница</span></div>
-            <div class="kpi"><div class="kl">Фокус-цели</div><div class="kv">2 / 3</div><span class="kd nt">недели</span></div>
-            <div class="kpi" style="--kc:#c98a12"><div class="kl">Монеты</div><div class="kv">+610 🪙</div><span class="kd up">за неделю</span></div>
-          </div>
-          <div class="weekgrid" id="weekgrid"></div>
-          <div class="wavebox" style="background:linear-gradient(180deg,#f7f3fd,#fff);margin-top:9px">
-            <span class="lab">Энергия недели</span>
-            <svg class="wave" viewBox="0 0 300 60" preserveAspectRatio="none">
-              <defs><linearGradient id="wg4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a52d0" stop-opacity=".26"/><stop offset="1" stop-color="#7a52d0" stop-opacity="0"/></linearGradient></defs>
-              <path class="warea" fill="url(#wg4)" d="M0,30 C17,34 33,42 50,42 S83,30 100,30 S133,50 150,50 S183,12 200,12 S233,30 250,30 S283,44 300,44 L300,60 L0,60 Z"/>
-              <path class="wline" stroke="#7a52d0" d="M0,30 C17,34 33,42 50,42 S83,30 100,30 S133,50 150,50 S183,12 200,12 S233,30 250,30 S283,44 300,44"/>
-            </svg>
-            <div class="cbl" style="margin:2px 0 4px"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span></div>
-          </div>
-          <div class="focus"><span class="dn2">✓ Запустить сайт</span><span class="dn2">✓ 3 тренировки</span><span>○ Дочитать книгу</span></div>
-          <div class="insight"><span class="ii">💡</span><span><b>Энергия проседает к воскресенью.</b> Ставь лёгкие задачи на выходные — процент недели вырастет.</span></div>
-        </div></div>
-        <div class="tabsg"><span class="on">📊 Дашборд</span><span>Неделя</span><span>Рефлексия</span><span style="margin-left:auto">＋</span></div>
-      </div>
-      <div class="p-feats">
-        <div class="f"><b>3 главных дела</b> на день</div>
-        <div class="f"><b>Трекер энергии</b> и настроения</div>
-        <div class="f"><b>Фокус-цели</b> недели</div>
-        <div class="f"><b>KPI и круги</b> прогресса</div>
-      </div>
-    </article>
-
-    <!-- 5. ФИНАНСЫ -->
-    <article class="glass planner p5 rv">
-      <div class="p-head"><div class="ic">💰</div><div><h3>Финансовый планер</h3><div class="st">план · факт · долги</div></div></div>
-      <div class="sheet" data-cols="8" data-rows="14">
-        <div class="win"><span class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span><span class="gi"></span><span class="fn">Магнат · Финансы.gsheet</span><span class="tools">▦ Σ ⌄</span></div>
-        <div class="cols"></div>
-        <div class="grip"><div class="rows"></div><div class="content">
-          <div class="ttl"><span class="sq" style="--ac:#c98a12"></span><b>КАПИТАЛ · МЕСЯЦ</b><span class="pct" style="color:#12a565">+22 450 ₽</span></div>
-          <div class="kpis">
-            <div class="kpi"><div class="kl">Доход</div><div class="kv">118 400</div><span class="kd up">+12%</span></div>
-            <div class="kpi" style="--kc:#e0556a"><div class="kl">Расход</div><div class="kv">95 950</div><span class="kd dn">+4%</span></div>
-            <div class="kpi" style="--kc:#c98a12"><div class="kl">Сбережения</div><div class="kv">22 450</div><span class="kd up">19% дохода</span></div>
-            <div class="kpi" style="--kc:#2f8fd8"><div class="kl">Подушка</div><div class="kv">3.2 мес</div><span class="kd nt">цель — 6</span></div>
-          </div>
-          <div class="fin3">
-            <div>
-              <div class="donutwrap">
-                <svg class="ring" viewBox="0 0 42 42">
-                  <circle class="track" cx="21" cy="21" r="15.9" fill="none" stroke-width="5" pathLength="100"/>
-                  <circle class="val" cx="21" cy="21" r="15.9" fill="none" stroke="#12a565" stroke-width="5" pathLength="100" stroke-dasharray="0 100" style="--v:40"/>
-                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#2f8fd8" stroke-width="5" pathLength="100" stroke-dasharray="25 100" stroke-dashoffset="-40" transform="rotate(-90 21 21)"/>
-                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#c98a12" stroke-width="5" pathLength="100" stroke-dasharray="20 100" stroke-dashoffset="-65" transform="rotate(-90 21 21)"/>
-                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#7a52d0" stroke-width="5" pathLength="100" stroke-dasharray="15 100" stroke-dashoffset="-85" transform="rotate(-90 21 21)"/>
-                  <text x="21" y="20" text-anchor="middle" font-size="7">95 950</text>
-                  <text x="21" y="26.5" text-anchor="middle" font-size="3.3" class="cap">РАСХОД ₽</text>
-                </svg>
-              </div>
-              <div class="dleg">
-                <span><i style="background:#12a565"></i>еда<b>40%</b></span>
-                <span><i style="background:#2f8fd8"></i>жильё<b>25%</b></span>
-                <span><i style="background:#c98a12"></i>транспорт<b>20%</b></span>
-                <span><i style="background:#7a52d0"></i>досуг<b>15%</b></span>
-              </div>
-            </div>
-            <table class="grid">
-              <tr><th style="text-align:left">Категория</th><th>План</th><th>Факт</th><th style="width:46px"></th></tr>
-              <tr><td class="nm">🍔 Еда</td><td class="num">40 000</td><td class="num">38 200</td><td><div class="hbar" style="--w:100%;--k:0"><i style="background:#12a565"></i></div></td></tr>
-              <tr><td class="nm">🏠 Жильё</td><td class="num">25 000</td><td class="num">24 000</td><td><div class="hbar" style="--w:62%;--k:1"><i style="background:#2f8fd8"></i></div></td></tr>
-              <tr><td class="nm">🚗 Транспорт</td><td class="num">18 000</td><td class="neg">19 400</td><td><div class="hbar" style="--w:50%;--k:2"><i style="background:#c98a12"></i></div></td></tr>
-              <tr><td class="nm">🎮 Досуг</td><td class="num">15 000</td><td class="num">14 350</td><td><div class="hbar" style="--w:38%;--k:3"><i style="background:#7a52d0"></i></div></td></tr>
-            </table>
-          </div>
-          <div class="cbx" style="margin-top:9px"><span class="lab2">Копилка · 6 месяцев</span>
-            <div class="cbars" style="--cb:#c98a12"><i style="--h:26%;--k:0"></i><i style="--h:38%;--k:1"></i><i style="--h:34%;--k:2"></i><i style="--h:52%;--k:3"></i><i style="--h:66%;--k:4"></i><i style="--h:88%;--k:5"></i></div>
-            <div class="cbl"><span>авг</span><span>сен</span><span>окт</span><span>ноя</span><span>дек</span><span>янв</span></div>
-          </div>
-          <div class="lvlrow"><b>🛡️ Подушка 3.2 / 6 мес</b><span class="lvlbar"><i style="--w:53%;background:linear-gradient(90deg,#2f8fd8,#7a52d0)"></i></span><span>темп +22 450 ₽/мес → цель через <b>~12 мес</b></span></div>
-          <div class="insight"><span class="ii">💡</span><span><b>Сбережения 19% дохода</b> — выше цели 15%. Транспорт превысил план на <b>1 400 ₽</b> — проверь поездки на такси.</span></div>
-        </div></div>
-        <div class="tabsg"><span class="on">📊 Дашборд</span><span>Операции</span><span>Долги</span><span>Цели</span><span style="margin-left:auto">＋</span></div>
-      </div>
-      <div class="p-feats">
-        <div class="f"><b>KPI-плитки</b> доход · расход · подушка</div>
-        <div class="f"><b>Пончик трат</b> по категориям</div>
-        <div class="f"><b>План vs факт</b> с подсветкой</div>
-        <div class="f"><b>Копилка и прогноз</b> подушки</div>
-      </div>
-    </article>
-
-   </div>
-   <div class="pdots" id="pdots"></div>
-   <div class="phint">← листай планеры →</div>
-  </div>
-  <!-- система дисциплины -->
-  <div class="glass disc rv" id="disc">
-    <div class="top">
-      <span class="fire">🔥</span>
-      <h3>Система дисциплины</h3>
-      <p>То, чего нет у мёртвых таблиц. Каждая галочка — монеты. Дни подряд — серия и множитель. Монеты растят уровень: от Новичка до Магната. Бросить на серии становится физически жалко — так дисциплина держится сама.</p>
-    </div>
-    <div class="ladder">
-      <div class="lv" style="--i:0"><div class="em">🐣</div><div class="nm">Новичок</div><div class="cn">0 🪙</div></div>
-      <div class="lv cur" style="--i:1"><div class="em">🚀</div><div class="nm">Стартапер</div><div class="cn">300 🪙</div></div>
-      <div class="lv" style="--i:2"><div class="em">💼</div><div class="nm">Предприниматель</div><div class="cn">1 500 🪙</div></div>
-      <div class="lv" style="--i:3"><div class="em">🏢</div><div class="nm">Директор</div><div class="cn">5 000 🪙</div></div>
-      <div class="lv" style="--i:4"><div class="em">👑</div><div class="nm">Магнат</div><div class="cn">15 000 🪙</div></div>
-    </div>
-    <div class="strip">
-      <div class="chip"><span class="big">🔥</span><div><b>6 дней</b><span>текущая серия без пропусков</span></div></div>
-      <div class="chip"><span class="big">✖️</span><div><b>x1.6</b><span>множитель монет за серию (до x2)</span></div></div>
-      <div class="chip"><span class="big">🪙</span><div><b>2 480</b><span>монет накоплено в этом месяце</span></div></div>
-    </div>
-  </div>
-</div></section>
-
-<section><div class="wrap">
-  <div class="kicker rv">Всего 4 шага</div>
-  <h2 class="rv uline">Как это играется</h2>
-  <div class="steps">
-    <div class="glass step rv" style="--i:0"><div class="n">01</div><div class="ico">✅</div><h3>Отмечаешь день</h3><p>Сделал привычку — ставишь галочку в таблице.</p></div>
-    <div class="glass step rv" style="--i:1"><div class="n">02</div><div class="ico">🪙</div><h3>Капают монеты</h3><p>Каждая галочка приносит монеты. Формулы считают всё сами.</p></div>
-    <div class="glass step rv" style="--i:2"><div class="n">03</div><div class="ico">🔥</div><h3>Серия множит доход</h3><p>Дни подряд дают множитель до x2. Бросить становится жалко.</p></div>
-    <div class="glass step rv" style="--i:3"><div class="n">04</div><div class="ico">👑</div><h3>Растёшь до Магната</h3><p>Новичок, Стартапер, Предприниматель, Директор, Магнат.</p></div>
-  </div>
-</div></section>
-
-<section id="vs"><div class="wrap">
-  <div class="kicker rv">Почувствуй разницу</div>
-  <h2 class="rv uline">Обычный планер против «Магната»</h2>
-  <div class="vs rv">
-    <div class="vcol dead glass">
-      <h3>💀 Мёртвая таблица</h3>
-      <div class="vi">Пустые клетки без обратной связи</div>
-      <div class="vi">Бросаешь через неделю — ничего не держит</div>
-      <div class="vi">Ноль аналитики: прогресса не видно</div>
-      <div class="vi">Открывать скучно, вести — обязанность</div>
-    </div>
-    <div class="vcol alive glass">
-      <h3>🏛 Магнат</h3>
-      <div class="vi">Каждая галочка даёт монеты — мгновенная награда</div>
-      <div class="vi">Серия и множитель до x2 — жалко бросить</div>
-      <div class="vi">Дашборды: KPI, графики и инсайты недели</div>
-      <div class="vi">Уровни Новичок → Магнат — хочется вернуться</div>
-    </div>
-  </div>
-</div></section>
-
-<section><div class="wrap"><div class="bundle">
-  <div class="phone rv"><div class="screen">
-    <div class="m-tag">◆ уровень 3</div>
-    <div class="m-lvl">💼 Предприниматель</div>
-    <div class="m-bar"><i></i></div>
-    <div class="m-tiles">
-      <div class="m-tile"><b style="color:var(--gold)">6</b><span>серия</span></div>
-      <div class="m-tile"><b style="color:var(--emerald)">x1.6</b><span>множитель</span></div>
-      <div class="m-tile"><b>2 480</b><span>монет</span></div>
-    </div>
-    <div class="m-q done"><div class="b">✓</div>🏋️ Тренировка</div>
-    <div class="m-q done"><div class="b">✓</div>💰 Шаг к деньгам</div>
-    <div class="m-q"><div class="b"></div>📚 Час на дело</div>
-  </div></div>
-  <div>
-    <div class="kicker rv">В подарок</div>
-    <h2 class="rv uline">Приложение и Telegram-бот</h2>
-    <p class="sub rv">Таблица — твой штаб. А для быстрых отметок с телефона в бандле идут бонусы:</p>
-    <ul class="blist">
-      <li class="rv" style="--i:0"><span class="plus">+</span><span><b>Веб-приложение «Магнат»</b> — та же игра иконкой на экране телефона: графики, магазин наград, город-империя.</span></li>
-      <li class="rv" style="--i:1"><span class="plus">+</span><span><b>Telegram-бот</b> <em style="color:var(--gold); font-style:normal; font-size:12px">скоро</em> — утренний пинг и отметки в один тап, серия и монеты те же.</span></li>
-      <li class="rv" style="--i:2"><span class="plus">+</span><span><b>Обновления набора</b> — новые листы и механики приходят бесплатно.</span></li>
-    </ul>
-  </div>
-</div></div></section>
-
-<section id="price"><div class="wrap" style="text-align:center">
-  <div class="kicker rv" style="justify-content:center">Один раз — навсегда</div>
-  <h2 class="rv uline">Твоё без подписок и продлений</h2>
-  <p class="sub rv" style="margin:16px auto 0">Приложения-планеры по подписке берут ~300 ₽ в месяц — это <b style="color:var(--ink)">3 600 ₽ каждый год</b>, снова и снова. «Магнат» — <b style="color:var(--emerald)">990 ₽ один раз</b> и навсегда твой.</p>
-  <div class="glass price rv" style="text-align:center">
-    <div class="old">1 490 ₽</div>
-    <div class="now">990 ₽</div>
-    <div class="once">разово · доступ навсегда · без подписки</div>
-    <ul>
-      <li>5 Google-таблиц с игровой механикой</li>
-      <li>Данные хранятся в твоём Google-аккаунте</li>
-      <li>Веб-приложение в подарок (Telegram-бот — скоро)</li>
-      <li>Все будущие обновления бесплатно</li>
-      <li>Помощь по настройке на почте</li>
-    </ul>
-    <a href="#" class="btn btn-p" data-buy>🏛 Купить за 990 ₽</a>
-    <div class="pay-note">Оплата картой или СБП через Робокассу. Ссылка на таблицы придёт на твой e-mail сразу после оплаты.</div>
-  </div>
-  <div class="trustbar rv" style="max-width:560px;margin:22px auto 0;display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left">
-    <div class="glass" style="padding:13px 15px;display:flex;gap:11px;align-items:flex-start"><span style="font-size:20px">🔒</span><span style="font-size:12.5px;color:var(--mut)"><b style="color:var(--ink)">Безопасная оплата</b><br>Робокасса · карта/СБП · чек по 54-ФЗ</span></div>
-    <div class="glass" style="padding:13px 15px;display:flex;gap:11px;align-items:flex-start"><span style="font-size:20px">☁️</span><span style="font-size:12.5px;color:var(--mut)"><b style="color:var(--ink)">Данные — твои</b><br>Таблицы живут в твоём Google-аккаунте</span></div>
-    <div class="glass" style="padding:13px 15px;display:flex;gap:11px;align-items:flex-start"><span style="font-size:20px">♾️</span><span style="font-size:12.5px;color:var(--mut)"><b style="color:var(--ink)">Доступ навсегда</b><br>Без подписок · обновления бесплатно</span></div>
-    <div class="glass" style="padding:13px 15px;display:flex;gap:11px;align-items:flex-start"><span style="font-size:20px">✉️</span><span style="font-size:12.5px;color:var(--mut)"><b style="color:var(--ink)">Живая поддержка</b><br>Поможем с настройкой, разберём спорное</span></div>
-  </div>
-</div></section>
-
-<section><div class="wrap" style="text-align:center">
-  <div class="kicker rv" style="justify-content:center">5 минут до старта</div>
-  <h2 class="rv uline">Как получить</h2>
-  <div class="how" style="text-align:left">
-    <div class="glass h-step rv" style="--i:0"><div class="n">1</div><div><h4>Оплачиваешь</h4><p>Картой или СБП, займёт полминуты.</p></div></div>
-    <div class="glass h-step rv" style="--i:1"><div class="n">2</div><div><h4>Получаешь письмо</h4><p>Ссылка на набор приходит на e-mail сразу после оплаты.</p></div></div>
-    <div class="glass h-step rv" style="--i:2"><div class="n">3</div><div><h4>Открываешь в Google Таблицах</h4><p>На телефоне или компьютере, всё уже настроено.</p></div></div>
-    <div class="glass h-step rv" style="--i:3"><div class="n">4</div><div><h4>Копируешь шаблон себе</h4><p>Один клик — и планер твой навсегда, в твоём Google-аккаунте.</p></div></div>
-  </div>
-</div></section>
-
-<!-- ============================================================
-     БЛОК ОТЗЫВОВ — заполни РЕАЛЬНЫМИ отзывами и раскомментируй.
-     Не публикуй выдуманные отзывы: это ложная реклама и убивает доверие,
-     когда вскрывается. Собери 3-6 настоящих (скрин из переписки, имя, город)
-     и вставь вместо ПЛЕЙСХОЛДЕРОВ ниже. Затем убери открывающий и закрывающий
-     теги этого комментария (строку выше и строку с равно ниже), чтобы секция
-     стала видимой.
-<section><div class="wrap" style="text-align:center">
-  <div class="kicker rv" style="justify-content:center">Отзывы</div>
-  <h2 class="rv uline">Что говорят те, кто уже играет</h2>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:34px;text-align:left" class="reviews-grid">
-    <div class="glass" style="padding:22px 20px">
-      <div style="color:var(--gold);font-size:15px;margin-bottom:10px">★★★★★</div>
-      <p style="color:var(--ink);font-size:14.5px;line-height:1.6">«ТЕКСТ РЕАЛЬНОГО ОТЗЫВА — что изменилось, сколько дней серия, за что зацепило.»</p>
-      <div style="color:var(--mut2);font-size:12.5px;margin-top:14px">Имя, город</div>
-    </div>
-    <div class="glass" style="padding:22px 20px">
-      <div style="color:var(--gold);font-size:15px;margin-bottom:10px">★★★★★</div>
-      <p style="color:var(--ink);font-size:14.5px;line-height:1.6">«ТЕКСТ РЕАЛЬНОГО ОТЗЫВА.»</p>
-      <div style="color:var(--mut2);font-size:12.5px;margin-top:14px">Имя, город</div>
-    </div>
-    <div class="glass" style="padding:22px 20px">
-      <div style="color:var(--gold);font-size:15px;margin-bottom:10px">★★★★★</div>
-      <p style="color:var(--ink);font-size:14.5px;line-height:1.6">«ТЕКСТ РЕАЛЬНОГО ОТЗЫВА.»</p>
-      <div style="color:var(--mut2);font-size:12.5px;margin-top:14px">Имя, город</div>
-    </div>
-  </div>
-</div></section>
-     ============================================================ -->
-
-<section id="faq"><div class="wrap" style="text-align:center">
-  <div class="kicker rv" style="justify-content:center">Вопросы</div>
-  <h2 class="rv uline">Коротко о главном</h2>
-  <div class="faq" style="text-align:left">
-    <details class="glass qa rv" style="--i:0" open><summary>Почему Google-таблицы, а не приложение?</summary><div class="a">Потому что данные принадлежат тебе, а не сервису: таблицы лежат в твоём Google-аккаунте и не исчезнут, если какой-то стартап закроется. Их можно настроить под себя до мелочей. А для быстрых отметок с телефона в наборе есть приложение «Магнат».</div></details>
-    <details class="glass qa rv" style="--i:1"><summary>Мне нужно что-то уметь в таблицах?</summary><div class="a">Нет. Все формулы уже внутри, ты только ставишь галочки. Настройка своих привычек — на отдельном листе, по инструкции.</div></details>
-    <details class="glass qa rv" style="--i:1"><summary>Мои данные сохранятся?</summary><div class="a">Да. Таблица живёт в твоём Google-аккаунте: смена телефона, чистка кэша — ничего не теряется.</div></details>
-    <details class="glass qa rv" style="--i:2"><summary>Надо платить каждый месяц?</summary><div class="a">Нет. Платишь один раз — набор твой навсегда, включая будущие обновления.</div></details>
-    <details class="glass qa rv" style="--i:3"><summary>Это работает на телефоне?</summary><div class="a">Да, через бесплатное приложение Google Таблицы. Для быстрых отметок в бандле есть веб-приложение, а Telegram-бот добавим скоро.</div></details>
-    <details class="glass qa rv" style="--i:4"><summary>Чем это лучше бесплатных шаблонов?</summary><div class="a">Бесплатные шаблоны — пустые сетки без обратной связи. Здесь — игровая система (монеты, серия, множитель, 5 уровней), дашборды с KPI и инсайтами, автоформулы и приложение в подарок. Плюс все будущие обновления набора.</div></details>
-    <details class="glass qa rv" style="--i:5"><summary>Если что-то не получится?</summary><div class="a">Пиши на почту — поможем с настройкой. Условия возврата описаны в оферте.</div></details>
-  </div>
-</div></section>
-
-<section class="final"><div class="wrap">
-  <div class="skyline rv"><i>🛖</i><i>🏠</i><i>🏢</i><i>🏙</i><i>👑</i></div>
-  <h2 class="rv uline">Хватит начинать с понедельника.<br>Начни строить империю сегодня.</h2>
-  <div><a href="#" class="btn btn-p rv" data-buy>🏛 Получить «Магнат»</a></div>
-</div></section>
-
-<footer><div class="wrap">
-  <div class="flinks">
-    <a href="oferta.html">Публичная оферта</a>
-    <a href="privacy.html">Политика конфиденциальности</a>
-    <a href="mailto:planermagnat@gmail.com">Поддержка</a>
-  </div>
-  Самозанятый Могуленко Артём Евгеньевич<br>
-  ИНН 753007234205 · Россия, г. Краснокаменск<br>
-  Почта: <a href="mailto:planermagnat@gmail.com">planermagnat@gmail.com</a><br>
-  <span style="color:#3d4a5c">«Магнат» · планер как игра-тайкун</span>
-</div></footer>
-
-<!-- закреплённая кнопка на мобиле: появляется после hero, прячется у цены и финала -->
-<div class="mcta" id="mcta"><a href="#price" class="btn btn-p">🏛 Получить за 990 ₽</a></div>
-
-<!-- модалка покупки: показывается, пока не подключена онлайн-оплата -->
-<div class="ovl" id="buyOvl">
-  <div class="modal">
-    <div class="big">🏛</div>
-    <h4>Забронируй по стартовой цене</h4>
-    <p>Приём оплаты картой и СБП подключается. Напиши на почту — забронируем набор по стартовой цене 990 ₽ и пришлём ссылку на оплату первыми.</p>
-    <div class="mailbox" id="mailTxt">planermagnat@gmail.com</div>
-    <button class="btn btn-p" id="copyBtn" type="button">📋 Скопировать адрес</button>
-    <a class="maillink" id="mailBtn" href="#">или открыть почтовое приложение</a>
-    <button class="close" id="ovlClose">закрыть</button>
-  </div>
-</div>
+<main class="wrap">
+  <div class="view" id="v-home"></div>
+  <div class="view" id="v-habits"></div>
+  <div class="view" id="v-tasks"></div>
+  <div class="view" id="v-money"></div>
+  <div class="view" id="v-body"></div>
+  <div class="view" id="v-shop"></div>
+</main>
+<div class="toast" id="toast"></div>
 
 <script>
 "use strict";
-/* страница ВСЕГДА открывается сверху (iOS Safari иначе восстанавливает прошлую
-   позицию скролла и после обновления казалось, что страница открылась с середины) */
+/* при обновлении страницы открывать сверху, а не с прошлой позиции скролла */
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-(function(){
-  function top(){ window.scrollTo(0,0); }
-  window.addEventListener("load", function(){ if(!location.hash){ top(); requestAnimationFrame(top); setTimeout(top,90); } });
-  window.addEventListener("pageshow", function(){ if(!location.hash) top(); });
-})();
+const KEY="magnat_app_v2", DAYOK=3;
+const LEVELS=[["🐣 Новичок",0,"🛖"],["🚀 Стартапер",300,"🏠"],["💼 Предприниматель",1500,"🏢"],["🏢 Директор",5000,"🏙"],["👑 Магнат",15000,"👑"]];
+const DEFHABITS=[["🏋️","Тренировка",25],["📚","Час на дело / обучение",25],["💰","Шаг к деньгам",30],["📵","День без залипания",15],["🧊","Холодный душ",10],["💧","Вода 2 л",10],["🚶","10 000 шагов",15],["✍️","Разбор дня",15]];
+const REWARDS=[["🎮","Вечер игр",150],["🍔","Читмил",300],["🎬","Кино",400],["🛌","Выходной",1500],["🛍","Новая вещь",2000],["🌴","Поездка",5000]];
+const TABS=[["home","🏛 Обзор"],["habits","✅ Привычки"],["tasks","🎯 Задачи"],["money","💰 Финансы"],["body","💪 Тело"],["shop","🛒 Награды"]];
+const nf=n=>Math.round(n).toLocaleString("ru-RU");
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const gv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pad=x=>String(x).padStart(2,"0");
+const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseYmd=s=>{const[y,m,dd]=s.split("-").map(Number);return new Date(y,m-1,dd);};
+const addDays=(s,n)=>{const d=parseYmd(s);d.setDate(d.getDate()+n);return ymd(d);};
+const fmtD=s=>s.slice(8,10)+"."+s.slice(5,7);
+const isYmd=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+// дата живая: приложение может остаться открытым на телефоне через полночь
+let TODAY=ymd(new Date());
+let CURMONTH=TODAY.slice(0,7);
+function refreshToday(){ const t=ymd(new Date()); if(t===TODAY) return false; TODAY=t; CURMONTH=t.slice(0,7); return true; }
+// уникальные id, которые не столкнутся при добавлении двух записей в одну миллисекунду
+let uidN=0; const uid=()=>Date.now()*1000+(uidN=(uidN+1)%1000);
+// «82,4», «2 400», «1 500 ₽» — всё это должно превращаться в число, а не в 0
+const num=v=>{ if(typeof v==="number") return Number.isFinite(v)?v:0;
+  const n=parseFloat(String(v??"").replace(/[\s  ]/g,"").replace(",","."));
+  return Number.isFinite(n)?n:0; };
 
-/* ВСТАВЬ СЮДА платёжную ссылку Робокассы (напр. "https://auth.robokassa.ru/Merchant/Index.aspx?...").
-   Как только тут будет непустая строка — обе кнопки «Купить» поведут прямо на оплату,
-   а модалка-бронь перестанет показываться. Это #1 фикс продаж. */
-var PAYMENT_URL = "";
-var RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-/* сетка недели строится из данных (компактная разметка) */
-(function(){
-  /* сетка недели */
-  var wk=[
-    {d:"ПН",tasks:[1,1,1],en:3,mo:"😄",p:100},
-    {d:"ВТ",tasks:[1,1,0],en:2,mo:"🙂",p:66},
-    {d:"СР",tasks:[1,1,1],en:3,mo:"😄",p:100},
-    {d:"ЧТ",tasks:[1,0,0],en:1,mo:"😐",p:33},
-    {d:"ПТ",tasks:[1,1,1],en:5,mo:"😄",p:100},
-    {d:"СБ",tasks:[1,1,0],en:3,mo:"🙂",p:66},
-    {d:"ВС",tasks:[0,0,0],en:2,mo:"😴",p:0}
+let FIRST_RUN=false;
+function load(){
+  try{const r=localStorage.getItem(KEY); if(r) return normalize(JSON.parse(r));}catch(e){}
+  FIRST_RUN=true; return seed();
+}
+function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} }
+function freshStart(){  // чистый лист — без чужих данных
+  let id=1; const habits=DEFHABITS.map(([ico,name,coin])=>({id:id++,ico,name,coin}));
+  return {habits, checks:{}, tasks:[], finance:{income:0,entries:[]}, body:{goalW:0,calGoal:2400,waterGoal:2500,log:[]}, bought:[], myRewards:[], boughtMy:{}, spent:0};
+}
+// приводим любые данные (старая версия, ручная правка, чужой файл) к рабочему виду —
+// иначе одно недостающее поле роняет всё приложение в белый экран
+function normalize(d){
+  if(!d||typeof d!=="object"||Array.isArray(d)) return freshStart();
+  const def=freshStart(), o={};
+  o.habits=Array.isArray(d.habits)
+    ? d.habits.filter(h=>h&&typeof h==="object").map((h,i)=>({
+        id:Number.isFinite(+h.id)?+h.id:i+1, ico:String(h.ico||"⭐"),
+        name:String(h.name||"Привычка"), coin:Math.min(200,Math.max(1,Math.round(num(h.coin))||10))}))
+    : def.habits;
+  const ids=new Set(o.habits.map(h=>h.id));
+  o.checks={};
+  if(d.checks&&typeof d.checks==="object") for(const k in d.checks){
+    if(!isYmd(k)||!Array.isArray(d.checks[k])) continue;
+    const a=[...new Set(d.checks[k].map(Number).filter(n=>ids.has(n)))];
+    if(a.length) o.checks[k]=a;
+  }
+  o.tasks=Array.isArray(d.tasks)?d.tasks.filter(t=>t&&typeof t==="object").map(t=>({
+    id:Number.isFinite(+t.id)?+t.id:uid(), name:String(t.name||"Задача"),
+    prio:["hi","md","lo"].includes(t.prio)?t.prio:"md",
+    due:isYmd(t.due)?t.due:TODAY, done:!!t.done})):[];
+  const fin=(d.finance&&typeof d.finance==="object")?d.finance:{};
+  o.finance={income:Math.max(0,num(fin.income)), entries:Array.isArray(fin.entries)?fin.entries
+    .filter(e=>e&&typeof e==="object").map(e=>({
+      id:Number.isFinite(+e.id)?+e.id:uid(), type:e.type==="in"?"in":"out",
+      cat:String(e.cat||"💸 Прочее"), amount:Math.round(Math.abs(num(e.amount))),
+      date:isYmd(e.date)?e.date:TODAY})).filter(e=>e.amount>0):[]};
+  const b=(d.body&&typeof d.body==="object")?d.body:{};
+  const seen=new Set(); const log=(Array.isArray(b.log)?b.log:[])
+    .filter(x=>x&&isYmd(x.date)&&num(x.w)>0)
+    .map(x=>({date:x.date,w:Math.round(num(x.w)*10)/10}))
+    .sort((p,q)=>p.date<q.date?-1:p.date>q.date?1:0)
+    .filter(x=>{ if(seen.has(x.date)) return false; seen.add(x.date); return true; });
+  o.body={goalW:Math.max(0,num(b.goalW)), calGoal:Math.round(num(b.calGoal))||2400,
+          waterGoal:Math.round(num(b.waterGoal))||2500, log};
+  o.bought=Array.isArray(d.bought)?d.bought.map(Number).filter(n=>Number.isInteger(n)&&n>=0):[];
+  o.myRewards=Array.isArray(d.myRewards)?d.myRewards.filter(r=>r&&typeof r==="object").map(r=>({
+    id:Number.isFinite(+r.id)?+r.id:uid(), ico:String(r.ico||"🎁"),
+    name:String(r.name||"Награда"), cost:Math.max(1,Math.round(num(r.cost))||100)})):[];
+  o.boughtMy={};
+  if(d.boughtMy&&typeof d.boughtMy==="object") for(const k in d.boughtMy){
+    const n=Math.round(num(d.boughtMy[k])); if(n>0) o.boughtMy[k]=n;
+  }
+  o.spent=Math.max(0,Math.round(num(d.spent)));
+  if(d.demoData) o.demoData=true;
+  if(Number.isInteger(d.lastLvl)) o.lastLvl=d.lastLvl;
+  return o;
+}
+let S=load();
+function seed(){
+  let id=1; const habits=DEFHABITS.map(([ico,name,coin])=>({id:id++,ico,name,coin}));
+  const checks={};
+  // 8 недель истории — столько же, сколько показывает график «Сила по неделям»
+  for(let k=55;k>=1;k--){ const date=addDays(TODAY,-k),arr=[]; habits.forEach(h=>{if(Math.random()<0.8)arr.push(h.id);}); if(arr.length)checks[date]=arr; }
+  const tasks=[
+    {id:1,name:"Смонтировать ролик",prio:"hi",due:addDays(TODAY,0),done:false},
+    {id:2,name:"Написать 5 сценариев",prio:"hi",due:addDays(TODAY,1),done:false},
+    {id:3,name:"Оплатить сервер",prio:"md",due:addDays(TODAY,2),done:false},
+    {id:4,name:"Прочитать 20 страниц",prio:"lo",due:addDays(TODAY,0),done:true},
+    {id:5,name:"Позвонить маме",prio:"md",due:addDays(TODAY,-1),done:false},
+    {id:6,name:"Разобрать почту",prio:"lo",due:addDays(TODAY,0),done:true},
   ];
-  /* тепловая карта месяца в Привычках: 0 — пропуск, 1..4 — интенсивность дня,
-     null — будущие дни. Сегодня — 27-й день; последние 6 дней зачтены = серия 6 */
-  var hm=[3,2,4,3,1,4,3, 0,2,3,4,3,2,4, 3,4,2,3,4,1,0, 4,3,4,4,3,4, null,null,null,null];
-  var hg=document.getElementById("heatgrid");
-  if(hg){
-    hg.innerHTML=hm.map(function(v,i){
-      var cls=v===null?"fut":(v?("h"+v):"");
-      if(i===26) cls+=" tod";
-      return '<i class="'+cls+'" style="--k:'+i+'"></i>';
-    }).join("");
-  }
-  var wg=document.getElementById("weekgrid");
-  if(wg){
-    wg.innerHTML=wk.map(function(x){
-      var tk=x.tasks.map(function(t){return '<i class="'+(t?"d":"")+'"></i>';}).join("");
-      var en=""; for(var e=0;e<5;e++) en+='<i class="'+(e<x.en?"f":"")+'"></i>';
-      var v=x.p;
-      var ring='<svg class="ring" viewBox="0 0 42 42"><circle class="track" cx="21" cy="21" r="15.9" fill="none" stroke-width="5" pathLength="100"/>'
-        +'<circle class="val" cx="21" cy="21" r="15.9" fill="none" stroke="#7a52d0" stroke-width="5" pathLength="100" style="--v:'+v+'"/></svg>';
-      return '<div class="wd"><div class="dh">'+x.d+'</div><div class="tk">'+tk+'</div>'
-        +'<div class="en">'+en+'</div><div class="mo">'+x.mo+'</div>'+ring+'</div>';
-    }).join("");
-  }
-})();
+  // операции разложены по числам текущего месяца, а не свалены в один день
+  const dayIn=n=>{const d=Math.min(n,+TODAY.slice(8,10));return CURMONTH+"-"+pad(d);};
+  const finance={income:80000, entries:[
+    {id:1,type:"in", cat:"💼 Работа",       amount:60000,date:dayIn(5)},
+    {id:2,type:"in", cat:"📈 Подработка",   amount:15000,date:dayIn(12)},
+    {id:3,type:"out",cat:"🏠 Жильё",        amount:25000,date:dayIn(3)},
+    {id:4,type:"out",cat:"🍔 Еда",          amount:18000,date:dayIn(9)},
+    {id:5,type:"out",cat:"🎮 Досуг",        amount:8000, date:dayIn(11)},
+    {id:6,type:"out",cat:"🚗 Транспорт",    amount:6000, date:dayIn(7)},
+    {id:7,type:"out",cat:"📱 Связь",        amount:2500, date:dayIn(2)},
+  ]};
+  const body={goalW:78, calGoal:2400, waterGoal:2500,
+    log:[["-56",84],["-49",83.2],["-42",82.5],["-35",81.9],["-28",81.1],["-21",80.4],["-14",79.8],["-7",79.3],["0",78.9]].map(([k,w])=>({date:addDays(TODAY,+k),w}))};
+  return {habits,checks,tasks,finance,body,bought:[],spent:0};
+}
 
-/* конфетти: DOM-частицы через Web Animations (без библиотек) */
+// ---- gamification (сверено с ботом) ----
+const checksOf=d=>S.checks[d]||[];
+const isDone=(hid,d)=>checksOf(d).includes(hid);
+const habitById=id=>S.habits.find(h=>h.id===id);
+const dayComplete=d=>checksOf(d).length>=DAYOK;
+const baseCoins=d=>checksOf(d).reduce((s,id)=>s+(habitById(id)?.coin||0),0);
+function streakEndingOn(d){let s=0;while(dayComplete(d)){s++;d=addDays(d,-1);}return s;}
+const streakBefore=d=>streakEndingOn(addDays(d,-1));
+const mult=s=>Math.min(2,1+0.1*s);
+const coinsFor=d=>Math.round(baseCoins(d)*mult(streakBefore(d)));
+function totalXP(){let t=0;for(const d in S.checks)t+=coinsFor(d);return t;}
+function levelIdx(xp){let i=0;for(let k=0;k<LEVELS.length;k++)if(xp>=LEVELS[k][1])i=k;return i;}
+const curStreak=()=>dayComplete(TODAY)?streakEndingOn(TODAY):streakEndingOn(addDays(TODAY,-1));
+const wallet=()=>totalXP()-S.spent;
+
+// ---- честные инсайты: только из реальных локальных данных ----
+function recordStreak(){
+  const days=Object.keys(S.checks).filter(dayComplete).sort();
+  let best=0,run=0,prev=null;
+  for(const d of days){ run=(prev && addDays(prev,1)===d)?run+1:1; if(run>best)best=run; prev=d; }
+  return best;
+}
+function pctRange(fromAgo,toAgo){ // % выполнения за диапазон дней назад (включительно)
+  let dc=0,tp=0;
+  for(let k=fromAgo;k>=toAgo;k--){ dc+=checksOf(addDays(TODAY,-k)).length; tp+=S.habits.length; }
+  return tp?dc/tp:0;
+}
+function homeInsight(){
+  if(Object.keys(S.checks).length<7 || !S.habits.length) return null;
+  // 1) близкий рекорд серии
+  const rec=recordStreak(), st=curStreak();
+  if(st>0 && st<rec){
+    const n=rec-st+1;
+    if(n<=7){ const w=n===1?"день":(n<5?"дня":"дней");
+      return `Держи темп ещё <b>${n} ${w}</b> — побьёшь свой рекорд из <b>${rec} дн.</b>`; }
+  }
+  // 2) заметная дельта дисциплины неделя к неделе
+  const a=pctRange(6,0), b=pctRange(13,7);
+  if(b>0){
+    const d=Math.round((a-b)/b*100);
+    if(d>=10) return `За неделю дисциплина выросла на <b>+${d}%</b>. Отличный разгон.`;
+    if(d<=-10) return `Дисциплина просела на <b>${Math.abs(d)}%</b> за неделю — вернись в ритм сегодня.`;
+  }
+  // 3) слабый день недели за 30 дней
+  const wd=[0,0,0,0,0,0,0], wt=[0,0,0,0,0,0,0];
+  for(let k=0;k<30;k++){ const ds=addDays(TODAY,-k), w=parseYmd(ds).getDay(); wd[w]+=checksOf(ds).length; wt[w]+=S.habits.length; }
+  let wi=-1,wr=2;
+  for(let w=0;w<7;w++){ if(wt[w]>0){ const r=wd[w]/wt[w]; if(r<wr){wr=r;wi=w;} } }
+  if(wi>=0){
+    const nm=["воскресенье","понедельник","вторник","среду","четверг","пятницу","субботу"][wi];
+    return `Чаще всего пропускаешь <b>${nm}</b> — поставь на этот день минимум дел.`;
+  }
+  return null;
+}
+const monthEntries=()=>S.finance.entries.filter(e=>e.date.slice(0,7)===CURMONTH);
+
+let toastT; function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),1900);}
+
+// ---- эмоции: конфетти, полёт монеты, празднование уровня ----
+const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
 function confettiBurst(x,y,n,colors){
   if(RM || !document.body.animate) return;
   for(let i=0;i<n;i++){
-    let p=document.createElement("i"), s=4+Math.random()*5;
-    p.style.cssText="position:fixed;z-index:70;pointer-events:none;font-style:normal;left:"+x+"px;top:"+y+"px;width:"+s+"px;height:"+s+"px;border-radius:"+(Math.random()<.4?"50%":"2px")+";background:"+colors[i%colors.length];
+    const p=document.createElement("i"), s=4+Math.random()*5;
+    p.style.cssText=`position:fixed;z-index:80;pointer-events:none;font-style:normal;left:${x}px;top:${y}px;width:${s}px;height:${s}px;border-radius:${Math.random()<.4?"50%":"2px"};background:${colors[i%colors.length]}`;
     document.body.appendChild(p);
-    let a=Math.random()*Math.PI*2, v=50+Math.random()*150,
-        dx=Math.cos(a)*v, dy=Math.sin(a)*v-85;
+    const a=Math.random()*Math.PI*2, v=50+Math.random()*160,
+          dx=Math.cos(a)*v, dy=Math.sin(a)*v-90;
     p.animate([
       {transform:"translate(0,0) rotate(0deg)", opacity:1},
-      {transform:"translate("+dx+"px,"+(dy+175)+"px) rotate("+((Math.random()*2-1)*540)+"deg)", opacity:0}
-    ],{duration:950+Math.random()*500, easing:"cubic-bezier(.2,.6,.4,1)"}).onfinish=function(){ p.remove(); };
+      {transform:`translate(${dx}px,${dy+180}px) rotate(${(Math.random()*2-1)*540}deg)`, opacity:0}
+    ],{duration:950+Math.random()*500, easing:"cubic-bezier(.2,.6,.4,1)"}).onfinish=()=>p.remove();
   }
 }
+function flyCoinToWallet(fromEl){
+  const w=document.getElementById("wallet"); if(RM||!w||!fromEl.animate) return;
+  const chip=w.closest(".chip"), r1=fromEl.getBoundingClientRect(), r2=chip.getBoundingClientRect();
+  const c=document.createElement("div"); c.textContent="🪙";
+  c.style.cssText=`position:fixed;z-index:80;pointer-events:none;font-size:15px;line-height:1;left:${r1.left+r1.width/2-8}px;top:${r1.top+r1.height/2-8}px;`;
+  document.body.appendChild(c);
+  const dx=(r2.left+r2.width/2)-(r1.left+r1.width/2), dy=(r2.top+r2.height/2)-(r1.top+r1.height/2);
+  c.animate([
+    {transform:"translate(0,0) scale(1)", opacity:1},
+    {transform:`translate(${dx*.45}px,${dy*.45-48}px) scale(1.3)`, offset:.55},
+    {transform:`translate(${dx}px,${dy}px) scale(.4)`, opacity:.3}
+  ],{duration:620, easing:"cubic-bezier(.25,.7,.3,1)"}).onfinish=()=>{
+    c.remove();
+    if(chip.animate) chip.animate([{transform:"scale(1)"},{transform:"scale(1.16)"},{transform:"scale(1)"}],{duration:260});
+  };
+}
+function celebrateLevel(li){
+  const [name,,emoji]=LEVELS[li];
+  const ovl=el(`<div class="ovl" style="z-index:70"><div class="modal" style="text-align:center;max-width:330px">
+    <div style="font-size:62px;line-height:1;filter:drop-shadow(0 0 20px #2fe38f77)">${emoji}</div>
+    <div style="color:var(--emerald);font-size:11px;letter-spacing:2.2px;text-transform:uppercase;margin-top:12px">Новый уровень</div>
+    <h4 style="font-size:25px;margin-top:2px">${name}</h4>
+    <p style="color:var(--mut);font-size:13.5px;margin:8px 0 0">Твоя империя стала больше. Дисциплина платит.</p>
+    <div class="btns"><button class="ok">Строим дальше 🚀</button></div></div></div>`);
+  document.body.appendChild(ovl);
+  confettiBurst(innerWidth/2, innerHeight*0.32, 64, ["#2fe38f","#f5c451","#35d0ff","#b06bff"]);
+  const close=()=>ovl.remove();
+  ovl.querySelector(".ok").onclick=close;
+  ovl.onclick=e=>{if(e.target===ovl)close();};
+}
 
-/* живая демо-игра в hero: монеты летят в кошелёк, империя строится, уровни празднуются */
-(function(){
-  /* демо-шкала уровней: сжата, чтобы путь до Магната проживался за 15 кликов */
-  var LVL=[["🐣 Новичок",0],["🚀 Стартапер",100],["💼 Предприниматель",250],["🏢 Директор",350],["👑 Магнат",400]];
-  var coins=0, li=0;
-  var elC=document.getElementById("dCoins"), lv=document.getElementById("dLvl"),
-      hint=document.getElementById("dHint"),
-      emp=[].slice.call(document.querySelectorAll("#dEmp i"));
-  function flyCoin(from){
-    if(RM || !from.animate) return;
-    var r1=from.getBoundingClientRect(), r2=elC.getBoundingClientRect();
-    var c=document.createElement("div"); c.textContent="🪙";
-    c.style.cssText="position:fixed;z-index:70;pointer-events:none;font-size:14px;line-height:1;left:"+(r1.left+r1.width/2-8)+"px;top:"+(r1.top+r1.height/2-8)+"px;";
-    document.body.appendChild(c);
-    var dx=(r2.left+26)-(r1.left+r1.width/2), dy=(r2.top+r2.height/2)-(r1.top+r1.height/2);
-    c.animate([
-      {transform:"translate(0,0) scale(1)", opacity:1},
-      {transform:"translate("+(dx*.45)+"px,"+(dy*.45-46)+"px) scale(1.25)", offset:.55},
-      {transform:"translate("+dx+"px,"+dy+"px) scale(.45)", opacity:.3}
-    ],{duration:650, easing:"cubic-bezier(.25,.7,.3,1)"}).onfinish=function(){ c.remove(); };
+// ---- canvas helpers ----
+function setup(cv,h){const dpr=window.devicePixelRatio||1,w=cv.getBoundingClientRect().width||200;cv.width=w*dpr;cv.height=h*dpr;cv.style.height=h+"px";const c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);return{c,w,h};}
+function donut(cv,frac,color){const {c,w,h}=setup(cv,150);const cx=w/2,cy=h/2,r=Math.min(w,h)/2-9;c.lineWidth=15;c.lineCap="round";c.strokeStyle="#182230";c.beginPath();c.arc(cx,cy,r,0,7);c.stroke();if(frac>0){c.strokeStyle=color;c.shadowColor=color;c.shadowBlur=13;c.beginPath();c.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(1,frac));c.stroke();c.shadowBlur=0;}}
+function line(cv,data,color){const {c,w,h}=setup(cv,110);if(data.length<2)data=[data[0]??0,data[0]??0];const mn=Math.min(...data),mx=Math.max(...data,mn+1),pd=8;const X=i=>pd+i*(w-2*pd)/(data.length-1),Y=v=>h-pd-(v-mn)/(mx-mn)*(h-2*pd);const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,color+"55");g.addColorStop(1,color+"00");c.beginPath();c.moveTo(X(0),Y(data[0]));data.forEach((v,i)=>c.lineTo(X(i),Y(v)));c.lineTo(X(data.length-1),h-pd);c.lineTo(X(0),h-pd);c.closePath();c.fillStyle=g;c.fill();c.beginPath();c.moveTo(X(0),Y(data[0]));data.forEach((v,i)=>c.lineTo(X(i),Y(v)));c.strokeStyle=color;c.lineWidth=2.4;c.lineJoin="round";c.shadowColor=color;c.shadowBlur=9;c.stroke();c.shadowBlur=0;c.beginPath();c.arc(X(data.length-1),Y(data[data.length-1]),3.5,0,7);c.fillStyle=color;c.fill();}
+// столбики: color — строка или массив по столбцу; opts.labels — подписи снизу, opts.values — значения сверху
+function bars(cv,data,color,opts){
+  const o=opts||{}, {c,w,h}=setup(cv,o.height||120);
+  const n=data.length, mx=Math.max(...data,1);
+  const base=h-(o.labels?15:3), top=o.values?16:6;
+  const gap=w/n, bw=Math.min(gap*(n<=3?0.44:0.62), 74);
+  c.strokeStyle="#1c2735"; c.lineWidth=1;
+  c.beginPath(); c.moveTo(0,base+.5); c.lineTo(w,base+.5); c.stroke();
+  data.forEach((v,i)=>{
+    const col=Array.isArray(color)?color[i%color.length]:color;
+    const bh=Math.max(v>0?2:0,(v/mx)*(base-top)), x=i*gap+(gap-bw)/2, y=base-bh;
+    if(bh){ c.fillStyle=col; c.shadowColor=col; c.shadowBlur=7;
+      c.beginPath(); c.rect(x,y,bw,bh); c.fill(); c.shadowBlur=0; }
+    c.textAlign="center";
+    if(o.values){ c.fillStyle=col; c.font="700 10.5px system-ui"; c.fillText(o.values[i],x+bw/2,Math.max(11,y-5)); }
+    if(o.labels){ c.fillStyle="#68809b"; c.font="10px system-ui"; c.fillText(o.labels[i],x+bw/2,h-3); }
+  });
+}
+// график веса: старт, текущее значение и пунктирная цель
+function weightChart(cv,log,goal){
+  const {c,w,h}=setup(cv,150);
+  const data=log.map(x=>x.w); if(data.length===1) data.push(data[0]);
+  const vals=goal?[...data,goal]:[...data];
+  let mn=Math.min(...vals), mx=Math.max(...vals);
+  if(mx-mn<0.8){mx+=0.5;mn-=0.5;}
+  const padL=10,padR=58,padY=16;
+  const X=i=>padL+i*(w-padL-padR)/(data.length-1);
+  const Y=v=>h-padY-(v-mn)/(mx-mn)*(h-2*padY);
+  const cy=gv("--cyan"), gold=gv("--gold");
+  if(goal){
+    const gy=Y(goal);
+    c.setLineDash([5,4]); c.strokeStyle=gold; c.globalAlpha=.65; c.lineWidth=1.4;
+    c.beginPath(); c.moveTo(padL,gy); c.lineTo(w-padR+6,gy); c.stroke();
+    c.setLineDash([]); c.globalAlpha=1;
+    c.fillStyle=gold; c.font="600 10px system-ui"; c.textAlign="left";
+    c.fillText("цель "+goal, w-padR+9, gy+3.5);
   }
-  var cells=[].slice.call(document.querySelectorAll(".cell"));
-  if(cells[0]) cells[0].classList.add("nudge");
-  cells.forEach(function(c){
-    c.addEventListener("click", function(){
-      if(cells[0].classList.contains("nudge")) cells.forEach(function(x){x.classList.remove("nudge");});
-      var v=parseInt(c.dataset.c,10);
-      var on=c.classList.toggle("on");
-      coins+=on?v:-v;
-      if(on) flyCoin(c);
-      elC.textContent="🪙 "+coins.toLocaleString("ru-RU");
-      elC.classList.remove("bump"); void elC.offsetWidth; elC.classList.add("bump");
-      var ni=0; for(var i=0;i<LVL.length;i++) if(coins>=LVL[i][1]) ni=i;
-      if(ni!==li){
-        var up=ni>li; li=ni;
-        lv.textContent=LVL[ni][0];
-        emp.forEach(function(e,k){ e.classList.toggle("on", k<=ni); });
-        if(up){
-          /* промежуточные уровни — тихая радость (pop + здание); салют — ТОЛЬКО за финал */
-          lv.classList.remove("pop"); void lv.offsetWidth; lv.classList.add("pop");
-          var slot=emp[ni]; slot.classList.remove("pop"); void slot.offsetWidth; slot.classList.add("pop");
-          if(ni===4){
-            var r=slot.getBoundingClientRect();
-            confettiBurst(r.left+r.width/2, r.top+r.height/2, 70, ["#f6c85a","#ffdf8e","#fff3d1","#d8a63d"]);
-            if(hint) hint.innerHTML="👑 <b style=\"color:var(--gold)\">Идеальная неделя!</b> Представь это чувство каждый вечер.";
-          }
-        }
+  const g=c.createLinearGradient(0,0,0,h); g.addColorStop(0,cy+"55"); g.addColorStop(1,cy+"00");
+  c.beginPath(); c.moveTo(X(0),Y(data[0])); data.forEach((v,i)=>c.lineTo(X(i),Y(v)));
+  c.lineTo(X(data.length-1),h-padY); c.lineTo(X(0),h-padY); c.closePath(); c.fillStyle=g; c.fill();
+  c.beginPath(); c.moveTo(X(0),Y(data[0])); data.forEach((v,i)=>c.lineTo(X(i),Y(v)));
+  c.strokeStyle=cy; c.lineWidth=2.4; c.lineJoin="round"; c.shadowColor=cy; c.shadowBlur=9; c.stroke(); c.shadowBlur=0;
+  if(log.length>1){ // стартовая точка есть смысл только при истории
+    c.beginPath(); c.arc(X(0),Y(data[0]),3.2,0,7); c.fillStyle="#5f7288"; c.fill();
+    c.fillStyle="#93a6bd"; c.font="600 10px system-ui"; c.textAlign="left";
+    c.fillText(String(log[0].w), X(0)+3, Y(data[0])-8);
+  }
+  const li=data.length-1;
+  c.beginPath(); c.arc(X(li),Y(data[li]),4,0,7); c.fillStyle=cy; c.shadowColor=cy; c.shadowBlur=8; c.fill(); c.shadowBlur=0;
+  let ly=Y(data[li])+3.5;
+  if(goal && Math.abs(Y(goal)-Y(data[li]))<13) ly=Y(goal)+(Y(data[li])>=Y(goal)?15:-11);
+  c.fillStyle=cy; c.font="700 11px system-ui"; c.textAlign="left";
+  c.fillText(String(log[log.length-1].w), w-padR+9, ly);
+}
+function pie(cv,parts){const {c,w,h}=setup(cv,150);const cx=w/2,cy=h/2,r=Math.min(w,h)/2-6;let a=-Math.PI/2;const tot=parts.reduce((s,p)=>s+p.v,0)||1;parts.forEach(p=>{const ang=p.v/tot*Math.PI*2;c.beginPath();c.moveTo(cx,cy);c.arc(cx,cy,r,a,a+ang);c.closePath();c.fillStyle=p.color;c.fill();a+=ang;});c.beginPath();c.arc(cx,cy,r*0.55,0,7);c.fillStyle=gv("--panel");c.fill();}
+
+// ---- views ----
+function el(html){const d=document.createElement("div");d.innerHTML=html.trim();return d.firstElementChild;}
+
+// аккуратная форма вместо системного prompt(); возвращает объект значений или null
+function askModal(title, fields){
+  return new Promise(resolve=>{
+    const ovl=el(`<div class="ovl"></div>`);
+    const m=el(`<div class="modal"><h4>${title}</h4></div>`);
+    const inputs={};
+    fields.forEach(f=>{
+      m.appendChild(el(`<span class="lab">${f.label}</span>`));
+      let inp;
+      if(f.type==="select"){
+        inp=document.createElement("select");
+        f.options.forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;inp.appendChild(o);});
+        if(f.value!=null) inp.value=f.value;
+      } else {
+        inp=document.createElement("input");
+        // числа вводим текстовым полем: type=number в браузере отбрасывает «82,4»
+        // (запятая на русской клавиатуре) и отдаёт пустую строку — вес просто не сохранялся
+        if(f.type==="number"){ inp.type="text"; inp.inputMode="decimal"; inp.autocomplete="off"; }
+        else inp.type=f.type||"text";
+        if(f.value!=null) inp.value=f.value;
+        if(f.placeholder) inp.placeholder=f.placeholder;
       }
+      m.appendChild(inp); inputs[f.name]=inp;
+    });
+    const btns=el(`<div class="btns"><button class="no">Отмена</button><button class="ok">Готово</button></div>`);
+    m.appendChild(btns); ovl.appendChild(m); document.body.appendChild(ovl);
+    setTimeout(()=>inputs[fields[0].name].focus(),50);
+    const close=v=>{ovl.remove();resolve(v);};
+    btns.querySelector(".no").onclick=()=>close(null);
+    btns.querySelector(".ok").onclick=()=>{const r={};fields.forEach(f=>{const v=inputs[f.name].value;r[f.name]=typeof v==="string"?v.trim():v;});close(r);};
+    ovl.onclick=e=>{if(e.target===ovl)close(null);};
+    m.addEventListener("keydown",e=>{
+      if(e.key==="Escape") close(null);
+      if(e.key==="Enter"&&inputs[fields[0].name].tagName!=="SELECT")btns.querySelector(".ok").click();
     });
   });
-})();
+}
 
-/* рамка «настоящей таблицы»: буквы колонок + номера строк */
-(function(){
-  var L="ABCDEFGHIJ";
-  document.querySelectorAll(".sheet").forEach(function(sh){
-    var nc=+sh.getAttribute("data-cols")||8, nr=+sh.getAttribute("data-rows")||11;
-    var cols=sh.querySelector(".cols"), rows=sh.querySelector(".rows");
-    if(cols){ var h='<span class="cnr"></span>'; for(var c=0;c<nc;c++) h+='<span>'+L.charAt(c)+'</span>'; cols.innerHTML=h; }
-    if(rows){ var r=''; for(var i=1;i<=nr;i++) r+='<span>'+i+'</span>'; rows.innerHTML=r; }
+function vHome(root){
+  const xp=totalXP(),li=levelIdx(xp),lvl=LEVELS[li],nx=LEVELS[li+1],st=curStreak();
+  const lo=lvl[1],hi=nx?nx[1]:lvl[1]+1,pct=Math.max(4,Math.min(100,Math.round((xp-lo)/(hi-lo)*100)));
+  const me=monthEntries();
+  const inc=me.filter(e=>e.type==="in").reduce((s,e)=>s+e.amount,0);
+  const out=me.filter(e=>e.type==="out").reduce((s,e)=>s+e.amount,0);
+  const tOpen=S.tasks.filter(t=>!t.done).length;
+  const w=body_curW();
+  const ins=homeInsight();
+  root.innerHTML=`
+   ${S.demoData?`<div class="glass demonote"><span>👀 Внутри — пример с демо-данными, чтобы всё пощупать.</span><button class="ok2" id="startOwn">🚀 Начать своё</button></div>`:""}
+   <div class="glass hero">
+     <div class="hero-row">
+       <div><div class="lvl-tag">◆ уровень ${li+1}</div><div class="lvl-name">${lvl[0]}</div></div>
+       <div class="building">${lvl[2]}</div>
+     </div>
+     <div class="bar-t"><span style="width:${pct}%"></span></div>
+     <div class="bar-m"><span>до уровня <b>${nx?nx[0]:"МАКС 👑"}</b></span><span>⭐ <b class="num">${nf(xp)}</b> / ${nf(nx?nx[1]:lvl[1])}</span></div>
+     <div class="tiles">
+       <div class="tile"><div class="v g">${st}</div><div class="l">серия 🔥</div></div>
+       <div class="tile"><div class="v e">×${mult(st).toFixed(1)}</div><div class="l">множитель</div></div>
+       <div class="tile"><div class="v vi">🏆 ${recordStreak()}</div><div class="l">рекорд серии</div></div>
+     </div>
+   </div>
+   <div class="glass card" style="margin-top:13px">
+     <h3>Сегодня <span id="todayCnt" style="color:var(--mut);font-weight:400;text-transform:none"></span></h3>
+     <div class="donut-wrap"><canvas id="todayRing"></canvas><div class="donut-c"><div class="p e" id="todayP">0%</div><div class="t">выполнено</div></div></div>
+     <div class="tchips" id="todayChips"></div>
+     <div style="font-size:10.5px;color:var(--mut2);margin-top:10px;text-align:center">день идёт в серию 🔥 от 3 выполненных привычек</div>
+   </div>
+   ${ins?`<div class="glass card" style="margin-top:13px"><h3>Инсайт недели</h3>
+     <div style="display:flex;gap:10px;font-size:13.5px;color:var(--mut);line-height:1.55;align-items:flex-start"><span style="flex:none">💡</span><span class="ins-t">${ins}</span></div></div>`:""}
+   <button class="share-btn" id="shareBtn">📤 Поделиться своей империей</button>
+   <div class="grid" style="margin-top:13px">
+     <div class="glass card" data-go="habits"><h3>Месяц выполнен <span class="go">›</span></h3><div class="donut-wrap"><canvas id="hDonut"></canvas><div class="donut-c"><div class="p e" id="hDonutP">0%</div><div class="t">привычки</div></div></div></div>
+     <div class="glass card" data-go="habits"><h3>Разгон · 14 дней <span class="go">›</span></h3><canvas id="hSpark"></canvas><div style="margin-top:8px;font-size:12px;color:var(--mut)">🪙 сегодня: <b class="cy num" id="hToday">0</b></div></div>
+     <div class="glass card" data-go="money"><h3>Баланс месяца <span class="go">›</span></h3><div class="stat"><div class="v ${inc-out>=0?'e':'dn'} num">${nf(inc-out)} ₽</div><div class="l">доход ${nf(inc)} · расход ${nf(out)}</div></div><canvas id="hMoney" style="margin-top:8px"></canvas></div>
+     <div class="glass card" data-go="tasks"><h3>Задачи <span class="go">›</span></h3><div class="stat"><div class="v g num">${tOpen}</div><div class="l">открыто · ${S.tasks.filter(t=>t.done).length} готово</div></div></div>
+     <div class="glass card" data-go="body"><h3>Вес <span class="go">›</span></h3><div class="stat"><div class="v cy num">${w?w+" кг":"-"}</div><div class="l">${S.body.goalW?"цель "+S.body.goalW+" кг":"запиши вес"}</div></div><canvas id="hBody" style="margin-top:8px"></canvas></div>
+     <div class="glass card" data-go="shop"><h3>Империя <span class="go">›</span></h3><canvas id="hCity" height="90"></canvas><div style="text-align:center;font-size:11px;color:var(--mut2);margin-top:6px">ты на <b class="e">${li+1} из 5</b> · монеты ждут в наградах</div></div>
+   </div>
+   <div class="bkrow">
+     <button class="bk" id="bkSave">💾 Скачать копию данных</button>
+     <button class="bk" id="bkLoad">📥 Восстановить из копии</button>
+   </div>
+   <p class="bknote">Данные живут в этом браузере. Копия — страховка при смене телефона или чистке кэша.</p>
+   <button class="reset" id="resetBtn">сбросить всё и начать с чистого листа</button>`;
+  // charts
+  const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),diM=new Date(y,mo+1,0).getDate();
+  let md=0,mp=0; for(let d=1;d<=Math.min(diM,now.getDate());d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;md+=checksOf(ds).length;mp+=S.habits.length;}
+  const frac=mp?md/mp:0; donut(root.querySelector("#hDonut"),frac,gv("--emerald")); root.querySelector("#hDonutP").textContent=Math.round(frac*100)+"%";
+  const sd=[];for(let k=13;k>=0;k--)sd.push(coinsFor(addDays(TODAY,-k))); line(root.querySelector("#hSpark"),sd,gv("--cyan")); root.querySelector("#hToday").textContent=nf(coinsFor(TODAY));
+  bars(root.querySelector("#hMoney"),[inc,out],[gv("--emerald"),gv("--danger")],
+       {labels:["доход","расход"],height:104});
+  line(root.querySelector("#hBody"),S.body.log.length?S.body.log.map(x=>x.w):[0,0],gv("--cyan"));
+  city(root.querySelector("#hCity"),li+1,5);
+  // «Сегодня»: кольцо наполняется, когда жмёшь чипы привычек
+  const th=S.habits.length, tdn=checksOf(TODAY).length, tfrac=th?tdn/th:0;
+  donut(root.querySelector("#todayRing"),tfrac,gv("--emerald"));
+  root.querySelector("#todayP").textContent=Math.round(tfrac*100)+"%";
+  root.querySelector("#todayCnt").textContent=`· ${tdn} из ${th}`;
+  const cw=root.querySelector("#todayChips");
+  S.habits.forEach(h=>{
+    const on=isDone(h.id,TODAY);
+    const chip=el(`<div class="tchip${on?" on":""}"><span class="d">${on?"✓":""}</span><span class="nm"></span></div>`);
+    chip.querySelector(".nm").textContent=`${h.ico} ${h.name}`;
+    chip.addEventListener("click",()=>{
+      const arr=checksOf(TODAY).slice(),i=arr.indexOf(h.id);
+      if(i>=0)arr.splice(i,1);else{arr.push(h.id);flyCoinToWallet(chip);}
+      if(arr.length)S.checks[TODAY]=arr;else delete S.checks[TODAY];
+      save();render();
+    });
+    cw.appendChild(chip);
   });
-})();
-
-/* лист-таблица показывается ЦЕЛИКОМ: рендерим в удобной ширине и ужимаем под
-   карточку (как масштабированный скрин у конкурента) — таблица никогда не режется */
-(function(){
-  // оборачиваем каждый лист в бокс, который держит ужатую высоту
-  document.querySelectorAll(".planner > .sheet").forEach(function(sh){
-    var box=document.createElement("div"); box.className="sheetbox";
-    sh.parentNode.insertBefore(box, sh); box.appendChild(sh);
-  });
-  var boxes=[].slice.call(document.querySelectorAll(".sheetbox"));
-  function fit(){
-    boxes.forEach(function(box){
-      var sh=box.firstChild; if(!sh) return;
-      sh.style.transform="none"; box.style.height="";
-      var avail=box.clientWidth; if(!avail) return;
-      // естественная ширина листа (чтобы таблица помещалась целиком)
-      sh.style.width="max-content";
-      var natural=sh.offsetWidth;
-      // десктоп: лист на всю карточку (k=1). мобайл: рендерим по натуральной ширине и ужимаем
-      var designW=Math.max(avail, Math.min(natural, 480));
-      sh.style.width=designW+"px";
-      var k=Math.min(1, avail/designW);
-      sh.style.transformOrigin="top left";
-      sh.style.transform="scale("+k+")";
-      box.style.height=Math.ceil(sh.offsetHeight*k)+"px";
-    });
-  }
-  fit();
-  window.addEventListener("load", fit);
-  if(document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
-  // пересчёт ТОЛЬКО при смене ширины (на мобиле скролл прячет адресную строку =
-  // resize по высоте; пересчитывать на это = джанк). + дебаунс.
-  var lastW=window.innerWidth, tmr;
-  window.addEventListener("resize", function(){
-    if(window.innerWidth===lastW) return;
-    lastW=window.innerWidth;
-    clearTimeout(tmr); tmr=setTimeout(fit, 130);
-  });
-})();
-
-/* карусель планеров: снап и точки — по РАЗЛИЧИМЫМ позициям прокрутки.
-   На десктопе видно 2 карточки, поэтому последние позиции «карточка N-1» и
-   «карточка N» совпадают — их дубли схлопываются в одну (последнюю, впритык
-   к краю). Так нет ни лишнего хода вправо, ни лишнего микро-листка. */
-(function(){
-  var track=document.getElementById("planners"); if(!track) return;
-  var cards=[].slice.call(track.querySelectorAll(".planner"));
-  var dotsBox=document.getElementById("pdots");
-  var prev=document.getElementById("arrPrev"), next=document.getElementById("arrNext");
-  var dots=[], stops=[], cur=0, lock=false, lockTmr, snapTmr, raf;
-  function maxSL(){ return Math.max(0, track.scrollWidth - track.clientWidth); }
-  /* scrollLeft, приводящий карточку i к левому краю, обрезанный по [0,max] */
-  function posOf(i){
-    var d=cards[i].getBoundingClientRect().left - track.getBoundingClientRect().left;
-    return Math.max(0, Math.min(maxSL(), Math.round(track.scrollLeft + d)));
-  }
-  /* различимые позиции: близкие (<44px) считаем одной, оставляя более правую —
-     последняя всегда = ровный правый край */
-  function computeStops(){
-    var arr=[];
-    for(var i=0;i<cards.length;i++){
-      var p=posOf(i);
-      if(arr.length && p-arr[arr.length-1]<44) arr[arr.length-1]=p; else arr.push(p);
-    }
-    stops=arr;
-  }
-  function buildDots(){
-    dotsBox.innerHTML="";
-    stops.forEach(function(_,i){
-      var b=document.createElement("button"); b.type="button"; b.setAttribute("aria-label","слайд "+(i+1));
-      b.addEventListener("click",function(){ goTo(i); });
-      dotsBox.appendChild(b);
-    });
-    dots=[].slice.call(dotsBox.children);
-  }
-  function nearestStop(){
-    var sl=track.scrollLeft, best=0, bd=1e9;
-    for(var i=0;i<stops.length;i++){ var dd=Math.abs(stops[i]-sl); if(dd<bd){bd=dd;best=i;} }
-    return best;
-  }
-  function dotsPaint(i){ dots.forEach(function(d,k){ d.classList.toggle("on",k===i); }); }
-  function edge(){ var m=maxSL(); if(prev) prev.disabled=(track.scrollLeft<=2); if(next) next.disabled=(track.scrollLeft>=m-2); }
-  function goTo(i){
-    i=Math.max(0,Math.min(stops.length-1,i)); cur=i; lock=true;
-    dotsPaint(i);
-    track.scrollTo({left:stops[i], behavior: RM?"auto":"smooth"});
-    edge();
-    clearTimeout(lockTmr); lockTmr=setTimeout(function(){ lock=false; edge(); }, RM?60:520);
-  }
-  function relayout(){ computeStops(); if(stops.length!==dots.length) buildDots(); dotsPaint(nearestStop()); edge(); }
-  if(prev) prev.addEventListener("click",function(){ goTo(cur-1); });
-  if(next) next.addEventListener("click",function(){ goTo(cur+1); });
-  track.addEventListener("scroll",function(){
-    if(raf) cancelAnimationFrame(raf);
-    raf=requestAnimationFrame(function(){ edge(); if(!lock){ cur=nearestStop(); dotsPaint(cur); } });
-    if(lock) return;   // не мешаем стрелкам/точкам своей доводкой
-    clearTimeout(snapTmr);
-    snapTmr=setTimeout(function(){
-      if(lock) return;
-      var p=stops[nearestStop()];
-      if(p!=null && Math.abs(track.scrollLeft-p)>1) track.scrollTo({left:p, behavior: RM?"auto":"smooth"});
-    }, 130);
-  },{passive:true});
-  computeStops(); buildDots(); dotsPaint(0); edge();
-  window.addEventListener("resize", relayout);
-  window.addEventListener("load", relayout);
-  if(document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
-})();
-
-/* появление при скролле — ОДИН раз (повторные прятки при скролле вверх = дёрганье) */
-(function(){
-  var els=document.querySelectorAll(".rv, #disc");
-  if(!("IntersectionObserver" in window) || RM){ els.forEach(function(e){e.classList.add("in")}); return; }
-  var io=new IntersectionObserver(function(entries){
-    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } });
-  },{threshold:.12, rootMargin:"0px 0px -6% 0px"});
-  els.forEach(function(e){io.observe(e)});
-})();
-
-/* закреплённая CTA на мобиле: видна между hero и ценой, не дублирует кнопки на экране */
-(function(){
-  var bar=document.getElementById("mcta");
-  if(!bar || !("IntersectionObserver" in window)) return;
-  var vis={}, zones=[
-    ["hero", document.querySelector(".hero")],
-    ["price", document.getElementById("price")],
-    ["final", document.querySelector(".final")],
-    ["foot", document.querySelector("footer")]
-  ];
-  var io=new IntersectionObserver(function(es){
-    es.forEach(function(e){ vis[e.target.dataset.mk]=e.isIntersecting; });
-    bar.classList.toggle("show", !vis.hero && !vis.price && !vis.final && !vis.foot);
-  },{threshold:.05});
-  zones.forEach(function(z){ if(z[1]){ z[1].dataset.mk=z[0]; io.observe(z[1]); } });
-})();
-
-/* лёгкий 3D-наклон демо-карты (только мышь) */
-(function(){
-  var fine = matchMedia("(pointer:fine)").matches && !RM;
-  if(!fine) return;
-  document.querySelectorAll(".btn-p").forEach(function(b){
-    b.addEventListener("pointermove", function(e){
-      var r=b.getBoundingClientRect();
-      var dx=(e.clientX-r.left-r.width/2)/r.width, dy=(e.clientY-r.top-r.height/2)/r.height;
-      b.style.transform="translate("+ (dx*6).toFixed(1) +"px,"+ (dy*5-2).toFixed(1) +"px)";
-    });
-    b.addEventListener("pointerleave", function(){ b.style.transform=""; });
-  });
-  var card=document.querySelector(".demo");
-  if(card){
-    card.addEventListener("pointermove", function(e){
-      var r=card.getBoundingClientRect();
-      var rx=((e.clientY-r.top)/r.height-.5)*-5, ry=((e.clientX-r.left)/r.width-.5)*6;
-      card.style.transform="perspective(820px) rotateX("+rx.toFixed(2)+"deg) rotateY("+ry.toFixed(2)+"deg)";
-    });
-    card.addEventListener("pointerleave", function(){ card.style.transform=""; });
-  }
-})();
-
-/* индексы словам заголовка */
-document.querySelectorAll(".hero h1 .w").forEach(function(w,i){ w.style.setProperty("--w", i); });
-
-/* цена отсчитывается 1490 → 990 при появлении */
-(function(){
-  var el=document.querySelector(".price .now"); if(!el || RM || !("IntersectionObserver" in window)) return;
-  var running=false;
-  var io=new IntersectionObserver(function(es){
-    es.forEach(function(e){
-      if(!e.isIntersecting || running) return; running=true;
-      var t0=performance.now(), from=1490, to=990, dur=900;
-      (function tick(now){
-        var p=Math.min(1,(now-t0)/dur), ease=1-Math.pow(1-p,3);
-        el.textContent=Math.round(from+(to-from)*ease).toLocaleString("ru-RU")+" ₽";
-        if(p<1) requestAnimationFrame(tick); else running=false;
-      })(t0);
-    });
-  },{threshold:.5});
-  io.observe(el);
-})();
-
-/* тень у меню при скролле */
-(function(){
-  var nav=document.querySelector("nav"); if(!nav) return;
-  var upd=function(){ nav.classList.toggle("scrolled", window.scrollY>12); };
-  upd(); window.addEventListener("scroll", upd, {passive:true});
-})();
-
-/* покупка: есть ссылка Robokassa — идём платить; нет — модалка с почтой */
-(function(){
-  var ovl=document.getElementById("buyOvl");
-  var mail="mailto:planermagnat@gmail.com?subject="+encodeURIComponent("Магнат: бронирую набор за 990")+"&body="+encodeURIComponent("Привет! Хочу набор «Магнат 5 в 1» за 990 руб. Напиши, как оплатить.");
-  document.getElementById("mailBtn").setAttribute("href", mail);
-  var copyBtn=document.getElementById("copyBtn");
-  copyBtn.addEventListener("click", function(){
-    var addr="planermagnat@gmail.com", done=function(){
-      copyBtn.textContent="✓ Скопировано — жду письмо!";
-      setTimeout(function(){copyBtn.textContent="📋 Скопировать адрес";}, 2200);
+  if(!S.habits.length) cw.innerHTML='<span style="font-size:12.5px;color:var(--mut2)">Привычек нет — добавь первую в разделе «✅ Привычки»</span>';
+  root.querySelector("#bkSave").addEventListener("click",downloadBackup);
+  root.querySelector("#bkLoad").addEventListener("click",()=>{
+    const inp=document.createElement("input"); inp.type="file"; inp.accept=".json,application/json";
+    inp.onchange=()=>{
+      const f=inp.files[0]; if(!f) return;
+      const rd=new FileReader();
+      rd.onload=()=>{
+        try{
+          const d=JSON.parse(rd.result);
+          if(!d || !Array.isArray(d.habits) || !d.checks || typeof d.checks!=="object") throw 0;
+          if(!confirm("Заменить текущие данные данными из копии?")) return;
+          S=normalize(d); save(); render(); toast("Данные восстановлены 📥");
+        }catch(e){ toast("Файл не похож на копию Магната 🤔"); }
+      };
+      rd.readAsText(f);
     };
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(addr).then(done, function(){fallback();});
-    } else fallback();
-    function fallback(){
-      var t=document.createElement("textarea"); t.value=addr; t.style.position="fixed"; t.style.opacity="0";
-      document.body.appendChild(t); t.select();
-      try{ document.execCommand("copy"); done(); }catch(e){}
-      t.remove();
-    }
+    inp.click();
   });
-  document.querySelectorAll("[data-buy]").forEach(function(b){
-    if(PAYMENT_URL){ b.setAttribute("href", PAYMENT_URL); return; }
-    b.addEventListener("click", function(ev){ ev.preventDefault(); ovl.classList.add("show"); });
+  root.querySelector("#resetBtn").addEventListener("click",()=>{ if(confirm("Стереть весь прогресс (привычки, задачи, финансы, вес) и начать с чистого листа?")){S=freshStart();save();render();} });
+  root.querySelector("#shareBtn").addEventListener("click",shareCard);
+  root.querySelectorAll(".card[data-go]").forEach(c=>c.addEventListener("click",()=>{cur=c.dataset.go;render();window.scrollTo(0,0);}));
+  const so=root.querySelector("#startOwn");
+  if(so) so.addEventListener("click",()=>{ if(confirm("Стереть демо-данные и начать своё с чистого листа?")){S=freshStart();save();render();} });
+}
+
+function vHabits(root){
+  // пустое состояние: все привычки удалены
+  if(!S.habits.length){
+    root.innerHTML=`<div class="glass card" style="text-align:center;padding:36px 18px">
+      <div style="font-size:42px">✅</div>
+      <h3 style="text-transform:none;font-size:16px;color:var(--ink);margin:12px 0 6px">Привычек пока нет</h3>
+      <p style="color:var(--mut);font-size:14px;margin-bottom:16px">Добавь первую — появится календарь месяца, серия и монеты.</p>
+      <div class="addbtn" id="addHabit">➕ Добавить привычку</div></div>`;
+    root.querySelector("#addHabit").addEventListener("click",addHabit);
+    return;
+  }
+  const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),diM=new Date(y,mo+1,0).getDate();
+  let head="<tr><th class='name' style='text-align:left'>Привычка</th>";
+  for(let d=1;d<=diM;d++) head+=`<th${d===now.getDate()?' class="tdy"':''}>${d}</th>`; head+="<th>%</th></tr>";
+  let rows="";
+  const elapsed=Math.min(diM,now.getDate());
+  S.habits.forEach(h=>{
+    let r=`<tr><td class="name hedit" data-edit="${h.id}"><span class="hn">${h.ico} ${esc(h.name)}</span> ✏️</td>`; let cnt=0;
+    for(let d=1;d<=diM;d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;const on=isDone(h.id,ds);if(on&&d<=elapsed)cnt++;
+      r+=`<td><span class="hcell${on?" on":""}${ds>TODAY?" fut":""}" data-h="${h.id}" data-d="${ds}"></span></td>`;}
+    const pc=elapsed?Math.round(cnt/elapsed*100):0;
+    r+=`<td style="color:var(--violet);font-weight:700">${pc}</td></tr>`; rows+=r;
   });
-  document.getElementById("ovlClose").addEventListener("click", function(){ ovl.classList.remove("show"); });
-  ovl.addEventListener("click", function(e){ if(e.target===ovl) ovl.classList.remove("show"); });
+  // недельная сила (последние 8 недель — % выполнения)
+  const wk=[]; for(let w=7;w>=0;w--){let dc=0,tp=0;for(let i=0;i<7;i++){const ds=addDays(TODAY,-(w*7+i));dc+=checksOf(ds).length;tp+=S.habits.length;}wk.push(tp?Math.round(dc/tp*100):0);}
+  // топ привычек за месяц
+  const tops=S.habits.map(h=>{let c=0;for(let d=1;d<=elapsed;d++){if(isDone(h.id,`${y}-${pad(mo+1)}-${pad(d)}`))c++;}return{h,pc:elapsed?Math.round(c/elapsed*100):0};}).sort((a,b)=>b.pc-a.pc);
+  root.innerHTML=`
+    <div class="glass card"><h3>Календарь месяца <span style="color:var(--mut2);font-weight:400;text-transform:none">клетка → засчитать · название → изменить</span></h3>
+      <div class="hscroll"><table class="hg">${head}${rows}</table></div></div>
+    <div class="row2" style="margin-top:13px">
+      <div class="glass card"><h3>Сила по неделям</h3><canvas id="hbWeeks"></canvas><div style="font-size:11px;color:var(--mut2);margin-top:6px">% выполнения, 8 недель</div></div>
+      <div class="glass card"><h3>Топ привычек</h3>${tops.map(t=>`<div class="prow"><span class="nm">${t.h.ico} ${esc(t.h.name)}</span><span class="ptrack"><span class="pfill" style="width:${t.pc}%"></span></span><span class="pc">${t.pc}%</span></div>`).join("")}</div>
+    </div>
+    <div class="addbtn" id="addHabit" style="margin-top:13px">➕ Добавить привычку</div>`;
+  bars(root.querySelector("#hbWeeks"),wk,gv("--emerald"),
+       {labels:wk.map((_,i)=>i===7?"эта":"−"+(7-i)),height:150});
+  // календарь открывается на сегодняшнем дне — с учётом липкого столбца с названиями,
+  // иначе «сегодня» уезжает под него и в кадре остаются пустые будущие дни
+  const hs=root.querySelector(".hscroll"), tdy=root.querySelector("th.tdy");
+  if(hs&&tdy){
+    const nameTh=root.querySelector("table.hg th.name");
+    const nw=nameTh?nameTh.getBoundingClientRect().width:130;
+    const free=Math.max(0,hs.clientWidth-nw);
+    hs.scrollLeft=Math.max(0, tdy.offsetLeft-nw-Math.max(0,free/2-tdy.offsetWidth/2));
+  }
+  root.querySelectorAll(".hcell").forEach(c=>c.addEventListener("click",()=>{
+    const ds=c.dataset.d; if(ds>TODAY){toast("Будущий день ещё не наступил 🙂");return;}
+    const hid=+c.dataset.h,arr=checksOf(ds).slice(),i=arr.indexOf(hid);
+    if(i>=0)arr.splice(i,1);else{arr.push(hid);flyCoinToWallet(c);}
+    if(arr.length)S.checks[ds]=arr;else delete S.checks[ds]; save(); render();
+  }));
+  root.querySelectorAll(".hedit").forEach(td=>td.addEventListener("click",()=>editHabit(+td.dataset.edit)));
+  root.querySelector("#addHabit").addEventListener("click",addHabit);
+}
+
+function editHabit(hid){
+  const h=habitById(hid); if(!h) return;
+  const ovl=el(`<div class="ovl"></div>`);
+  const m=el(`<div class="modal"><h4>Привычка</h4></div>`);
+  m.appendChild(el(`<span class="lab">Название (можно с эмодзи)</span>`));
+  const inp=document.createElement("input"); inp.type="text"; inp.value=`${h.ico} ${h.name}`;
+  m.appendChild(inp);
+  m.appendChild(el(`<span class="lab">Монет за выполнение 🪙</span>`));
+  const cin=document.createElement("input"); cin.type="text"; cin.inputMode="numeric"; cin.autocomplete="off"; cin.value=h.coin;
+  m.appendChild(cin);
+  const btns=el(`<div class="btns"><button class="no" id="hDel" style="color:var(--danger);border-color:#5a2730">🗑 Удалить</button><button class="ok" id="hSv">Сохранить</button></div>`);
+  m.appendChild(btns); ovl.appendChild(m); document.body.appendChild(ovl);
+  setTimeout(()=>inp.focus(),50);
+  const close=()=>ovl.remove(); ovl.onclick=e=>{if(e.target===ovl)close();};
+  m.addEventListener("keydown",e=>{if(e.key==="Escape")close();});
+  btns.querySelector("#hDel").onclick=()=>{
+    if(!confirm(`Удалить «${h.name}»? Отметки этой привычки пропадут.`)) return;
+    S.habits=S.habits.filter(x=>x.id!==hid);
+    for(const d in S.checks){ S.checks[d]=S.checks[d].filter(i=>i!==hid); if(!S.checks[d].length) delete S.checks[d]; }
+    save(); close(); render();
+  };
+  btns.querySelector("#hSv").onclick=()=>{
+    const v=inp.value.trim(); if(!v) return;
+    let ico=h.ico,nm=v; const mm=v.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u); if(mm){ico=mm[1];nm=mm[2]||v;}
+    h.ico=ico; h.name=nm;
+    const cv=Math.round(num(cin.value)); if(cv>0) h.coin=Math.min(200,cv);
+    save(); close(); render();
+  };
+}
+
+function vTasks(root){
+  const order={hi:0,md:1,lo:2};
+  // сначала невыполненные, внутри — по приоритету, при равном приоритете ближний срок выше
+  const sorted=[...S.tasks].sort((a,b)=>a.done-b.done || order[a.prio]-order[b.prio] || (a.due<b.due?-1:a.due>b.due?1:0));
+  const open=S.tasks.filter(t=>!t.done).length, over=S.tasks.filter(t=>!t.done&&t.due<TODAY).length;
+  root.innerHTML=`
+    <div class="grid">
+      <div class="glass card"><div class="stat"><div class="v g num">${open}</div><div class="l">открытых задач</div></div></div>
+      <div class="glass card"><div class="stat"><div class="v e num">${S.tasks.filter(t=>t.done).length}</div><div class="l">выполнено</div></div></div>
+      <div class="glass card"><div class="stat"><div class="v dn num">${over}</div><div class="l">просрочено</div></div></div>
+    </div>
+    <div class="sec-h">Мои задачи</div>
+    <div id="taskList"></div>
+    <div class="addbtn" id="addTask">➕ Добавить задачу</div>
+    ${S.tasks.some(t=>t.done)?'<button class="reset" id="clearDone">убрать выполненные из списка</button>':''}`;
+  const list=root.querySelector("#taskList");
+  const tg={hi:["hi","Высокий"],md:["md","Средний"],lo:["lo","Низкий"]};
+  sorted.forEach(t=>{
+    const late=!t.done&&t.due<TODAY;
+    const q=el(`<div class="q${t.done?" done":""}"><div class="box">${t.done?"✓":""}</div>
+      <div class="nm">${esc(t.name)}<div class="meta">📅 ${fmtD(t.due)}${late?' · <span style="color:var(--danger)">просрочено</span>':''}</div></div>
+      <span class="tag ${tg[t.prio][0]}">${tg[t.prio][1]}</span><span class="ted" title="изменить">✏️</span><span class="del" title="удалить">✕</span></div>`);
+    q.addEventListener("click",e=>{
+      if(e.target.classList.contains("del")){S.tasks=S.tasks.filter(x=>x.id!==t.id);save();render();return;}
+      if(e.target.classList.contains("ted")){editTask(t);return;}
+      t.done=!t.done;save();render();
+    });
+    list.appendChild(q);
+  });
+  if(!sorted.length) list.innerHTML='<div style="color:var(--mut2);text-align:center;padding:16px;font-size:13px">Задач пока нет — добавь первую кнопкой ниже 👇</div>';
+  root.querySelector("#addTask").addEventListener("click",async()=>{
+    const r=await askModal("Новая задача",[
+      {name:"name",label:"Задача",placeholder:"Смонтировать ролик"},
+      {name:"prio",label:"Приоритет",type:"select",options:[["hi","🔴 Высокий"],["md","🟡 Средний"],["lo","🔵 Низкий"]],value:"md"},
+      {name:"due",label:"Срок",type:"date",value:TODAY},
+    ]);
+    if(!r||!r.name) return;
+    const due=/^\d{4}-\d{2}-\d{2}$/.test(r.due)?r.due:TODAY;
+    S.tasks.push({id:uid(),name:r.name,prio:r.prio,due,done:false}); save(); render();
+  });
+  const cd=root.querySelector("#clearDone");
+  if(cd) cd.addEventListener("click",()=>{S.tasks=S.tasks.filter(t=>!t.done);save();render();});
+}
+
+async function editTask(t){
+  const r=await askModal("Задача",[
+    {name:"name",label:"Задача",value:t.name},
+    {name:"prio",label:"Приоритет",type:"select",options:[["hi","🔴 Высокий"],["md","🟡 Средний"],["lo","🔵 Низкий"]],value:t.prio},
+    {name:"due",label:"Срок",type:"date",value:t.due},
+  ]);
+  if(!r||!r.name) return;
+  t.name=r.name; t.prio=r.prio;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(r.due)) t.due=r.due;
+  save(); render();
+}
+
+function vMoney(root){
+  const me=monthEntries();
+  const ins=me.filter(e=>e.type==="in"),outs=me.filter(e=>e.type==="out");
+  const inc=ins.reduce((s,e)=>s+e.amount,0),out=outs.reduce((s,e)=>s+e.amount,0),bal=inc-out;
+  const byCat={}; outs.forEach(e=>byCat[e.cat]=(byCat[e.cat]||0)+e.amount);
+  const cols=[gv("--emerald"),gv("--cyan"),gv("--gold"),gv("--violet"),gv("--orange"),gv("--danger")];
+  const parts=Object.entries(byCat).map(([cat,v],i)=>({cat,v,color:cols[i%cols.length]}));
+  const hasData=me.length>0;
+  root.innerHTML=`
+    <div class="grid">
+      <div class="glass card"><div class="stat"><div class="v e num">${nf(inc)} ₽</div><div class="l">доход</div></div></div>
+      <div class="glass card"><div class="stat"><div class="v dn num">${nf(out)} ₽</div><div class="l">расход</div></div></div>
+      <div class="glass card"><div class="stat"><div class="v ${bal>=0?'g':'dn'} num">${nf(bal)} ₽</div><div class="l">осталось</div></div></div>
+    </div>
+    ${hasData?`
+    <div class="row2" style="margin-top:13px">
+      <div class="glass card"><h3>Доход vs Расход</h3><canvas id="mBars"></canvas></div>
+      <div class="glass card"><h3>Расходы по категориям</h3><div class="donut-wrap"><canvas id="mPie"></canvas></div>
+        <div style="margin-top:10px">${parts.map(p=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;margin-bottom:4px"><span style="width:9px;height:9px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:var(--mut)">${p.cat}</span><b class="num">${nf(p.v)}</b></div>`).join("")}</div></div>
+    </div>
+    <div class="sec-h">Операции месяца</div>
+    <div class="glass card">${me.slice().sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:b.id-a.id).map(e=>`<div class="frow"><span class="cat">${e.cat}</span><span class="fdt">${fmtD(e.date)}</span><span class="del" data-id="${e.id}">✕</span><span class="amt ${e.type==='in'?'e':'dn'}">${e.type==='in'?'+':'-'}${nf(e.amount)} ₽</span></div>`).join("")}</div>
+    `:`
+    <div class="glass card" style="text-align:center;padding:30px 18px;margin-top:13px">
+      <div style="font-size:40px">💰</div>
+      <p style="color:var(--mut);font-size:14px;margin-top:10px">Добавь первый доход или расход — появятся графики и разбор трат по категориям.</p>
+    </div>`}
+    <div class="row2" style="margin-top:13px">
+      <div class="addbtn" id="addIn">➕ Доход</div><div class="addbtn" id="addOut">➖ Расход</div>
+    </div>`;
+  if(hasData){
+    bars(root.querySelector("#mBars"),[inc,out],[gv("--emerald"),gv("--danger")],
+         {labels:["доход","расход"],values:[nf(inc),nf(out)],height:150});
+    pie(root.querySelector("#mPie"),parts);
+  }
+  root.querySelector("#addIn").addEventListener("click",()=>addFinance("in"));
+  root.querySelector("#addOut").addEventListener("click",()=>addFinance("out"));
+  root.querySelectorAll(".frow .del").forEach(d=>d.addEventListener("click",()=>{S.finance.entries=S.finance.entries.filter(e=>e.id!=d.dataset.id);save();render();}));
+}
+
+function body_curW(){return S.body.log.length?S.body.log[S.body.log.length-1].w:0;}
+// запись веса за сегодня: перезаписываем существующую и держим журнал отсортированным по дате
+function logWeight(v){
+  const w=Math.round(v*10)/10, ex=S.body.log.find(x=>x.date===TODAY);
+  if(ex) ex.w=w; else S.body.log.push({date:TODAY,w});
+  S.body.log.sort((p,q)=>p.date<q.date?-1:p.date>q.date?1:0);
+}
+function vBody(root){
+  if(!S.body.log.length){
+    root.innerHTML=`<div class="glass card" style="text-align:center;padding:36px 18px">
+      <div style="font-size:42px">⚖️</div>
+      <h3 style="text-transform:none;font-size:16px;color:var(--ink);margin:12px 0 6px">Раздел «Тело»</h3>
+      <p style="color:var(--mut);font-size:14px;margin-bottom:16px">Записывай вес — увидишь свою динамику красивым графиком.</p>
+      <div class="addbtn" id="addW">⚖️ Записать первый вес</div></div>`;
+    root.querySelector("#addW").addEventListener("click",async()=>{
+      const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",placeholder:"75"}]);
+      if(!r)return; const v=num(r.w); if(v<=0)return;
+      logWeight(v); if(!S.body.goalW)S.body.goalW=Math.round(v-3); save(); render();
+    });
+    return;
+  }
+  const w=body_curW(), start=S.body.log[0].w, goal=S.body.goalW, lost=start-w;
+  const workouts=(()=>{let c=0;for(let k=0;k<30;k++){const ds=addDays(TODAY,-k);const h=S.habits.find(h=>/трениров|зал|спорт/i.test(h.name));if(h&&isDone(h.id,ds))c++;}return c;})();
+  // прогресс до цели: направление-независимый (работает и на сброс, и на набор)
+  let prog=null, left=null, reached=false;
+  if(goal && start!==goal){
+    prog=Math.round((start-w)/(start-goal)*100);
+    reached=prog>=100;
+    prog=Math.max(0,Math.min(100,prog));
+    left=Math.abs(w-goal);
+  }
+  root.innerHTML=`
+    <div class="glass card">
+      <h3>Путь к цели <span class="hedit2" id="editGoal">✏️ изменить цель</span></h3>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+        <div><div class="num" style="font-size:26px;font-weight:700;font-family:var(--fd);color:var(--cyan)">${w} кг</div><div style="font-size:11px;color:var(--mut2)">сейчас</div></div>
+        <div style="text-align:right"><div class="num" style="font-size:20px;font-weight:700;color:var(--gold)">${goal?goal+" кг":"—"}</div><div style="font-size:11px;color:var(--mut2)">цель</div></div>
+      </div>
+      ${prog!=null?`
+      <div class="bar-t" style="margin-top:12px"><span style="width:${prog}%"></span></div>
+      <div class="bar-m"><span>${reached?"🎉 цель достигнута — задай новую":"осталось <b>"+left.toFixed(1)+" кг</b>"}</span><span><b>${prog}%</b> пути</span></div>`
+      :`<div style="font-size:12px;color:var(--mut2);margin-top:10px">Задай цель — появится прогресс до неё.</div>`}
+    </div>
+    <div class="grid" style="margin-top:13px;grid-template-columns:repeat(3,1fr)">
+      <div class="glass card"><div class="stat"><div class="v e num">${Math.abs(lost)<0.05?"0.0":(lost>0?"−":"+")+Math.abs(lost).toFixed(1)}</div><div class="l">кг с ${fmtD(S.body.log[0].date)}</div></div></div>
+      <div class="glass card"><div class="stat"><div class="v g num">${prog!=null?prog+"%":"—"}</div><div class="l">пути пройдено</div></div></div>
+      <div class="glass card"><div class="stat"><div class="v or num">${workouts}</div><div class="l">тренировок · 30 дн</div></div></div>
+    </div>
+    <div class="glass card" style="margin-top:13px"><h3>Динамика веса</h3><canvas id="bW" height="150"></canvas>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mut2);margin-top:6px"><span>${fmtD(S.body.log[0].date)}</span><span>сегодня</span></div></div>
+    <div class="glass card" style="margin-top:13px"><h3>Последние записи</h3>
+      ${S.body.log.slice(-5).reverse().map(e=>`<div class="frow"><span class="cat" style="color:var(--mut)">${fmtD(e.date)}</span><span class="amt cy num">${e.w} кг</span><span class="del" data-wd="${e.date}" title="удалить запись">✕</span></div>`).join("")}
+    </div>
+    <div class="row2" style="margin-top:13px">
+      <div class="glass card" id="editCal" style="cursor:pointer"><h3>Норма калорий <span class="hedit2">✏️</span></h3><div class="stat"><div class="v g num">${nf(S.body.calGoal)}</div><div class="l">ккал / день</div></div></div>
+      <div class="glass card" id="editWater" style="cursor:pointer"><h3>Норма воды <span class="hedit2">✏️</span></h3><div class="stat"><div class="v cy num">${(S.body.waterGoal/1000).toFixed(1)} л</div><div class="l">в день</div></div></div>
+    </div>
+    <div class="addbtn" id="addW" style="margin-top:13px">⚖️ Записать вес на сегодня</div>`;
+  weightChart(root.querySelector("#bW"), S.body.log, goal);
+  root.querySelectorAll("[data-wd]").forEach(d=>d.addEventListener("click",()=>{
+    if(!confirm("Удалить запись за "+fmtD(d.dataset.wd)+"?")) return;
+    S.body.log=S.body.log.filter(x=>x.date!==d.dataset.wd); save(); render();
+  }));
+  root.querySelector("#editGoal").addEventListener("click",async()=>{
+    const r=await askModal("Цель веса",[{name:"g",label:"Цель, кг",type:"number",value:goal?String(goal):""}]);
+    if(!r)return; const v=num(r.g); if(v<=0)return;
+    S.body.goalW=v; save(); render();
+  });
+  root.querySelector("#editCal").addEventListener("click",async()=>{
+    const r=await askModal("Норма калорий",[{name:"c",label:"Ккал в день",type:"number",value:String(S.body.calGoal)}]);
+    if(!r)return; const v=Math.round(num(r.c)); if(v<=0)return;
+    S.body.calGoal=v; save(); render();
+  });
+  root.querySelector("#editWater").addEventListener("click",async()=>{
+    const r=await askModal("Норма воды",[{name:"m",label:"Миллилитров в день",type:"number",value:String(S.body.waterGoal)}]);
+    if(!r)return; const v=Math.round(num(r.m)); if(v<=0)return;
+    S.body.waterGoal=v; save(); render();
+  });
+  root.querySelector("#addW").addEventListener("click",async()=>{
+    const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",value:String(w)}]);
+    if(!r)return; const v=num(r.w); if(v<=0)return;
+    logWeight(v); save(); render();
+  });
+}
+
+function vShop(root){
+  const w=wallet();
+  S.myRewards=S.myRewards||[]; S.boughtMy=S.boughtMy||{};
+  root.innerHTML=`<div class="glass card"><h3>Кошелёк</h3><div class="stat"><div class="v g num">${nf(w)} 🪙</div><div class="l">заработано дисциплиной · трать на реальное</div></div></div>
+    <div class="sec-h">Награды</div><div class="shop" id="shopGrid"></div>
+    <div class="addbtn" id="addReward" style="margin-top:13px">➕ Своя награда</div>`;
+  const grid=root.querySelector("#shopGrid");
+  // награды многоразовые: «Кино» можно покупать хоть каждую неделю
+  REWARDS.forEach(([ico,name,cost],idx)=>{
+    const cnt=S.bought.filter(i=>i===idx).length;
+    const it=el(`<div class="si${w>=cost?" afford":""}"><div class="i">${ico}</div><div class="n">${name}</div><div class="pr">🪙 ${nf(cost)}</div>${cnt?`<div class="cnt">куплено ×${cnt}</div>`:""}`+`</div>`);
+    it.addEventListener("click",()=>{ if(wallet()<cost){toast("Не хватает монет 🪙");return;} S.bought.push(idx);S.spent+=cost;save();render();toast("Награда куплена! Отдыхай честно 🎉"); });
+    grid.appendChild(it);
+  });
+  // свои награды — награды всегда личные
+  S.myRewards.forEach(rw=>{
+    const cnt=S.boughtMy[rw.id]||0;
+    const it=el(`<div class="si${w>=rw.cost?" afford":""}"><span class="rm" data-id="${rw.id}" title="удалить награду">✕</span><div class="i">${rw.ico}</div><div class="n"></div><div class="pr">🪙 ${nf(rw.cost)}</div>${cnt?`<div class="cnt">куплено ×${cnt}</div>`:""}</div>`);
+    it.querySelector(".n").textContent=rw.name;
+    it.addEventListener("click",e=>{
+      if(e.target.classList.contains("rm")){
+        if(confirm(`Удалить награду «${rw.name}»?`)){ S.myRewards=S.myRewards.filter(x=>x.id!==rw.id); save(); render(); }
+        return;
+      }
+      if(wallet()<rw.cost){toast("Не хватает монет 🪙");return;}
+      S.boughtMy[rw.id]=(S.boughtMy[rw.id]||0)+1; S.spent+=rw.cost; save(); render(); toast("Награда куплена! Отдыхай честно 🎉");
+    });
+    grid.appendChild(it);
+  });
+  root.querySelector("#addReward").addEventListener("click",async()=>{
+    const r=await askModal("Своя награда",[
+      {name:"n",label:"Название (можно с эмодзи)",placeholder:"🎣 Рыбалка"},
+      {name:"c",label:"Цена в монетах 🪙",type:"number",value:"500"},
+    ]);
+    if(!r||!r.n) return;
+    let ico="🎁",nm=r.n; const m=r.n.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u); if(m){ico=m[1];nm=m[2]||r.n;}
+    const cost=Math.max(1,Math.round(num(r.c))||500);
+    S.myRewards.push({id:uid(),ico,name:nm,cost}); save(); render();
+  });
+}
+
+// добавление дохода/расхода: выбрать категорию-иконку + вписать сумму (стиль Monarch/Copilot)
+const CAT_EXP=[["🍔","Еда"],["🛒","Продукты"],["🏠","Жильё"],["🚗","Транспорт"],["🎮","Досуг"],["👕","Одежда"],["💊","Здоровье"],["📱","Связь"],["🎁","Подарки"],["✈️","Поездки"],["💪","Спорт"],["💸","Прочее"]];
+const CAT_INC=[["💼","Работа"],["📈","Подработка"],["💰","Бизнес"],["🏦","Проценты"],["🎁","Подарок"],["📥","Прочее"]];
+function addFinance(type){
+  const cats=type==="in"?CAT_INC:CAT_EXP; let sel=0;
+  const ovl=el(`<div class="ovl"></div>`);
+  const m=el(`<div class="modal"><h4>${type==="in"?"➕ Доход":"➖ Расход"}</h4></div>`);
+  m.appendChild(el(`<span class="lab">Сумма, ₽</span>`));
+  const amt=document.createElement("input"); amt.type="text"; amt.inputMode="decimal";
+  amt.autocomplete="off"; amt.className="amt-in"; amt.placeholder="0";
+  m.appendChild(amt);
+  m.appendChild(el(`<span class="lab">Категория — нажми</span>`));
+  const grid=el(`<div class="catgrid"></div>`);
+  cats.forEach(([ic,nm],i)=>{
+    const c=el(`<div class="catopt${i===sel?" sel":""}"><span class="ci">${ic}</span><span class="cn"></span></div>`);
+    c.querySelector(".cn").textContent=nm;
+    c.addEventListener("click",()=>{grid.querySelectorAll(".catopt").forEach(x=>x.classList.remove("sel"));c.classList.add("sel");sel=i;});
+    grid.appendChild(c);
+  });
+  m.appendChild(grid);
+  const btns=el(`<div class="btns"><button class="no">Отмена</button><button class="ok">Готово</button></div>`);
+  m.appendChild(btns); ovl.appendChild(m); document.body.appendChild(ovl);
+  setTimeout(()=>amt.focus(),50);
+  const close=()=>ovl.remove();
+  btns.querySelector(".no").onclick=close;
+  ovl.onclick=e=>{if(e.target===ovl)close();};
+  m.addEventListener("keydown",e=>{if(e.key==="Escape")close();});
+  btns.querySelector(".ok").onclick=()=>{
+    const a=Math.round(Math.abs(num(amt.value))); // копейки и минус не пускаем — сумма всегда целая и положительная
+    if(!a){ amt.focus(); toast("Впиши сумму больше нуля"); return; }
+    const [ic,nm]=cats[sel];
+    S.finance.entries.push({id:uid(),type,cat:`${ic} ${nm}`,amount:a,date:TODAY});
+    save(); close(); render(); toast(type==="in"?"Доход записан ✅":"Расход записан ✅");
+  };
+}
+
+async function addHabit(){
+  const r=await askModal("Новая привычка",[
+    {name:"name",label:"Название (можно с эмодзи)",placeholder:"🏃 Бег по утрам"},
+    {name:"coin",label:"Монет за выполнение 🪙",type:"number",value:"15"},
+  ]);
+  if(!r||!r.name) return;
+  let ico="⭐",nm=r.name; const m=r.name.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u); if(m){ico=m[1];nm=m[2]||r.name;}
+  const coin=Math.min(200,Math.max(1,Math.round(num(r.coin))||15));
+  S.habits.push({id:Math.max(0,...S.habits.map(h=>h.id))+1,ico,name:nm,coin}); save(); render();
+}
+function city(cv,level,total){const {c,w,h}=setup(cv,90);const emer=gv("--emerald"),gold=gv("--gold"),cyan=gv("--cyan"),labels=["🐣","🚀","💼","🏢","👑"];const gy=h-20,px=12,slot=(w-2*px)/total;
+  c.strokeStyle=cyan;c.globalAlpha=.5;c.lineWidth=1.4;c.shadowColor=cyan;c.shadowBlur=7;c.beginPath();c.moveTo(px,gy+.5);c.lineTo(w-px,gy+.5);c.stroke();c.shadowBlur=0;c.globalAlpha=1;
+  for(let i=0;i<total;i++){const bw=slot*0.55,bx=px+i*slot+(slot-bw)/2,bh=16+i*11,by=gy-bh,built=i<level,cur=i===level-1;
+   if(built){c.fillStyle=cur?"#2fe38f33":"#2fe38f1f";c.strokeStyle=emer;c.lineWidth=cur?2:1.3;c.shadowColor=emer;c.shadowBlur=cur?14:7;}else{c.fillStyle="#0e1622";c.strokeStyle="#26374b";c.lineWidth=1.1;c.shadowBlur=0;}
+   c.beginPath();c.rect(bx,by,bw,bh);c.fill();c.stroke();c.shadowBlur=0;
+   if(built){c.fillStyle=gold;c.globalAlpha=cur?.9:.55;for(let ry=by+5;ry<gy-3;ry+=7)for(let rx=bx+4;rx<bx+bw-3;rx+=7)c.fillRect(rx,ry,2.5,2.5);c.globalAlpha=1;}
+   c.font="12px system-ui";c.textAlign="center";c.globalAlpha=built?1:.4;c.fillText(labels[i],bx+bw/2,h-4);c.globalAlpha=1;}}
+
+// ---- флекс-картинка для сторис ----
+function rr(c,x,yy,w,h,r){c.beginPath();c.moveTo(x+r,yy);c.arcTo(x+w,yy,x+w,yy+h,r);c.arcTo(x+w,yy+h,x,yy+h,r);c.arcTo(x,yy+h,x,yy,r);c.arcTo(x,yy,x+w,yy,r);c.closePath();}
+function shareCard(){
+  const xp=totalXP(),li=levelIdx(xp),lvl=LEVELS[li],st=curStreak(),w=wallet();
+  const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),diM=new Date(y,mo+1,0).getDate();
+  let md=0,mp=0;for(let d=1;d<=Math.min(diM,now.getDate());d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;md+=checksOf(ds).length;mp+=S.habits.length;}
+  const mpct=mp?Math.round(md/mp*100):0;
+  const W=1080,H=1920,cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
+  const bg=c.createLinearGradient(0,0,0,H);bg.addColorStop(0,"#0b0f17");bg.addColorStop(1,"#080b11");c.fillStyle=bg;c.fillRect(0,0,W,H);
+  let rg=c.createRadialGradient(W*.8,H*.12,0,W*.8,H*.12,760);rg.addColorStop(0,"#2fe38f2e");rg.addColorStop(1,"transparent");c.fillStyle=rg;c.fillRect(0,0,W,H);
+  rg=c.createRadialGradient(W*.1,H*.9,0,W*.1,H*.9,700);rg.addColorStop(0,"#35d0ff1c");rg.addColorStop(1,"transparent");c.fillStyle=rg;c.fillRect(0,0,W,H);
+  c.textAlign="center";
+  c.fillStyle="#2fe38f";c.font="600 40px system-ui";c.fillText("🏛  МАГНАТ",W/2,170);
+  c.fillStyle="#5f7288";c.font="30px system-ui";c.fillText("Ж И З Н Ь   К А К   И Г Р А",W/2,225);
+  c.font="230px system-ui";c.fillText(lvl[2],W/2,560);
+  c.fillStyle="#eef4fb";c.font="italic 700 92px Georgia";c.fillText(lvl[0],W/2,690);
+  c.fillStyle="#2fe38f";c.font="700 32px system-ui";c.fillText("УРОВЕНЬ "+(li+1)+" ИЗ 5",W/2,748);
+  // прогресс-бар
+  const lo=lvl[1],hi=LEVELS[li+1]?LEVELS[li+1][1]:lvl[1]+1,pf=Math.max(.04,Math.min(1,(xp-lo)/(hi-lo)));
+  c.fillStyle="#0a1119";rr(c,240,800,600,30,15);c.fill();
+  c.fillStyle="#2fe38f";c.shadowColor="#2fe38f";c.shadowBlur=24;rr(c,240,800,600*pf,30,15);c.fill();c.shadowBlur=0;
+  // три плитки
+  const tiles=[["🪙 "+nf(w),"МОНЕТ","#f5c451"],["🔥 "+st,"СЕРИЯ ДНЕЙ","#f5c451"],[mpct+"%","МЕСЯЦ","#2fe38f"]];
+  const tw=300,th=200,gap=30,x0=(W-(tw*3+gap*2))/2,ty=900;
+  tiles.forEach((t,i)=>{const x=x0+i*(tw+gap);c.fillStyle="#131b28";c.strokeStyle="#26374b";c.lineWidth=2;rr(c,x,ty,tw,th,22);c.fill();c.stroke();
+    c.fillStyle=t[2];c.font="italic 700 64px Georgia";c.fillText(t[0],x+tw/2,ty+110);
+    c.fillStyle="#93a6bd";c.font="600 26px system-ui";c.fillText(t[1],x+tw/2,ty+160);});
+  // город-империя
+  const gy=1560,px=140,slot=(W-2*px)/5,labels=["🐣","🚀","💼","🏢","👑"];
+  c.strokeStyle="#35d0ff";c.globalAlpha=.5;c.lineWidth=3;c.shadowColor="#35d0ff";c.shadowBlur=16;c.beginPath();c.moveTo(px,gy);c.lineTo(W-px,gy);c.stroke();c.shadowBlur=0;c.globalAlpha=1;
+  for(let i=0;i<5;i++){const bw=slot*.5,bx=px+i*slot+(slot-bw)/2,bh=90+i*55,by=gy-bh,built=i<li+1,cur=i===li;
+    if(built){c.fillStyle=cur?"#2fe38f33":"#2fe38f1c";c.strokeStyle="#2fe38f";c.lineWidth=cur?5:3;c.shadowColor="#2fe38f";c.shadowBlur=cur?30:14;}
+    else{c.fillStyle="#0e1622";c.strokeStyle="#26374b";c.lineWidth=3;c.shadowBlur=0;}
+    c.beginPath();c.rect(bx,by,bw,bh);c.fill();c.stroke();c.shadowBlur=0;
+    c.font="40px system-ui";c.globalAlpha=built?1:.4;c.fillText(labels[i],bx+bw/2,gy+52);c.globalAlpha=1;}
+  c.fillStyle="#93a6bd";c.font="34px system-ui";c.fillText("построй свою империю дисциплины",W/2,H-120);
+  c.fillStyle="#5f7288";c.font="28px system-ui";c.fillText("приложение «Магнат»",W/2,H-70);
+  cv.toBlob(b=>{ if(!b){toast("Не вышло собрать картинку");return;}
+    const file=new File([b],"magnat.png",{type:"image/png"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){ navigator.share({files:[file],text:"Моя империя в Магнате 🏛"}).catch(()=>{}); return; }
+    const url=URL.createObjectURL(b),a=document.createElement("a");a.href=url;a.download="magnat.png";a.click();URL.revokeObjectURL(url);
+    toast("Картинка сохранена — кидай в сторис 🔥");
+  },"image/png");
+}
+
+// ---- router ----
+let cur="home";
+const RENDER={home:vHome,habits:vHabits,tasks:vTasks,money:vMoney,body:vBody,shop:vShop};
+function render(){
+  try{ draw(); }
+  catch(err){ rescue(err); }
+}
+function draw(){
+  const xp=totalXP(),li=levelIdx(xp);
+  // празднуем пересечение уровня вверх (первый рендер — тихо запоминаем)
+  if(S.lastLvl==null) S.lastLvl=li;
+  else if(li>S.lastLvl){ S.lastLvl=li; save(); celebrateLevel(li); }
+  else if(li<S.lastLvl){ S.lastLvl=li; }
+  document.getElementById("wallet").textContent=nf(wallet());
+  document.getElementById("lvlChip").textContent=LEVELS[li][0];
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===cur));
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
+  const root=document.getElementById("v-"+cur); root.classList.add("on"); RENDER[cur](root);
+}
+// если что-то всё же сломалось — не белый экран, а экран спасения с выгрузкой данных
+function rescue(err){
+  console.error(err);
+  const root=document.getElementById("v-"+cur)||document.getElementById("v-home");
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
+  root.classList.add("on");
+  root.innerHTML=`<div class="glass card" style="text-align:center;padding:30px 18px">
+    <div style="font-size:40px">🛠</div>
+    <h3 style="text-transform:none;font-size:16px;color:var(--ink);margin:12px 0 6px">Экран не построился</h3>
+    <p style="color:var(--mut);font-size:13.5px;line-height:1.55">Данные целы — сначала скачай копию, потом можно чинить.</p>
+    <div class="bkrow"><button class="bk" id="rsSave">💾 Скачать копию</button><button class="bk" id="rsFix">🧹 Починить данные</button></div>
+    <p class="bknote" style="word-break:break-word">${esc(String(err&&err.message||err))}</p></div>`;
+  root.querySelector("#rsSave").addEventListener("click",downloadBackup);
+  root.querySelector("#rsFix").addEventListener("click",()=>{ S=normalize(S); save(); render(); });
+}
+function downloadBackup(){
+  const blob=new Blob([JSON.stringify(S)],{type:"application/json"});
+  const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download="magnat-backup-"+TODAY+".json"; a.click();
+  URL.revokeObjectURL(url); toast("Копия сохранена 💾");
+}
+const tabsEl=document.getElementById("tabs");
+TABS.forEach(([id,label])=>{const b=el(`<div class="tab" data-t="${id}">${label}</div>`);b.addEventListener("click",()=>{cur=id;render();window.scrollTo(0,0);});tabsEl.appendChild(b);});
+// перерисовываем только при смене ШИРИНЫ: на телефоне resize стреляет от прячущейся
+// адресной строки при каждом скролле — раньше это дёргало экран и сбрасывало календарь
+let rzT, lastW=innerWidth;
+window.addEventListener("resize",()=>{
+  if(innerWidth===lastW) return; lastW=innerWidth;
+  clearTimeout(rzT); rzT=setTimeout(render,150);
+});
+// смена суток: галочки должны попадать в новый день, а не во вчерашний
+function dayWatch(){ if(refreshToday()) render(); }
+setInterval(dayWatch,30000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) dayWatch(); });
+window.addEventListener("focus",dayWatch);
+
+// кошелёк в шапке ведёт в награды (куда ещё тратить монеты?)
+(function(){
+  const cc=document.querySelector(".chip.coin"); if(!cc) return;
+  cc.style.cursor="pointer"; cc.title="Награды";
+  cc.addEventListener("click",()=>{cur="shop";render();window.scrollTo(0,0);});
 })();
+
+
+function showOnboarding(){
+  const ovl=el(`<div class="ovl"></div>`);
+  const m=el(`<div class="modal" style="max-width:380px">
+    <h4 style="font-size:22px">🏛 Добро пожаловать</h4>
+    <p style="color:var(--mut);font-size:14px;margin:10px 0 4px;line-height:1.55">Это <b>Магнат</b> — ты превращаешь свою жизнь в игру-тайкун. Каждый день дисциплины даёт <b class="e">⭐ опыт</b> (растит уровень Новичок→Магнат) и <b class="g">🪙 монеты</b> (копишь и тратишь на реальные награды). Серия дней подряд множит доход.</p>
+    <p style="color:var(--mut2);font-size:12.5px;margin:12px 0 2px">Сейчас внутри — пример для наглядности. С чего начнём?</p>
+    <div class="btns" style="flex-direction:column">
+      <button class="ok" id="obFresh">🚀 Начать своё (чистый лист)</button>
+      <button class="no" id="obDemo">👀 Посмотреть пример</button>
+    </div></div>`);
+  ovl.appendChild(m); document.body.appendChild(ovl);
+  m.querySelector("#obFresh").onclick=()=>{ S=freshStart(); save(); ovl.remove(); render(); };
+  m.querySelector("#obDemo").onclick=()=>{ S.demoData=true; save(); ovl.remove(); render(); };
+}
+
+render();
+if(FIRST_RUN) showOnboarding();
+
+// офлайн: с домашнего экрана приложение должно открываться и без сети
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
 </script>
