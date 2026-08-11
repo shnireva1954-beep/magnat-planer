@@ -115,6 +115,10 @@
   .frow .fdt{font-size:10.5px; color:var(--mut2); font-variant-numeric:tabular-nums;}
   .hedit2{color:var(--emerald); font-size:10.5px; cursor:pointer; text-transform:none; letter-spacing:0; font-weight:600;}
   .si .cnt{font-size:9.5px; color:var(--emerald); margin-top:4px;}
+  /* пояснение под автоматически посчитанной нормой */
+  .nrm{font-size:10.5px; color:var(--mut2); margin-top:9px; line-height:1.5;}
+  .nprof{display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12.5px; color:var(--mut); padding:13px 15px;}
+  .nprof>span:first-child{min-width:0;}
   .modal input[type=date]{color-scheme:dark;}
 
   /* reward shop */
@@ -228,7 +232,7 @@ function load(){
 function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} }
 function freshStart(){  // чистый лист — без чужих данных
   let id=1; const habits=DEFHABITS.map(([ico,name,coin])=>({id:id++,ico,name,coin}));
-  return {habits, checks:{}, tasks:[], finance:{income:0,entries:[]}, body:{goalW:0,calGoal:2400,waterGoal:2500,log:[]}, bought:[], myRewards:[], boughtMy:{}, spent:0};
+  return {habits, checks:{}, tasks:[], finance:{income:0,entries:[]}, body:{goalW:0,calGoal:2400,waterGoal:2500,calManual:false,waterManual:false,sex:"",height:0,birth:0,act:"auto",log:[]}, bought:[], myRewards:[], boughtMy:{}, spent:0};
 }
 // приводим любые данные (старая версия, ручная правка, чужой файл) к рабочему виду —
 // иначе одно недостающее поле роняет всё приложение в белый экран
@@ -263,8 +267,15 @@ function normalize(d){
     .map(x=>({date:x.date,w:Math.round(num(x.w)*10)/10}))
     .sort((p,q)=>p.date<q.date?-1:p.date>q.date?1:0)
     .filter(x=>{ if(seen.has(x.date)) return false; seen.add(x.date); return true; });
+  const yNow=+TODAY.slice(0,4), hgt=Math.round(num(b.height)), byr=Math.round(num(b.birth));
   o.body={goalW:Math.max(0,num(b.goalW)), calGoal:Math.round(num(b.calGoal))||2400,
-          waterGoal:Math.round(num(b.waterGoal))||2500, log};
+          waterGoal:Math.round(num(b.waterGoal))||2500,
+          calManual:!!b.calManual, waterManual:!!b.waterManual,
+          sex:b.sex==="f"?"f":b.sex==="m"?"m":"",
+          height:(hgt>=100&&hgt<=250)?hgt:0,
+          birth:(byr>=yNow-100&&byr<=yNow-10)?byr:0,
+          act:["auto","1.2","1.375","1.55","1.725","1.9"].includes(b.act)?b.act:"auto",
+          log};
   o.bought=Array.isArray(d.bought)?d.bought.map(Number).filter(n=>Number.isInteger(n)&&n>=0):[];
   o.myRewards=Array.isArray(d.myRewards)?d.myRewards.filter(r=>r&&typeof r==="object").map(r=>({
     id:Number.isFinite(+r.id)?+r.id:uid(), ico:String(r.ico||"🎁"),
@@ -303,7 +314,8 @@ function seed(){
     {id:6,type:"out",cat:"🚗 Транспорт",    amount:6000, date:dayIn(7)},
     {id:7,type:"out",cat:"📱 Связь",        amount:2500, date:dayIn(2)},
   ]};
-  const body={goalW:78, calGoal:2400, waterGoal:2500,
+  const body={goalW:78, calGoal:2400, waterGoal:2500, calManual:false, waterManual:false,
+    sex:"m", height:182, birth:1990, act:"auto",
     log:[["-56",84],["-49",83.2],["-42",82.5],["-35",81.9],["-28",81.1],["-21",80.4],["-14",79.8],["-7",79.3],["0",78.9]].map(([k,w])=>({date:addDays(TODAY,+k),w}))};
   return {habits,checks,tasks,finance,body,bought:[],spent:0};
 }
@@ -803,6 +815,61 @@ function logWeight(v){
   if(ex) ex.w=w; else S.body.log.push({date:TODAY,w});
   S.body.log.sort((p,q)=>p.date<q.date?-1:p.date>q.date?1:0);
 }
+// ---- нормы калорий и воды: считаются сами из веса, роста, возраста и тренировок ----
+const ACTS=[["auto","🤖 По моим тренировкам"],["1.2","Сидячий образ жизни"],["1.375","Лёгкая активность"],
+            ["1.55","Средняя активность"],["1.725","Высокая активность"],["1.9","Очень высокая"]];
+const ACTNAME=f=>f<1.3?"сидячий":f<1.45?"лёгкая":f<1.65?"средняя":f<1.8?"высокая":"очень высокая";
+// считаем ДНИ с тренировкой, а любая подходящая привычка засчитывается —
+// у кого-то это «Тренировка», у кого-то «Бег» и «Зал» одновременно
+const workoutHabits=()=>S.habits.filter(h=>/трениров|зал|спорт|бег|фитнес|качал|плаван|йог/i.test(h.name));
+function workoutDays(n){ const hs=workoutHabits(); if(!hs.length) return 0;
+  let c=0; for(let k=0;k<n;k++){ const ds=addDays(TODAY,-k); if(hs.some(h=>isDone(h.id,ds))) c++; } return c; }
+function actFactor(){
+  const a=S.body.act||"auto";
+  if(a!=="auto") return num(a)||1.375;
+  const pw=workoutDays(28)/4;   // тренировок в неделю по собственным отметкам
+  return pw<0.5?1.2:pw<2.5?1.375:pw<4.5?1.55:pw<6.5?1.725:1.9;
+}
+const profileReady=()=>!!(body_curW() && S.body.height>0 && S.body.birth>0 && S.body.sex);
+// Миффлин — Сан Жеор: сегодняшний стандарт расчёта основного обмена
+function bmrValue(){
+  if(!profileReady()) return 0;
+  const age=Math.max(10,Math.min(100,+TODAY.slice(0,4)-S.body.birth));
+  return 10*body_curW() + 6.25*S.body.height - 5*age + (S.body.sex==="f"?-161:5);
+}
+function norms(){
+  const base=bmrValue(); if(!base) return null;
+  const f=actFactor(), tdee=base*f, w=body_curW(), g=S.body.goalW;
+  let cal=tdee, mode="поддержание веса";
+  if(g && w-g>0.5){ cal=tdee*0.85; mode="дефицит 15% — на снижение"; }
+  else if(g && g-w>0.5){ cal=tdee*1.10; mode="профицит 10% — на набор"; }
+  let floored=false;
+  if(cal<base){ cal=base; floored=true; }   // ниже основного обмена не опускаемся
+  const trained=workoutDays(1)>0;           // тренировка сегодня — воды нужно больше
+  return { bmr:Math.round(base/10)*10, tdee:Math.round(tdee/10)*10, cal:Math.round(cal/10)*10,
+           water:Math.round(w*30/50)*50+(trained?500:0), trained,
+           mode, floored, f, perWeek:Math.round(workoutDays(28)/4*10)/10 };
+}
+const calGoalNow =()=>S.body.calManual   ? S.body.calGoal   : (norms()?norms().cal   : 0);
+const waterGoalNow=()=>S.body.waterManual? S.body.waterGoal : (norms()?norms().water : 0);
+
+async function editProfile(){
+  const b=S.body;
+  const r=await askModal("Профиль для расчёта норм",[
+    {name:"sex",label:"Пол",type:"select",options:[["m","Мужской"],["f","Женский"]],value:b.sex||"m"},
+    {name:"height",label:"Рост, см",type:"number",value:b.height?String(b.height):"",placeholder:"180"},
+    {name:"birth",label:"Год рождения",type:"number",value:b.birth?String(b.birth):"",placeholder:"1990"},
+    {name:"act",label:"Активность",type:"select",options:ACTS,value:b.act||"auto"},
+  ]);
+  if(!r) return;
+  const h=Math.round(num(r.height)), y=Math.round(num(r.birth)), nowY=+TODAY.slice(0,4);
+  if(h<100||h>250){ toast("Рост должен быть от 100 до 250 см"); return; }
+  if(y<nowY-100||y>nowY-10){ toast("Проверь год рождения"); return; }
+  b.sex=r.sex==="f"?"f":"m"; b.height=h; b.birth=y;
+  b.act=ACTS.some(a=>a[0]===r.act)?r.act:"auto";
+  save(); render(); toast("Нормы пересчитаны 🧮");
+}
+
 function vBody(root){
   if(!S.body.log.length){
     root.innerHTML=`<div class="glass card" style="text-align:center;padding:36px 18px">
@@ -818,7 +885,7 @@ function vBody(root){
     return;
   }
   const w=body_curW(), start=S.body.log[0].w, goal=S.body.goalW, lost=start-w;
-  const workouts=(()=>{let c=0;for(let k=0;k<30;k++){const ds=addDays(TODAY,-k);const h=S.habits.find(h=>/трениров|зал|спорт/i.test(h.name));if(h&&isDone(h.id,ds))c++;}return c;})();
+  const workouts=workoutDays(30), N=norms();
   // прогресс до цели: направление-независимый (работает и на сброс, и на набор)
   let prog=null, left=null, reached=false;
   if(goal && start!==goal){
@@ -849,10 +916,26 @@ function vBody(root){
     <div class="glass card" style="margin-top:13px"><h3>Последние записи</h3>
       ${S.body.log.slice(-5).reverse().map(e=>`<div class="frow"><span class="cat" style="color:var(--mut)">${fmtD(e.date)}</span><span class="amt cy num">${e.w} кг</span><span class="del" data-wd="${e.date}" title="удалить запись">✕</span></div>`).join("")}
     </div>
+    ${N?`
     <div class="row2" style="margin-top:13px">
-      <div class="glass card" id="editCal" style="cursor:pointer"><h3>Норма калорий <span class="hedit2">✏️</span></h3><div class="stat"><div class="v g num">${nf(S.body.calGoal)}</div><div class="l">ккал / день</div></div></div>
-      <div class="glass card" id="editWater" style="cursor:pointer"><h3>Норма воды <span class="hedit2">✏️</span></h3><div class="stat"><div class="v cy num">${(S.body.waterGoal/1000).toFixed(1)} л</div><div class="l">в день</div></div></div>
+      <div class="glass card" id="editCal" style="cursor:pointer"><h3>Норма калорий <span class="hedit2">${S.body.calManual?"✏️ вручную":"🧮 авто"}</span></h3>
+        <div class="stat"><div class="v g num">${nf(calGoalNow())}</div><div class="l">ккал / день</div></div>
+        ${S.body.calManual?"":`<div class="nrm">поддержание ${nf(N.tdee)} · ${N.mode}${N.floored?"<br>ниже основного обмена не опускаем":""}</div>`}</div>
+      <div class="glass card" id="editWater" style="cursor:pointer"><h3>Норма воды <span class="hedit2">${S.body.waterManual?"✏️ вручную":"🧮 авто"}</span></h3>
+        <div class="stat"><div class="v cy num">${(waterGoalNow()/1000).toFixed(1)} л</div><div class="l">в день</div></div>
+        ${S.body.waterManual?"":`<div class="nrm">30 мл на кг веса${N.trained?" · сегодня тренировка, +0,5 л":" · в день тренировки прибавится 0,5 л"}</div>`}</div>
     </div>
+    <div class="glass card nprof" id="editProf" style="margin-top:13px;cursor:pointer">
+      <span>👤 ${S.body.sex==="f"?"жен":"муж"} · ${S.body.height} см · ${+TODAY.slice(0,4)-S.body.birth} лет ·
+      ${S.body.act==="auto"?`активность по тренировкам (${N.perWeek}/нед → ${ACTNAME(N.f)})`:"активность: "+ACTNAME(N.f)}</span>
+      <span class="hedit2">✏️ изменить</span></div>
+    <p class="bknote">Считается по формуле Миффлина — Сан Жеора: основной обмен ${nf(N.bmr)} ккал, умноженный на активность и подогнанный под цель по весу. Это оценка, а не назначение врача.</p>
+    `:`
+    <div class="glass card" style="margin-top:13px;text-align:center;padding:26px 18px">
+      <div style="font-size:34px">🧮</div>
+      <h3 style="text-transform:none;font-size:16px;color:var(--ink);margin:10px 0 6px">Нормы калорий и воды</h3>
+      <p style="color:var(--mut);font-size:13.5px;line-height:1.55;margin-bottom:15px">Приложение посчитает их само — по формуле Миффлина — Сан Жеора. Вес и тренировки оно уже знает, нужны только рост, пол и год рождения.</p>
+      <div class="addbtn" id="editProf">👤 Заполнить профиль</div></div>`}
     <div class="addbtn" id="addW" style="margin-top:13px">⚖️ Записать вес на сегодня</div>`;
   weightChart(root.querySelector("#bW"), S.body.log, goal);
   root.querySelectorAll("[data-wd]").forEach(d=>d.addEventListener("click",()=>{
@@ -864,15 +947,26 @@ function vBody(root){
     if(!r)return; const v=num(r.g); if(v<=0)return;
     S.body.goalW=v; save(); render();
   });
-  root.querySelector("#editCal").addEventListener("click",async()=>{
-    const r=await askModal("Норма калорий",[{name:"c",label:"Ккал в день",type:"number",value:String(S.body.calGoal)}]);
-    if(!r)return; const v=Math.round(num(r.c)); if(v<=0)return;
-    S.body.calGoal=v; save(); render();
+  root.querySelector("#editProf").addEventListener("click",editProfile);
+  const ec=root.querySelector("#editCal");
+  if(ec) ec.addEventListener("click",async()=>{
+    const r=await askModal("Норма калорий",[{name:"c",
+      label:"Ккал в день — пусто, чтобы считалось само",type:"number",
+      value:S.body.calManual?String(S.body.calGoal):"",placeholder:String(calGoalNow())}]);
+    if(!r)return;
+    const v=Math.round(num(r.c));
+    if(v>0){ S.body.calGoal=v; S.body.calManual=true; } else { S.body.calManual=false; toast("Считаю сам 🧮"); }
+    save(); render();
   });
-  root.querySelector("#editWater").addEventListener("click",async()=>{
-    const r=await askModal("Норма воды",[{name:"m",label:"Миллилитров в день",type:"number",value:String(S.body.waterGoal)}]);
-    if(!r)return; const v=Math.round(num(r.m)); if(v<=0)return;
-    S.body.waterGoal=v; save(); render();
+  const ew=root.querySelector("#editWater");
+  if(ew) ew.addEventListener("click",async()=>{
+    const r=await askModal("Норма воды",[{name:"m",
+      label:"Миллилитров в день — пусто, чтобы считалось само",type:"number",
+      value:S.body.waterManual?String(S.body.waterGoal):"",placeholder:String(waterGoalNow())}]);
+    if(!r)return;
+    const v=Math.round(num(r.m));
+    if(v>0){ S.body.waterGoal=v; S.body.waterManual=true; } else { S.body.waterManual=false; toast("Считаю сам 🧮"); }
+    save(); render();
   });
   root.querySelector("#addW").addEventListener("click",async()=>{
     const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",value:String(w)}]);
