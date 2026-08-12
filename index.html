@@ -113,7 +113,7 @@
 
   /* finance rows */
   .frow{display:flex; align-items:center; gap:6px; padding:10px 2px; border-bottom:1px solid var(--line); font-size:13.5px;}
-  .frow:last-child{border:none} .frow .cat{flex:1} .frow .amt{font-variant-numeric:tabular-nums; font-weight:700;}
+  .frow:last-child{border:none} .frow .cat{flex:1} .frow .amt{font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; margin-left:auto;}
   .frow .fdt{font-size:10.5px; color:var(--mut2); font-variant-numeric:tabular-nums;}
   .hedit2{color:var(--emerald); font-size:10.5px; cursor:pointer; text-transform:none; letter-spacing:0; font-weight:600;}
   .si .cnt{font-size:9.5px; color:var(--emerald); margin-top:4px;}
@@ -217,6 +217,8 @@ const SIZENAME=d=>d<=1?"день":d<=3?"три дня":d<=7?"неделя":"ме
 const DEFREWARDS=[["🎮","Вечер игр",1],["🍔","Читмил",1],["🎬","Кино",3],["🛌","Выходной",7],["🛍","Новая вещь",7],["🌴","Поездка",30]];
 const TABS=[["home","🏛 Обзор"],["habits","✅ Привычки"],["tasks","🎯 Задачи"],["money","💰 Финансы"],["body","💪 Тело"],["shop","🛒 Награды"]];
 const nf=n=>Math.round(n).toLocaleString("ru-RU");
+// в суммах — настоящий минус «−», а не дефис: с дефисом «-300» слипается с соседним значком
+const sgn=n=>(n<0?"−":"")+nf(Math.abs(n));
 const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const gv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const pad=x=>String(x).padStart(2,"0");
@@ -642,7 +644,7 @@ function vHome(root){
    <div class="grid" style="margin-top:13px">
      <div class="glass card" data-go="habits"><h3>Месяц выполнен <span class="go">›</span></h3><div class="donut-wrap"><canvas id="hDonut"></canvas><div class="donut-c"><div class="p e" id="hDonutP">0%</div><div class="t">привычки</div></div></div></div>
      <div class="glass card" data-go="habits"><h3>Разгон · 14 дней <span class="go">›</span></h3><canvas id="hSpark"></canvas><div style="margin-top:8px;font-size:12px;color:var(--mut)">🪙 сегодня: <b class="cy num" id="hToday">0</b></div></div>
-     <div class="glass card" data-go="money"><h3>Баланс месяца <span class="go">›</span></h3><div class="stat"><div class="v ${inc-out>=0?'e':'dn'} num">${nf(inc-out)} ₽</div><div class="l">доход ${nf(inc)} · расход ${nf(out)}</div></div><canvas id="hMoney" style="margin-top:8px"></canvas></div>
+     <div class="glass card" data-go="money"><h3>Баланс месяца <span class="go">›</span></h3><div class="stat"><div class="v ${inc-out>=0?'e':'dn'} num">${sgn(inc-out)} ₽</div><div class="l">доход ${nf(inc)} · расход ${nf(out)}</div></div><canvas id="hMoney" style="margin-top:8px"></canvas></div>
      <div class="glass card" data-go="tasks"><h3>Задачи <span class="go">›</span></h3><div class="stat"><div class="v g num">${tOpen}</div><div class="l">открыто · ${S.tasks.filter(t=>t.done).length} готово</div></div></div>
      <div class="glass card" data-go="body"><h3>Вес <span class="go">›</span></h3><div class="stat"><div class="v cy num">${w?w+" кг":"-"}</div><div class="l">${S.body.goalW?"цель "+S.body.goalW+" кг":"запиши вес"}</div></div><canvas id="hBody" style="margin-top:8px"></canvas></div>
      <div class="glass card" data-go="shop"><h3>Империя <span class="go">›</span></h3><canvas id="hCity" height="90"></canvas><div style="text-align:center;font-size:11px;color:var(--mut2);margin-top:6px">ты на <b class="e">${li+1} из 5</b> · монеты ждут в наградах</div></div>
@@ -865,7 +867,8 @@ function vMoney(root){
     <div class="grid">
       <div class="glass card"><div class="stat"><div class="v e num">${nf(inc)} ₽</div><div class="l">доход</div></div></div>
       <div class="glass card"><div class="stat"><div class="v dn num">${nf(out)} ₽</div><div class="l">расход</div></div></div>
-      <div class="glass card"><div class="stat"><div class="v ${bal>=0?'g':'dn'} num">${nf(bal)} ₽</div><div class="l">осталось</div></div></div>
+      <div class="glass card"><div class="stat"><div class="v ${bal>=0?'g':'dn'} num">${nf(Math.abs(bal))} ₽</div><div class="l">${bal>=0?"осталось":"перерасход"}</div></div>
+        ${inc===0&&out>0?'<div class="nrm">доход за месяц ещё не внесён</div>':""}</div>
     </div>
     ${hasData?`
     <div class="row2" style="margin-top:13px">
@@ -874,7 +877,7 @@ function vMoney(root){
         <div style="margin-top:10px">${parts.map(p=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;margin-bottom:4px"><span style="width:9px;height:9px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:var(--mut)">${p.cat}</span><b class="num">${nf(p.v)}</b></div>`).join("")}</div></div>
     </div>
     <div class="sec-h">Операции месяца</div>
-    <div class="glass card">${me.slice().sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:b.id-a.id).map(e=>`<div class="frow"><span class="cat">${e.cat}</span><span class="fdt">${fmtD(e.date)}</span><span class="del" data-id="${e.id}">✕</span><span class="amt ${e.type==='in'?'e':'dn'}">${e.type==='in'?'+':'-'}${nf(e.amount)} ₽</span></div>`).join("")}</div>
+    <div class="glass card">${me.slice().sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:b.id-a.id).map(e=>`<div class="frow"><span class="cat">${esc(e.cat)}</span><span class="fdt">${fmtD(e.date)}</span><span class="amt ${e.type==='in'?'e':'dn'}">${e.type==='in'?'+':'−'}${nf(e.amount)} ₽</span><span class="del" data-id="${e.id}" title="удалить">✕</span></div>`).join("")}</div>
     `:`
     <div class="glass card" style="text-align:center;padding:30px 18px;margin-top:13px">
       <div style="font-size:40px">💰</div>
