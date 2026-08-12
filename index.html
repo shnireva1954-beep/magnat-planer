@@ -35,7 +35,10 @@
   .num{font-variant-numeric:tabular-nums;}
 
   /* top bar */
-  header{position:sticky; top:0; z-index:20; background:#080b11d9; backdrop-filter:blur(10px); border-bottom:1px solid var(--line);}
+  /* standalone-режим с black-translucent кладёт статус-бар поверх страницы:
+     без этого отступа время и LTE налезали на название и кошелёк */
+  header{position:sticky; top:0; z-index:20; background:#080b11d9; backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
+    padding-top:env(safe-area-inset-top);}
   .bar{display:flex; align-items:center; gap:12px; height:60px;}
   .brand{display:flex; align-items:center; gap:9px; margin-right:auto;}
   .brand .c{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:19px;background:linear-gradient(150deg,#0e3327,#0a1a24);border:1px solid var(--line2);box-shadow:0 0 14px #2fe38f22;}
@@ -46,8 +49,12 @@
   @media(max-width:520px){ .chip.lvl{display:none} }
 
   /* tabs */
-  .tabs{display:flex; gap:8px; overflow-x:auto; padding:11px 0 3px; -webkit-overflow-scrolling:touch; scrollbar-width:none;
-    mask-image:linear-gradient(90deg,#000 91%,transparent); -webkit-mask-image:linear-gradient(90deg,#000 91%,transparent);}
+  /* край гасим только с той стороны, где вкладки реально продолжаются:
+     постоянная маска обрезала последнюю вкладку даже в самом конце полосы */
+  .tabs{display:flex; gap:8px; overflow-x:auto; padding:11px 1px 3px; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
+  .tabs.fl{mask-image:linear-gradient(90deg,transparent,#000 34px); -webkit-mask-image:linear-gradient(90deg,transparent,#000 34px);}
+  .tabs.fr{mask-image:linear-gradient(90deg,#000 calc(100% - 34px),transparent); -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 34px),transparent);}
+  .tabs.fl.fr{mask-image:linear-gradient(90deg,transparent,#000 34px,#000 calc(100% - 34px),transparent); -webkit-mask-image:linear-gradient(90deg,transparent,#000 34px,#000 calc(100% - 34px),transparent);}
   .tabs::-webkit-scrollbar{display:none}
   .tab{flex:none; padding:8px 13px; border-radius:11px; font-size:13px; color:var(--mut); background:var(--panel); border:1px solid var(--line); cursor:pointer; white-space:nowrap; transition:all .15s;}
   .tab.on{color:#04120b; background:var(--emerald); border-color:var(--emerald); font-weight:700; box-shadow:0 0 16px #2fe38f44;}
@@ -530,7 +537,22 @@ function bars(cv,data,color,opts){
 // график веса: старт, текущее значение и пунктирная цель
 function weightChart(cv,log,goal){
   const {c,w,h}=setup(cv,150);
-  const data=log.map(x=>x.w); if(data.length===1) data.push(data[0]);
+  // с одним замером «динамики» ещё нет: точка и цель вместо залитого во весь блок прямоугольника
+  if(log.length<2){
+    const gold=gv("--gold"), cy1=gv("--cyan");
+    if(goal){ const gy=h-26;
+      c.setLineDash([5,4]); c.strokeStyle=gold; c.globalAlpha=.65; c.lineWidth=1.4;
+      c.beginPath(); c.moveTo(10,gy); c.lineTo(w-58,gy); c.stroke();
+      c.setLineDash([]); c.globalAlpha=1;
+      c.fillStyle=gold; c.font="600 10px system-ui"; c.textAlign="left"; c.fillText("цель "+goal, w-52, gy+3.5); }
+    const py=goal?36:h/2;
+    c.beginPath(); c.arc(w/2,py,4.5,0,7); c.fillStyle=cy1; c.shadowColor=cy1; c.shadowBlur=10; c.fill(); c.shadowBlur=0;
+    c.fillStyle=cy1; c.font="700 13px system-ui"; c.textAlign="center"; c.fillText(String(log[0].w)+" кг", w/2, py-12);
+    c.fillStyle="#68809b"; c.font="11px system-ui";
+    c.fillText("запиши вес ещё раз — появится линия", w/2, py+26);
+    return;
+  }
+  const data=log.map(x=>x.w);
   const vals=goal?[...data,goal]:[...data];
   let mn=Math.min(...vals), mx=Math.max(...vals);
   if(mx-mn<0.8){mx+=0.5;mn-=0.5;}
@@ -1242,6 +1264,16 @@ function draw(){
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===cur));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
   const root=document.getElementById("v-"+cur); root.classList.add("on"); RENDER[cur](root);
+  // активная вкладка не должна оставаться наполовину за краем полосы
+  const at=tabsEl.querySelector(".tab.on");
+  if(at) tabsEl.scrollTo({left:Math.max(0,at.offsetLeft-(tabsEl.clientWidth-at.offsetWidth)/2),
+                          behavior:RM?"auto":"smooth"});
+  tabFades();
+}
+function tabFades(){
+  const x=tabsEl.scrollLeft, max=tabsEl.scrollWidth-tabsEl.clientWidth;
+  tabsEl.classList.toggle("fl", x>4);
+  tabsEl.classList.toggle("fr", x<max-4);
 }
 // если что-то всё же сломалось — не белый экран, а экран спасения с выгрузкой данных
 function rescue(err){
@@ -1268,6 +1300,7 @@ const tabsEl=document.getElementById("tabs");
 TABS.forEach(([id,label])=>{const b=el(`<div class="tab" data-t="${id}">${label}</div>`);b.addEventListener("click",()=>{cur=id;render();window.scrollTo(0,0);});tabsEl.appendChild(b);});
 // перерисовываем только при смене ШИРИНЫ: на телефоне resize стреляет от прячущейся
 // адресной строки при каждом скролле — раньше это дёргало экран и сбрасывало календарь
+tabsEl.addEventListener("scroll",tabFades,{passive:true});
 let rzT, lastW=innerWidth;
 window.addEventListener("resize",()=>{
   if(innerWidth===lastW) return; lastW=innerWidth;
