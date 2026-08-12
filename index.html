@@ -31,7 +31,8 @@
   .glass{background:linear-gradient(168deg,rgba(20,28,42,.62),rgba(15,21,32,.62)); backdrop-filter:blur(11px) saturate(1.15); -webkit-backdrop-filter:blur(11px) saturate(1.15); border:1px solid var(--line2); border-radius:16px; box-shadow:inset 0 1px 0 #ffffff0e,0 8px 26px #00000038;}
   .card{padding:15px 15px;} .card>h3{font-size:11px; letter-spacing:1.1px; text-transform:uppercase; color:var(--mut2); font-weight:600; margin-bottom:11px; display:flex; justify-content:space-between; align-items:center;}
   canvas{display:block; width:100%; height:auto;}
-  .grid{display:grid; gap:13px; grid-template-columns:repeat(auto-fit,minmax(250px,1fr));}
+  /* min(...) обязателен: голый minmax(250px,…) шире узкого контейнера при зуме и даёт скролл */
+  .grid{display:grid; gap:13px; grid-template-columns:repeat(auto-fit,minmax(min(250px,100%),1fr));}
   .num{font-variant-numeric:tabular-nums;}
 
   /* top bar */
@@ -133,7 +134,7 @@
   .modal input[type=date]{color-scheme:dark;}
 
   /* reward shop */
-  .shop{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px;}
+  .shop{display:grid; grid-template-columns:repeat(auto-fit,minmax(min(120px,100%),1fr)); gap:10px;}
   .si{background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:14px 8px; text-align:center; cursor:pointer; transition:all .18s; position:relative;}
   .si .i{font-size:26px} .si .n{font-size:11.5px; color:var(--mut); margin:8px 0 6px; min-height:30px; display:flex; align-items:center; justify-content:center;}
   .si .pr{font-size:13px; color:#8a6f2e; font-weight:700; font-variant-numeric:tabular-nums;}
@@ -159,13 +160,15 @@
   .modal .lab{font-size:12px; color:var(--mut2); text-transform:uppercase; letter-spacing:.6px; display:block; margin:14px 0 6px;}
   .modal input, .modal select{width:100%; padding:13px 13px; border-radius:12px; background:var(--panel); border:1px solid var(--line2); color:var(--ink); font-size:16px; outline:none;}
   .modal input:focus, .modal select:focus{border-color:var(--emerald);}
+  .modal .ferr{display:none; margin-top:14px; font-size:12.5px; color:var(--danger); line-height:1.45;}
+  .modal .ferr.on{display:block;}
   .modal .btns{display:flex; gap:10px; margin-top:20px;}
   .modal .btns button{flex:1; padding:13px; border-radius:12px; border:none; font-size:15px; font-weight:700; cursor:pointer;}
   .modal .ok{background:linear-gradient(180deg,var(--emerald),#17a768); color:#04120b; box-shadow:0 0 18px #2fe38f44;}
   .modal .no{background:var(--panel); color:var(--mut); border:1px solid var(--line2);}
   /* сетка категорий в форме финансов (как Monarch/Copilot) */
   .amt-in{font-size:30px !important; text-align:center; font-family:var(--fd); font-variant-numeric:tabular-nums;}
-  .catgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:6px;}
+  .catgrid{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:6px;}
   .catopt{padding:11px 4px; border-radius:12px; background:var(--panel); border:1px solid var(--line); text-align:center; cursor:pointer; font-size:10.5px; color:var(--mut); transition:all .15s;}
   .catopt:active{transform:scale(.95)}
   .catopt .ci{font-size:23px; display:block; margin-bottom:4px;}
@@ -275,7 +278,10 @@ function load(){
   try{const r=localStorage.getItem(KEY); if(r) return normalize(JSON.parse(r));}catch(e){}
   FIRST_RUN=true; return seed();
 }
-function save(){ invalidate(); try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} }
+function save(){ invalidate();
+  try{ localStorage.setItem(KEY,JSON.stringify(S)); }
+  catch(e){ toast("Не удалось сохранить — освободи место в браузере"); }  // молчать тут нельзя
+}
 function freshStart(){  // чистый лист — без чужих данных
   let id=1; const habits=DEFHABITS.map(([ico,name])=>({id:id++,ico,name,since:""}));
   return {habits, checks:{}, tasks:[], finance:{income:0,entries:[]}, body:{goalW:0,calGoal:2400,waterGoal:2500,calManual:false,waterManual:false,sex:"",height:0,birth:0,act:"auto",log:[]}, rewards:defRewards(habits.length), boughtCnt:{}, spent:0};
@@ -615,12 +621,19 @@ function askModal(title, fields, opts){
       }
       m.appendChild(inp); inputs[f.name]=inp;
     });
+    const err=el(`<p class="ferr"></p>`); m.appendChild(err);
     const btns=el(`<div class="btns"><button class="no${o.del?" dl":""}"${o.del?' style="color:var(--danger);border-color:#5a2730"':""}>${o.del||"Отмена"}</button><button class="ok">Готово</button></div>`);
     m.appendChild(btns); ovl.appendChild(m); document.body.appendChild(ovl);
     setTimeout(()=>inputs[fields[0].name].focus(),50);
     const close=v=>{ovl.remove();resolve(v);};
     btns.querySelector(".no").onclick=()=>close(o.del?{__deleted:true}:null);
-    btns.querySelector(".ok").onclick=()=>{const r={};fields.forEach(f=>{const v=inputs[f.name].value;r[f.name]=typeof v==="string"?v.trim():v;});close(r);};
+    btns.querySelector(".ok").onclick=()=>{
+      const r={}; fields.forEach(f=>{const v=inputs[f.name].value;r[f.name]=typeof v==="string"?v.trim():v;});
+      // ошибку показываем в самой форме — раньше форма закрывалась и всё приходилось вводить заново
+      const bad=o.check?o.check(r):null;
+      if(bad){ err.textContent=bad; err.classList.add("on"); return; }
+      close(r);
+    };
     ovl.onclick=e=>{if(e.target===ovl)close(null);};
     m.addEventListener("keydown",e=>{
       if(e.key==="Escape") close(null);
@@ -856,7 +869,7 @@ function vTasks(root){
       {name:"name",label:"Задача",placeholder:"Смонтировать ролик"},
       {name:"prio",label:"Приоритет",type:"select",options:[["hi","🔴 Высокий"],["md","🟡 Средний"],["lo","🔵 Низкий"]],value:"md"},
       {name:"due",label:"Срок",type:"date",value:TODAY},
-    ]);
+    ],{check:r=>r.name?null:"Впиши название задачи"});
     if(!r||!r.name) return;
     const due=/^\d{4}-\d{2}-\d{2}$/.test(r.due)?r.due:TODAY;
     S.tasks.push({id:uid(),name:r.name,prio:r.prio,due,done:false}); save(); render();
@@ -974,11 +987,14 @@ async function editProfile(){
     {name:"height",label:"Рост, см",type:"number",value:b.height?String(b.height):"",placeholder:"180"},
     {name:"birth",label:"Год рождения",type:"number",value:b.birth?String(b.birth):"",placeholder:"1990"},
     {name:"act",label:"Активность",type:"select",options:ACTS,value:b.act||"auto"},
-  ]);
+  ],{check:r=>{
+    const nowY=+TODAY.slice(0,4), h=Math.round(num(r.height)), y=Math.round(num(r.birth));
+    if(h<100||h>250) return "Рост должен быть от 100 до 250 см";
+    if(y<nowY-100||y>nowY-10) return `Год рождения — от ${nowY-100} до ${nowY-10}`;
+    return null;
+  }});
   if(!r) return;
-  const h=Math.round(num(r.height)), y=Math.round(num(r.birth)), nowY=+TODAY.slice(0,4);
-  if(h<100||h>250){ toast("Рост должен быть от 100 до 250 см"); return; }
-  if(y<nowY-100||y>nowY-10){ toast("Проверь год рождения"); return; }
+  const h=Math.round(num(r.height)), y=Math.round(num(r.birth));
   b.sex=r.sex==="f"?"f":"m"; b.height=h; b.birth=y;
   b.act=ACTS.some(a=>a[0]===r.act)?r.act:"auto";
   save(); render(); toast("Нормы пересчитаны 🧮");
@@ -992,9 +1008,10 @@ function vBody(root){
       <p style="color:var(--mut);font-size:14px;margin-bottom:16px">Записывай вес — увидишь свою динамику красивым графиком.</p>
       <div class="addbtn" id="addW">⚖️ Записать первый вес</div></div>`;
     root.querySelector("#addW").addEventListener("click",async()=>{
-      const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",placeholder:"75"}]);
-      if(!r)return; const v=num(r.w); if(v<=0)return;
-      logWeight(v); if(!S.body.goalW)S.body.goalW=Math.round(v-3); save(); render();
+      const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",placeholder:"75"}],
+        {check:r=>{const v=num(r.w); if(v<=0) return "Впиши вес числом, например 78,4"; if(v<20||v>400) return "Вес должен быть от 20 до 400 кг"; return null;}});
+      if(!r)return;
+      logWeight(num(r.w)); if(!S.body.goalW)S.body.goalW=Math.round(num(r.w)-3); save(); render();
     });
     return;
   }
@@ -1057,16 +1074,17 @@ function vBody(root){
     S.body.log=S.body.log.filter(x=>x.date!==d.dataset.wd); save(); render();
   }));
   root.querySelector("#editGoal").addEventListener("click",async()=>{
-    const r=await askModal("Цель веса",[{name:"g",label:"Цель, кг",type:"number",value:goal?String(goal):""}]);
-    if(!r)return; const v=num(r.g); if(v<=0)return;
-    S.body.goalW=v; save(); render();
+    const r=await askModal("Цель веса",[{name:"g",label:"Цель, кг",type:"number",value:goal?String(goal):""}],
+      {check:r=>{const v=num(r.g); if(v<=0) return "Впиши цель числом"; if(v<20||v>400) return "Цель должна быть от 20 до 400 кг"; return null;}});
+    if(!r)return; S.body.goalW=Math.round(num(r.g)*10)/10; save(); render();
   });
   root.querySelector("#editProf").addEventListener("click",editProfile);
   const ec=root.querySelector("#editCal");
   if(ec) ec.addEventListener("click",async()=>{
     const r=await askModal("Норма калорий",[{name:"c",
       label:"Ккал в день — пусто, чтобы считалось само",type:"number",
-      value:S.body.calManual?String(S.body.calGoal):"",placeholder:String(calGoalNow())}]);
+      value:S.body.calManual?String(S.body.calGoal):"",placeholder:String(calGoalNow())}],
+      {check:r=>{const v=Math.round(num(r.c)); return (v>0&&(v<500||v>7000))?"Норма от 500 до 7000 ккал — или оставь поле пустым":null;}});
     if(!r)return;
     const v=Math.round(num(r.c));
     if(v>0){ S.body.calGoal=v; S.body.calManual=true; } else { S.body.calManual=false; toast("Считаю сам 🧮"); }
@@ -1076,16 +1094,17 @@ function vBody(root){
   if(ew) ew.addEventListener("click",async()=>{
     const r=await askModal("Норма воды",[{name:"m",
       label:"Миллилитров в день — пусто, чтобы считалось само",type:"number",
-      value:S.body.waterManual?String(S.body.waterGoal):"",placeholder:String(waterGoalNow())}]);
+      value:S.body.waterManual?String(S.body.waterGoal):"",placeholder:String(waterGoalNow())}],
+      {check:r=>{const v=Math.round(num(r.m)); return (v>0&&(v<300||v>10000))?"Норма от 300 до 10 000 мл — или оставь поле пустым":null;}});
     if(!r)return;
     const v=Math.round(num(r.m));
     if(v>0){ S.body.waterGoal=v; S.body.waterManual=true; } else { S.body.waterManual=false; toast("Считаю сам 🧮"); }
     save(); render();
   });
   root.querySelector("#addW").addEventListener("click",async()=>{
-    const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",value:String(w)}]);
-    if(!r)return; const v=num(r.w); if(v<=0)return;
-    logWeight(v); save(); render();
+    const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",value:String(w)}],
+      {check:r=>{const v=num(r.w); if(v<=0) return "Впиши вес числом, например 78,4"; if(v<20||v>400) return "Вес должен быть от 20 до 400 кг"; return null;}});
+    if(!r)return; logWeight(num(r.w)); save(); render();
   });
 }
 
@@ -1108,6 +1127,7 @@ function vShop(root){
     it.addEventListener("click",e=>{
       if(e.target.classList.contains("rm")){ editReward(rw); return; }
       if(wallet()<rw.cost){ toast("Не хватает монет 🪙"); return; }
+      if(!confirm(`Купить «${rw.name}» за ${nf(rw.cost)} 🪙?`)) return;
       S.boughtCnt[rw.id]=(S.boughtCnt[rw.id]||0)+1; S.spent+=rw.cost;
       save(); render(); toast("Награда куплена! Отдыхай честно 🎉");
     });
