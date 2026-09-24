@@ -76,6 +76,8 @@ function serve(port, root) {
       S.spent = 150; S.boughtCnt = { 1: 1 };
       save(); render();
     });
+    // 100 ⭐ — это уже 2-й уровень (с 24.09.2026 уровни частые): закрываем окно праздника
+    { const c = await p.$('.ovl .ok'); if (c) { await c.click(); await p.waitForTimeout(300); } }
     const snapshot = await p.evaluate(() => JSON.stringify(S));
     const dl = await Promise.all([p.waitForEvent('download'), p.click('#bkSave')]);
     const file = await dl[0].path();

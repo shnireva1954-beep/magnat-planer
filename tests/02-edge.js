@@ -111,7 +111,7 @@ const kill = async p => { const c = await p.$('.ovl .ok'); if (c) { await c.clic
       const long = 'Очень длинное название привычки которое точно не поместится ни в одну колонку';
       S.habits = [{ id: 1, ico: '🏋️', name: long }, { id: 2, ico: '', name: long.toUpperCase() }];
       S.tasks = [{ id: 1, name: long, prio: 'hi', due: TODAY, done: false }];
-      S.rewards = [{ id: 1, ico: '🎁', name: long, days: 7, cost: 1000 }];
+      S.rewards = [{ id: 1, ico: '🎁', name: long, n: 40 }];   // размер в привычках (с 24.09.2026)
       S.finance.entries = [{ id: 1, type: 'out', cat: '🍔 ' + long, amount: 1234567, date: TODAY }];
       save(); render();
     });
@@ -178,16 +178,18 @@ const kill = async p => { const c = await p.$('.ovl .ok'); if (c) { await c.clic
     say('операция за', r.prev, '→ видна в «Финансах»:', r.видноВФинансах > 0, '· в опыте учтена:', r.вОпыте);
     await ctx.close(); }
 
-  console.log('\n— L. Максимальный уровень');
+  // с 24.09.2026 уровни не кончаются на пятом: номер растёт дальше, звание — до «Магната»
+  console.log('\n— L. Высокий уровень (200 дней на максимуме)');
   { const { ctx, p } = await fresh(b);
     const r = await p.evaluate(() => {
       S.checks = {}; for (let k = 1; k <= 200; k++) S.checks[addDays(TODAY, -k)] = S.habits.map(h => h.id);
       save(); render();
       const bar = document.querySelector('.bar-m').textContent.replace(/\s+/g, ' ').trim();
-      return { xp: totalXP(), lvl: levelIdx(totalXP()), bar };
+      const L = levelOf(totalXP());
+      return { xp: totalXP(), lvl: L, rank: rankName(rankOf(L)), bar };
     });
     await kill(p);
-    say('на максимуме:', r.xp, 'опыта, уровень', r.lvl + 1, '→ «' + r.bar + '»');
+    say('на максимуме:', r.xp, 'опыта, уровень', r.lvl, r.rank, '→ «' + r.bar + '»');
     await ctx.close(); }
 
   await b.close();

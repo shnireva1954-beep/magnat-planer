@@ -163,7 +163,7 @@ async function walkTabs(p, label) {
     const cel = await p.$('.ovl .ok'); if (cel) { await cel.click(); await p.waitForTimeout(300); ok('окно нового уровня закрывается'); }
     await p.click('.tab[data-t="shop"]'); await p.waitForTimeout(300);
     const before = await p.evaluate(() => wallet());
-    const cost0 = await p.evaluate(() => S.rewards[0].cost);
+    const cost0 = await p.evaluate(() => rwCost(S.rewards[0]));   // цена = привычки × 20
     await p.click('#shopGrid .si .i'); await p.waitForTimeout(350);
     const after = await p.evaluate(() => wallet());
     after === before - cost0 ? ok(`награда покупается: ${before} → ${after} (−${cost0})`) : bad(`покупка: ${before} → ${after}`);
@@ -281,10 +281,11 @@ async function walkTabs(p, label) {
     await p.click('.modal .ok'); await p.waitForTimeout(400);
 
     // Миффлин — Сан Жеор вручную: 10*80 + 6.25*180 - 5*36 + 5 = 1750 (муж, 2026-1990=36)
-    // цель = 80-3 = 77 → дефицит 15%; активность без тренировок = 1.2
+    // цель = 80-3 = 77, до неё 3 кг → дефицит 8% + 1,5%×3 = 12,5%; активность без тренировок = 1.2
+    // (с 24.09.2026 дефицит зависит от расстояния до цели: 10–25%, раньше был ровно 15%)
     const got = await p.evaluate(() => ({ n: norms(), cal: calGoalNow(), water: waterGoalNow(), goal: S.body.goalW }));
     const expBmr = 10*80 + 6.25*180 - 5*36 + 5;
-    const expCal = Math.round(expBmr*1.2*0.85/10)*10;
+    const expCal = Math.round(expBmr*1.2*(1-0.125)/10)*10;
     got.n.bmr === Math.round(expBmr/10)*10 ? ok('основной обмен ' + got.n.bmr + ' ккал — формула сходится')
                                            : bad(`обмен ${got.n.bmr}, ожидали ${Math.round(expBmr/10)*10}`);
     got.cal === expCal ? ok(`норма калорий ${got.cal} (дефицит на цель ${got.goal} кг)`)
@@ -312,14 +313,23 @@ async function walkTabs(p, label) {
     act.f > 1.2 ? ok(`активность выросла до ${act.f} (${act.perWeek} тренировок в неделю по отметкам)`)
                 : bad('активность не отреагировала на тренировки: ' + act.f);
 
-    // норма следует за весом
+    // норма следует за весом: 90 кг при цели 77 — до цели 13 кг, дефицит упирается в потолок 25%
     const calBefore = await p.evaluate(() => calGoalNow());
     await p.evaluate(() => { logWeight(90); save(); render(); });
     await p.waitForTimeout(300);
     { const c = await p.$('.ovl .ok'); if (c) { await c.click(); await p.waitForTimeout(300); } }
     const calAfter = await p.evaluate(() => calGoalNow());
-    calAfter > calBefore ? ok(`норма пересчиталась при смене веса: ${calBefore} → ${calAfter}`)
-                         : bad(`норма не изменилась: ${calBefore} → ${calAfter}`);
+    const exp90 = Math.round((10*90 + 6.25*180 - 5*36 + 5)*act.f*0.75/10)*10;
+    calAfter === exp90 ? ok(`норма пересчиталась при смене веса: ${calBefore} → ${calAfter}`)
+                       : bad(`норма при 90 кг: ${calAfter}, ожидали ${exp90} (было ${calBefore})`);
+
+    // норма следует за ЦЕЛЬЮ — жалоба владельца 24.09: «при изменении цели веса не меняется норма».
+    // Раньше цели 77 и 85 при весе 90 давали одно число (ровно −15%)
+    const calGoal85 = await p.evaluate(() => { S.body.goalW = 85; save(); const v = calGoalNow(); S.body.goalW = 77; save(); render(); return v; });
+    const exp85 = Math.round((10*90 + 6.25*180 - 5*36 + 5)*act.f*(1-(0.08+0.015*5))/10)*10;
+    (calGoal85 === exp85 && calGoal85 > calAfter)
+      ? ok(`цель ближе — дефицит меньше: цель 77 → ${calAfter}, цель 85 → ${calGoal85}`)
+      : bad(`норма от цели: цель 77 → ${calAfter}, цель 85 → ${calGoal85}, ожидали ${exp85}`);
 
     // ручное значение и возврат к авто
     await p.click('#editCal'); await p.waitForTimeout(300);
@@ -393,21 +403,24 @@ async function walkTabs(p, label) {
     JSON.stringify(fields) === JSON.stringify(['INPUT','SELECT'])
       ? ok('у награды спрашивают название и размер, не цену') : bad('поля: ' + JSON.stringify(fields));
     await p.fill('.modal input', '🎣 Рыбалка');
-    await p.selectOption('.modal select', '7');
+    await p.selectOption('.modal select', '40');
     await p.click('.modal .ok'); await p.waitForTimeout(400);
-    const rw = await p.evaluate(() => S.rewards[S.rewards.length - 1]);
-    (rw.days === 7 && rw.cost > 0) ? ok(`цена посчиталась сама: ${rw.name} — ${rw.cost} 🪙 за неделю`)
-                                   : bad('награда: ' + JSON.stringify(rw));
+    const rw = await p.evaluate(() => ({ ...S.rewards[S.rewards.length - 1], cost: rwCost(S.rewards[S.rewards.length - 1]) }));
+    (rw.n === 40 && rw.cost === 800) ? ok(`цена посчиталась сама: ${rw.name} — ${rw.cost} 🪙 = 40 привычек`)
+                                     : bad('награда: ' + JSON.stringify(rw));
+    const card = await p.$$eval('#shopGrid .si', e => e[e.length - 1].textContent);
+    /= 40 привычек/.test(card) ? ok('на карточке написано, сколько привычек она стоит')
+                               : bad('на карточке нет цены в привычках: ' + card);
 
     // встроенную награду можно переименовать и сменить размер
     await p.evaluate(() => document.querySelectorAll('#shopGrid .si .rm')[0].click());
     await p.waitForTimeout(300);
     await p.fill('.modal input', 'Приставка');    // и эмодзи убрали
-    await p.selectOption('.modal select', '30');
+    await p.selectOption('.modal select', '150');
     await p.click('.modal .ok'); await p.waitForTimeout(400);
-    const r0 = await p.evaluate(() => S.rewards[0]);
-    (r0.name === 'Приставка' && r0.days === 30) ? ok(`встроенная награда правится: ${r0.name}, ${r0.cost} 🪙`)
-                                                : bad('награда 0: ' + JSON.stringify(r0));
+    const r0 = await p.evaluate(() => ({ ...S.rewards[0], cost: rwCost(S.rewards[0]) }));
+    (r0.name === 'Приставка' && r0.n === 150) ? ok(`встроенная награда правится: ${r0.name}, ${r0.cost} 🪙`)
+                                              : bad('награда 0: ' + JSON.stringify(r0));
 
     // и удаляется
     const n0 = await p.evaluate(() => S.rewards.length);
@@ -439,7 +452,8 @@ async function walkTabs(p, label) {
       cnt: S.boughtCnt, spent: S.spent, old: S.myRewards === undefined && S.bought === undefined,
     }));
     st.rew === 7 ? ok('шесть встроенных + своя награда в одном списке') : bad('наград: ' + st.rew);
-    st.custom && st.custom.cost === 900 ? ok('своя награда сохранила цену 900 🪙') : bad('своя: ' + JSON.stringify(st.custom));
+    // с 24.09.2026 цена — в привычках (5/15/40/150): 900 🪙 = 45 привычек → ближайший размер 40 (800 🪙)
+    st.custom && st.custom.n === 40 ? ok('своя награда переехала в размер «40 привычек» (была 900 🪙)') : bad('своя: ' + JSON.stringify(st.custom));
     (st.cnt['1'] === 2 && st.cnt['3'] === 1 && st.cnt['555'] === 2)
       ? ok('счётчики покупок перенеслись: ' + JSON.stringify(st.cnt)) : bad('счётчики: ' + JSON.stringify(st.cnt));
     st.spent === 1300 ? ok('потрачено сохранилось') : bad('spent ' + st.spent);
