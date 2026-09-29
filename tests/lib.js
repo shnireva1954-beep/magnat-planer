@@ -22,4 +22,12 @@ const OUT_DIR = path.join(__dirname, "__snapshots");
 try { fs.mkdirSync(OUT_DIR, { recursive: true }); } catch (e) {}
 const launch = () => chromium.launch({ executablePath: chromePath() });
 
-module.exports = { chromium, launch, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR };
+// «Начать своё» с 29.09.2026 открывает выбор привычек: жмём «Начать» с тем,
+// что отмечено по умолчанию (три привычки). Сам выбор проверяет 01-scenarios, блок 1б.
+async function startClean(p) {
+  await p.click('#obFresh');
+  await p.waitForSelector('#hpGo', { timeout: 3000 });
+  await p.click('#hpGo'); await p.waitForTimeout(400);
+}
+
+module.exports = { chromium, launch, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR, startClean };

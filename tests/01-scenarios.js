@@ -1,4 +1,4 @@
-const { chromium, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR } = require('./lib');
+const { chromium, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR, startClean } = require('./lib');
 const EXE = chromePath();
 const URL = APP_URL;
 const OUT = OUT_DIR;
@@ -37,7 +37,7 @@ async function walkTabs(p, label) {
   {
     const { ctx, p } = await newPage(b, { width: 390, height: 900 });
     await p.goto(URL); await p.waitForTimeout(400);
-    await p.click('#obFresh'); await p.waitForTimeout(400);
+    await startClean(p);
     await walkTabs(p, 'чистый лист');
     const wallet = await p.$eval('#wallet', e => e.textContent);
     if (wallet !== '0') bad('кошелёк на чистом листе = ' + wallet); else ok('кошелёк 0');
@@ -45,6 +45,49 @@ async function walkTabs(p, label) {
     await p.evaluate(() => { S.habits = []; S.checks = {}; save(); render(); });
     await p.waitForTimeout(200);
     await walkTabs(p, 'без единой привычки');
+    await ctx.close();
+  }
+
+  // ---------- 1б. выбор привычек на старте (решение владельца 29.09.2026) ----------
+  console.log('\n1б) «Начать своё» → выбор привычек, а не восемь готовых');
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 844 });
+    await p.goto(URL); await p.waitForTimeout(400);
+    await p.click('#obFresh'); await p.waitForTimeout(300);
+    const on = await p.$$eval('#hpList .tchip.on .nm', e => e.map(x => x.textContent));
+    const all = await p.$$eval('#hpList .tchip', e => e.length);
+    (on.length === 3 && on.join('|') === '🏋️ Тренировка|📵 Лента не больше 30 минут|💼 Шаг к работе')
+      ? ok(`отмечены три из ${all}: ${on.join(', ')}`) : bad('по умолчанию отмечено: ' + JSON.stringify(on));
+    const fits = await p.$eval('#hpGo', e => e.getBoundingClientRect().bottom <= innerHeight);
+    fits ? ok('кнопка «Начать» видна без прокрутки на 390×844') : bad('кнопка «Начать» за краем экрана');
+    // «Назад» — онбординг на месте, пример не тронут
+    await p.click('#hpNo'); await p.waitForTimeout(200);
+    const back = await p.evaluate(() => ({ ob: !!document.querySelector('#obFresh'), pick: !!document.querySelector('#hpGo'), n: S.habits.length }));
+    (back.ob && !back.pick && back.n === 8) ? ok('«Назад» вернул к приветствию, ничего не создано') : bad('после «Назад»: ' + JSON.stringify(back));
+    // снять одну, добавить свою Enter-ом, ещё одну набрать и сразу «Начать» — набранное не теряется
+    await p.click('#obFresh'); await p.waitForTimeout(300);
+    await p.click('#hpList .tchip:has-text("Шаг к работе")'); await p.waitForTimeout(100);
+    await p.fill('#hpOwn', '🤐 Без мата'); await p.press('#hpOwn', 'Enter'); await p.waitForTimeout(100);
+    await p.fill('#hpOwn', 'Чтение');
+    const label = await p.$eval('#hpGo', e => e.textContent);
+    await p.click('#hpGo'); await p.waitForTimeout(400);
+    const st = await p.evaluate(() => ({ hs: S.habits.map(h => [h.id, h.ico, h.name, h.since]), gone: !document.querySelector('.ovl'),
+      cnt: document.querySelector('#todayCnt').textContent, w: wallet(), sport: S.habits.filter(isWorkout).map(h => h.name) }));
+    const names = st.hs.map(h => h[2]).join('|');
+    names === 'Тренировка|Лента не больше 30 минут|Без мата|Чтение' ? ok('привычки ровно выбранные: ' + names) : bad('привычки: ' + JSON.stringify(st.hs));
+    (st.hs[2][1] === '🤐' && st.hs.every((h, i) => h[0] === i + 1 && h[3] === '')) ? ok('своя с эмодзи, id по порядку') : bad('поля: ' + JSON.stringify(st.hs));
+    (st.gone && st.cnt.trim() === '· 0 из 4' && st.w === 0) ? ok('окна закрыты, «0 из 4», кошелёк 0') : bad('после старта: ' + JSON.stringify(st));
+    st.sport.join() === 'Тренировка' ? ok('тренировкой считается только «Тренировка»') : bad('тренировки: ' + st.sport);
+    label === '🚀 Начать (4)' ? ok('на кнопке число выбранных: ' + label) : bad('кнопка: ' + label);
+    // ничего не выбрано — начать нельзя
+    await p.evaluate(() => { document.querySelector('#resetBtn').click(); }); await p.waitForTimeout(300);
+    while (await p.$('#hpList .tchip.on')) await p.click('#hpList .tchip.on');
+    (await p.$eval('#hpGo', e => e.disabled)) ? ok('без выбора кнопка выключена') : bad('без выбора можно начать');
+    // сброс и «Назад» — прогресс не стёрт
+    await p.click('#hpNo'); await p.waitForTimeout(200);
+    const kept = await p.evaluate(() => S.habits.length);
+    kept === 4 ? ok('сброс → «Назад»: прогресс не стёрт') : bad('после отмены сброса привычек ' + kept);
+    errCheck(p, 'выбор привычек');
     await ctx.close();
   }
 
@@ -84,7 +127,7 @@ async function walkTabs(p, label) {
   {
     const { ctx, p } = await newPage(b, { width: 390, height: 900 });
     await p.goto(URL); await p.waitForTimeout(400);
-    await p.click('#obFresh'); await p.waitForTimeout(400);
+    await startClean(p);
 
     // отметить привычку чипом на Обзоре
     const w0 = await p.$eval('#wallet', e => e.textContent);
@@ -199,7 +242,7 @@ async function walkTabs(p, label) {
     await p.goto(URL);
     await p.evaluate(v => localStorage.setItem('magnat_app_v2', v), raw);
     await p.reload(); await p.waitForTimeout(500);
-    const dlg = await p.$('#obFresh'); if (dlg) await p.click('#obFresh');
+    if (await p.$('#obFresh')) await startClean(p);
     await p.waitForTimeout(300);
     for (const t of TABS) { await p.click(`.tab[data-t="${t}"]`); await p.waitForTimeout(150); }
     const alive = await p.$eval('#wallet', e => e.textContent);
@@ -215,7 +258,7 @@ async function walkTabs(p, label) {
   {
     const { ctx, p } = await newPage(b, { width: 390, height: 900 });
     await p.goto(URL); await p.waitForTimeout(400);
-    await p.click('#obFresh'); await p.waitForTimeout(400);
+    await startClean(p);
     const res = await p.evaluate(() => {
       const before = TODAY;
       const RealDate = Date, fake = new RealDate(RealDate.now() + 24 * 3600 * 1000);
@@ -262,7 +305,7 @@ async function walkTabs(p, label) {
   {
     const { ctx, p } = await newPage(b, { width: 390, height: 1400 });
     await p.goto(URL); await p.waitForTimeout(400);
-    await p.click('#obFresh'); await p.waitForTimeout(400);
+    await startClean(p);
     await p.click('.tab[data-t="body"]'); await p.waitForTimeout(300);
 
     // без веса — сначала просят вес
@@ -358,7 +401,7 @@ async function walkTabs(p, label) {
   {
     const { ctx, p } = await newPage(b, { width: 390, height: 1600 });
     await p.goto(URL); await p.waitForTimeout(400);
-    await p.click('#obFresh'); await p.waitForTimeout(400);
+    await startClean(p);
 
     // при добавлении привычки цену не спрашивают
     await p.click('.tab[data-t="habits"]'); await p.waitForTimeout(300);

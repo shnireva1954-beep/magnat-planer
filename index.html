@@ -209,6 +209,13 @@
   .modal textarea{width:100%; min-height:130px; padding:11px; border-radius:12px; background:var(--panel); border:1px solid var(--line2); color:var(--ink); font:12px/1.4 ui-monospace,Menlo,Consolas,monospace; resize:vertical; outline:none;}
   .modal textarea:focus{border-color:var(--emerald);}
   .modal .mtxt{color:var(--mut); font-size:13.5px; line-height:1.55; margin-top:8px;}
+  /* выбор привычек на старте: чипы с галочкой и поле для своей */
+  .hpick{display:flex; flex-wrap:wrap; gap:7px; margin-top:12px;}
+  .hpick .tchip{padding:8px 11px; font-size:13px; gap:7px;}   /* компактнее: кнопка «Начать» видна без прокрутки */
+  .hpown{display:flex; gap:8px;}
+  .modal .hpadd{flex:none; width:50px; border-radius:12px; background:var(--panel); border:1px solid var(--line2); color:var(--emerald); font-size:22px; font-weight:700; cursor:pointer;}
+  .modal .btns #hpNo{flex:none; padding:13px 18px;}   /* «Назад» по размеру слова — «Начать (3)» в одну строку и на 320 px */
+  .modal .ok:disabled{opacity:.45; cursor:default; box-shadow:none;}
   .shareimg{display:block; width:100%; max-width:100%; border-radius:14px; border:1px solid var(--line2); margin-top:12px;}
   @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -257,6 +264,11 @@ const COIN=20;
 const TASKCOIN=20;    // выполненная задача — как отмеченная привычка
 const LVLBONUS=50;    // подарок в кошелёк за каждый новый уровень (опыта не добавляет)
 const DEFHABITS=[["🏋️","Тренировка"],["📚","Час на дело / обучение"],["💰","Шаг к деньгам"],["📵","День без залипания"],["🧊","Холодный душ"],["💧","Вода 2 л"],["🚶","10 000 шагов"],["✍️","Разбор дня"]];
+// С чего начать — выбирает сам владелец; отмечены три (решение Артёма 29.09.2026).
+// Раньше чистый лист сразу давал восемь привычек: каждый день начинался с «0 из 8»,
+// и даже хороший день выглядел как «3 из 8». Для серии хватает трёх отметок (DAYOK).
+const HABITPICK=[["🏋️","Тренировка",1],["📵","Лента не больше 30 минут",1],["💼","Шаг к работе",1],
+  ["📚","Час на дело / обучение"],["💰","Шаг к деньгам"],["🧊","Холодный душ"],["💧","Вода 2 л"],["🚶","10 000 шагов"],["✍️","Разбор дня"]];
 // Цена награды — в ПРИВЫЧКАХ: «Читмил = 5 привычек» понятно с первого взгляда.
 // Раньше цена считалась от среднего заработка за две недели и выглядела случайным числом.
 const SIZES=[[5,"Мелкая — 5 привычек"],[15,"Средняя — 15 привычек"],[40,"Крупная — 40 привычек"],[150,"Мечта — 150 привычек"]];
@@ -814,13 +826,13 @@ function vHome(root){
   root.querySelector("#bkSave").addEventListener("click",downloadBackup);
   root.querySelector("#bkLoad").addEventListener("click",restoreBackup);
   root.querySelector("#resetBtn").addEventListener("click",async()=>{
-    if(await askConfirm("Стереть весь прогресс (привычки, задачи, финансы, вес) и начать с чистого листа?","Стереть всё",true)){S=freshStart();save();render();}
+    if(await askConfirm("Стереть весь прогресс (привычки, задачи, финансы, вес) и начать с чистого листа?","Стереть всё",true)) await startFresh();
   });
   root.querySelector("#shareBtn").addEventListener("click",shareCard);
   root.querySelectorAll(".card[data-go]").forEach(c=>c.addEventListener("click",()=>{cur=c.dataset.go;render();window.scrollTo(0,0);}));
   const so=root.querySelector("#startOwn");
   if(so) so.addEventListener("click",async()=>{
-    if(await askConfirm("Стереть демо-данные и начать своё с чистого листа?","Начать своё")){S=freshStart();save();render();}
+    if(await askConfirm("Стереть демо-данные и начать своё с чистого листа?","Начать своё")) await startFresh();
   });
 }
 
@@ -1574,6 +1586,71 @@ window.addEventListener("focus",dayWatch);
 })();
 
 
+// Окно «с чего начнём»: отдаёт список [ico,name] или null, если передумал.
+// Пока не нажато «Начать», ничего не стирается — отмена сброса ничего не теряет.
+function pickHabits(){
+  return new Promise(resolve=>{
+    const items=HABITPICK.map(([ico,name,on])=>({ico,name,on:!!on}));
+    const ovl=el(`<div class="ovl" style="z-index:72"><div class="modal">
+      <h4>Выбери привычки</h4>
+      <p class="mtxt" style="margin-top:4px">Советую начать с трёх: день идёт в серию 🔥 от трёх отметок. Добавить или убрать можно потом, в «✅ Привычки».</p>
+      <div class="hpick" id="hpList"></div>
+      <span class="lab">Своя привычка</span>
+      <div class="hpown"><input id="hpOwn" type="text" maxlength="60" placeholder="🏃 Бег по утрам" autocomplete="off"><button class="hpadd" id="hpAdd" aria-label="Добавить свою">+</button></div>
+      <p class="nrm" id="hpHint"></p>
+      <div class="btns"><button class="no" id="hpNo">Назад</button><button class="ok" id="hpGo"></button></div></div></div>`);
+    const list=ovl.querySelector("#hpList"), own=ovl.querySelector("#hpOwn"),
+          go=ovl.querySelector("#hpGo"), hint=ovl.querySelector("#hpHint");
+    const draw=()=>{
+      list.innerHTML="";
+      items.forEach(it=>{
+        const c=el(`<div class="tchip${it.on?" on":""}" role="checkbox" tabindex="0" aria-checked="${it.on}"><span class="d">${it.on?"✓":""}</span><span class="nm"></span></div>`);
+        c.querySelector(".nm").textContent=withIco(it.ico,it.name);
+        const flip=()=>{ it.on=!it.on; draw(); };
+        c.onclick=flip;
+        c.onkeydown=e=>{ if(e.key===" "||e.key==="Enter"){ e.preventDefault(); flip(); } };
+        list.appendChild(c);
+      });
+      count();
+    };
+    // набранная, но не добавленная своя привычка тоже считается: «Начать» её не потеряет
+    const count=()=>{
+      const typed=parseIco(own.value).name.toLowerCase();
+      const n=items.filter(it=>it.on).length+(typed&&!items.some(it=>it.on&&it.name.toLowerCase()===typed)?1:0);
+      go.disabled=!n;
+      go.textContent=`🚀 Начать (${n})`;   // надпись короткая всегда: на 320 px длинная ломалась в две строки
+      hint.textContent=!n?"Отметь хотя бы одну привычку.":n>3?"Больше трёх можно, но серию держать тяжелее.":"";
+    };
+    // своя привычка встаёт в список уже отмеченной; такая же уже есть — просто отмечаем её
+    const addOwn=()=>{
+      const {ico,name}=parseIco(own.value); own.value="";
+      if(!name) return;
+      const same=items.find(it=>it.name.toLowerCase()===name.toLowerCase());
+      if(same) same.on=true; else items.push({ico,name,on:true});
+      draw();
+    };
+    ovl.querySelector("#hpAdd").onclick=addOwn;
+    own.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addOwn(); } });
+    own.addEventListener("input",count);
+    const close=v=>{ ovl.remove(); resolve(v); };
+    ovl.querySelector("#hpNo").onclick=()=>close(null);
+    ovl.onclick=e=>{ if(e.target===ovl) close(null); };
+    ovl.addEventListener("keydown",e=>{ if(e.key==="Escape") close(null); });
+    // набрал своё и сразу нажал «Начать» — набранное не теряем
+    go.onclick=()=>{ if(own.value.trim()) addOwn(); const r=items.filter(it=>it.on).map(it=>[it.ico,it.name]); if(r.length) close(r); };
+    draw(); document.body.appendChild(ovl);
+  });
+}
+// чистый лист с выбранными привычками. false — передумал, данные не тронуты
+async function startFresh(){
+  const picked=await pickHabits();
+  if(!picked) return false;
+  S=freshStart();
+  S.habits=picked.map(([ico,name],i)=>({id:i+1,ico,name,since:""}));
+  save(); render(); window.scrollTo(0,0);
+  return true;
+}
+
 function showOnboarding(){
   const ovl=el(`<div class="ovl"></div>`);
   const m=el(`<div class="modal" style="max-width:380px">
@@ -1585,7 +1662,7 @@ function showOnboarding(){
       <button class="no" id="obDemo">👀 Посмотреть пример</button>
     </div></div>`);
   ovl.appendChild(m); document.body.appendChild(ovl);
-  m.querySelector("#obFresh").onclick=()=>{ S=freshStart(); save(); ovl.remove(); render(); };
+  m.querySelector("#obFresh").onclick=async()=>{ if(await startFresh()) ovl.remove(); };
   m.querySelector("#obDemo").onclick=()=>{ S.demoData=true; save(); ovl.remove(); render(); };
 }
 

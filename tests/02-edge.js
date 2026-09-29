@@ -1,4 +1,4 @@
-const { chromium, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR } = require('./lib');
+const { chromium, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR, startClean } = require('./lib');
 const EXE = chromePath();
 const URL = APP_URL;
 const TABS = ['home','habits','tasks','money','body','shop'];
@@ -12,7 +12,7 @@ async function fresh(b, vp) {
   p.on('console', m => { if (m.type() === 'error') p.errs.push('CONSOLE ' + m.text()); });
   p.on('dialog', d => d.accept());
   await p.goto(URL); await p.waitForTimeout(400);
-  const f = await p.$('#obFresh'); if (f) { await f.click(); await p.waitForTimeout(400); }
+  if (await p.$('#obFresh')) await startClean(p);
   return { ctx, p };
 }
 const kill = async p => { const c = await p.$('.ovl .ok'); if (c) { await c.click(); await p.waitForTimeout(200); } };
@@ -88,7 +88,7 @@ const kill = async p => { const c = await p.$('.ovl .ok'); if (c) { await c.clic
     const asked = [];
     p.on('dialog', d => { asked.push(d.message()); d.dismiss(); });   // на всё отвечаем «нет»
     await p.goto(APP_URL); await p.waitForTimeout(400);
-    await p.click('#obFresh'); await p.waitForTimeout(400);
+    await startClean(p);
     await p.evaluate(() => {
       S.finance.entries = [{ id: 1, type: 'in', cat: '💼 Работа', amount: 60000, date: TODAY }];
       S.tasks = [{ id: 1, name: 'Важная задача', prio: 'hi', due: TODAY, done: false }]; save(); render();

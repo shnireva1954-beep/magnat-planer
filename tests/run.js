@@ -44,7 +44,9 @@ for (const [file, title, gate] of SUITES) {
   const r = spawnSync(process.execPath, [path.join(__dirname, file)], { encoding: "utf8", timeout: 600000 });
   const out = (r.stdout || "") + (r.stderr || "");
   process.stdout.write(out);
-  const hasFail = out.includes("✗") || (gate && r.status !== 0);
+  // упавший набор — провал всегда, не только у «ворот»: 29.09.2026 02-edge и 03-stress
+  // падали с SyntaxError, «✗» в выводе не было, и прогон отчитался «ВСЁ ЧИСТО»
+  const hasFail = out.includes("✗") || r.status !== 0;
   if (hasFail) failed.push(file);
 }
 

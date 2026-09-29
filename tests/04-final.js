@@ -1,5 +1,5 @@
 // Финальный заход: то, что ещё не проверялось ни разу
-const { chromium, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR } = require('./lib');
+const { chromium, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR, startClean } = require('./lib');
 const fs = require('fs'), path = require('path'), http = require('http'), os = require('os');
 const EXE = chromePath();
 const APP = APP_DIR;
@@ -42,7 +42,7 @@ function serve(port, root) {
     const ctx = await b.newContext({ viewport: { width: 390, height: 900 } });
     const p = await ctx.newPage(); p.on('dialog', d => d.accept());
     await p.goto('http://localhost:8911/'); await p.waitForTimeout(700);
-    await p.click('#obFresh'); await p.waitForTimeout(400);
+    await startClean(p);
     await p.evaluate(() => navigator.serviceWorker.ready); await p.waitForTimeout(1000);
 
     // подменяем ВРЕМЕННУЮ копию на «новую версию» — оригинал не трогаем
@@ -66,7 +66,7 @@ function serve(port, root) {
     const ctx = await b.newContext({ viewport: { width: 390, height: 900 }, acceptDownloads: true });
     const p = await ctx.newPage(); p.on('dialog', d => d.accept());
     await p.goto(APP_URL); await p.waitForTimeout(400);
-    await p.click('#obFresh'); await p.waitForTimeout(400);
+    await startClean(p);
     await p.evaluate(() => {
       S.checks[addDays(TODAY,-1)] = S.habits.slice(0,5).map(h => h.id);
       S.tasks = [{ id: 1, name: 'Сходить к врачу', prio: 'hi', due: TODAY, done: false }];
@@ -89,7 +89,7 @@ function serve(port, root) {
     const p2 = await ctx2.newPage(); p2.on('dialog', d => d.accept());
     p2.errs = []; p2.on('pageerror', e => p2.errs.push(e.message));
     await p2.goto(APP_URL); await p2.waitForTimeout(400);
-    await p2.click('#obFresh'); await p2.waitForTimeout(400);
+    await startClean(p2);
     const [chooser] = await Promise.all([p2.waitForEvent('filechooser'), p2.click('#bkLoad')]);
     await chooser.setFiles(file); await p2.waitForTimeout(800);
     const restored = await p2.evaluate(() => JSON.stringify(S));
@@ -164,7 +164,7 @@ function serve(port, root) {
     const p = await ctx.newPage(); p.on('dialog', d => d.accept());
     p.errs = []; p.on('pageerror', e => p.errs.push(e.message));
     await p.goto(APP_URL); await p.waitForTimeout(400);
-    await p.click('#obFresh'); await p.waitForTimeout(400);
+    await startClean(p);
     await p.click('#todayChips .tchip'); await p.waitForTimeout(300);
     const parts = await p.evaluate(() => document.querySelectorAll('body > i').length);
     for (const t of TABS) { await p.click(`.tab[data-t="${t}"]`); await p.waitForTimeout(200); }
@@ -180,7 +180,7 @@ function serve(port, root) {
     const p1 = await ctx.newPage(), p2 = await ctx.newPage();
     [p1, p2].forEach(p => { p.errs = []; p.on('dialog', d => d.accept()); p.on('pageerror', e => p.errs.push(e.message)); });
     await p1.goto(APP_URL); await p1.waitForTimeout(400);
-    await p1.click('#obFresh'); await p1.waitForTimeout(400);
+    await startClean(p1);
     await p2.goto(APP_URL); await p2.waitForTimeout(600);
     await p1.bringToFront(); await p1.click('#todayChips .tchip'); await p1.waitForTimeout(300);
     await p2.bringToFront(); await p2.reload(); await p2.waitForTimeout(600);

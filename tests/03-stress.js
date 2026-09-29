@@ -1,4 +1,4 @@
-const { chromium, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR } = require('./lib');
+const { chromium, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR, startClean } = require('./lib');
 const EXE = chromePath();
 const URL = APP_URL;
 const TABS = ['home','habits','tasks','money','body','shop'];
@@ -14,7 +14,7 @@ async function fresh(b, vp, demo) {
   p.on('console', m => { if (m.type() === 'error') p.errs.push('CONSOLE ' + m.text()); });
   p.on('dialog', d => d.accept());
   await p.goto(URL); await p.waitForTimeout(400);
-  await p.click(demo ? '#obDemo' : '#obFresh'); await p.waitForTimeout(500);
+  if (demo) { await p.click('#obDemo'); await p.waitForTimeout(500); } else await startClean(p);
   return { ctx, p };
 }
 const kill = async p => { const c = await p.$('.ovl .ok'); if (c) { await c.click(); await p.waitForTimeout(200); } };
@@ -119,7 +119,7 @@ const kill = async p => { const c = await p.$('.ovl .ok'); if (c) { await c.clic
   { const ctx = await b.newContext({ viewport: { width: 390, height: 1000 } });
     const p = await ctx.newPage(); p.on('dialog', d => d.accept());
     await p.goto(URL); await p.waitForTimeout(400);
-    await p.click('#obFresh'); await p.waitForTimeout(400);
+    await startClean(p);
     await p.click('.tab[data-t="body"]'); await p.waitForTimeout(300);
     await p.click('#addW'); await p.waitForTimeout(250);
     await p.fill('.modal input', '7'); await p.click('.modal .ok'); await p.waitForTimeout(400);
