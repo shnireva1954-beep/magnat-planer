@@ -206,6 +206,19 @@
   .catopt:active{transform:scale(.95)}
   .catopt .ci{font-size:23px; display:block; margin-bottom:4px;}
   .catopt.sel{border-color:var(--emerald); background:#0e2f22; color:#e9fff6; box-shadow:0 0 12px #2fe38f33;}
+  /* «Сегодня» — первая карточка Обзора: кольцо рядом с цифрами, сразу под ними галочки.
+     До 30.09.2026 шла второй с кольцом 150 px — галочки уезжали за первый экран айфона */
+  .today{padding:15px;}
+  .tdh{display:flex; align-items:center; gap:14px;}
+  .tdr{position:relative; width:84px; height:84px; flex:none;}
+  .tdp{position:absolute; inset:0; display:grid; place-items:center; font-family:var(--fd); font-size:20px; font-weight:700;}
+  .tdi{min-width:0;}
+  .tdt{font-size:15px; color:var(--mut); margin-top:3px;} .tdt b{font-family:var(--fd); font-size:27px; color:var(--ink); font-weight:700; margin-right:2px;}
+  .tds{font-size:11px; color:var(--mut2); margin-top:3px; line-height:1.45;}
+  .today .tchips{margin-top:13px;}
+  /* сводки на Обзоре: две колонки, где им хватает места (от ~360 px) */
+  .sgrid{grid-template-columns:repeat(auto-fit,minmax(min(158px,100%),1fr));}
+  .sgrid .card{padding:13px;}
   /* чипы «Сегодня» */
   .tchips{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;}
   .tchip{padding:9px 13px; border-radius:12px; background:var(--panel); border:1px solid var(--line); font-size:13.5px; cursor:pointer; display:flex; align-items:center; gap:8px; user-select:none; transition:all .15s;}
@@ -691,7 +704,7 @@ function tween(key,to,draw){
 
 // ---- canvas helpers ----
 function setup(cv,h){const dpr=window.devicePixelRatio||1,w=cv.getBoundingClientRect().width||200;cv.width=w*dpr;cv.height=h*dpr;cv.style.height=h+"px";const c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);return{c,w,h};}
-function donut(cv,frac,color){const {c,w,h}=setup(cv,150);const cx=w/2,cy=h/2,r=Math.min(w,h)/2-9;c.lineWidth=15;c.lineCap="round";c.strokeStyle="#182230";c.beginPath();c.arc(cx,cy,r,0,7);c.stroke();if(frac>0){c.strokeStyle=color;c.shadowColor=color;c.shadowBlur=13;c.beginPath();c.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(1,frac));c.stroke();c.shadowBlur=0;}}
+function donut(cv,frac,color,size){const z=size||150,{c,w,h}=setup(cv,z);const cx=w/2,cy=h/2,r=Math.min(w,h)/2-z*.06;c.lineWidth=z*.1;c.lineCap="round";c.strokeStyle="#182230";c.beginPath();c.arc(cx,cy,r,0,7);c.stroke();if(frac>0){c.strokeStyle=color;c.shadowColor=color;c.shadowBlur=z*.087;c.beginPath();c.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(1,frac));c.stroke();c.shadowBlur=0;}}
 function line(cv,data,color){const {c,w,h}=setup(cv,110);if(data.length<2)data=[data[0]??0,data[0]??0];const mn=Math.min(...data),mx=Math.max(...data,mn+1),pd=8;const X=i=>pd+i*(w-2*pd)/(data.length-1),Y=v=>h-pd-(v-mn)/(mx-mn)*(h-2*pd);const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,color+"55");g.addColorStop(1,color+"00");c.beginPath();c.moveTo(X(0),Y(data[0]));data.forEach((v,i)=>c.lineTo(X(i),Y(v)));c.lineTo(X(data.length-1),h-pd);c.lineTo(X(0),h-pd);c.closePath();c.fillStyle=g;c.fill();c.beginPath();c.moveTo(X(0),Y(data[0]));data.forEach((v,i)=>c.lineTo(X(i),Y(v)));c.strokeStyle=color;c.lineWidth=2.4;c.lineJoin="round";c.shadowColor=color;c.shadowBlur=9;c.stroke();c.shadowBlur=0;c.beginPath();c.arc(X(data.length-1),Y(data[data.length-1]),3.5,0,7);c.fillStyle=color;c.fill();}
 // столбики: color — строка или массив по столбцу; opts.labels — подписи снизу, opts.values — значения сверху
 function bars(cv,data,color,opts){
@@ -826,7 +839,16 @@ function vHome(root){
   root.innerHTML=`
    ${a2hsHint()?`<div class="glass demonote" id="a2hs"><span>📲 <b style="color:var(--ink)">Поставь на экран «Домой»</b>: «Поделиться» → «На экран Домой». Во вкладке Safari прогресс может стереться, если не открывать Магнат 7&nbsp;дней.</span><button class="ok2" id="a2hsOk">Понятно</button></div>`:""}
    ${S.demoData?`<div class="glass demonote"><span>👀 Внутри — пример с демо-данными, чтобы всё пощупать.</span><button class="ok2" id="startOwn">🚀 Начать своё</button></div>`:""}
-   <div class="glass hero">
+   <div class="glass card today">
+     <div class="tdh">
+       <div class="tdr"><canvas id="todayRing"></canvas><div class="tdp e" id="todayP">0%</div></div>
+       <div class="tdi"><div class="lvl-tag">◆ сегодня · ${dayShort(TODAY)}</div>
+         <div class="tdt" id="todayCnt"></div>
+         <div class="tds">каждая +${COIN} 🪙 · в серию 🔥 от ${dayGoal(TODAY)} ${pl(dayGoal(TODAY),"отметки","отметок","отметок")}</div></div>
+     </div>
+     <div class="tchips" id="todayChips"></div>
+   </div>
+   <div class="glass hero" style="margin-top:13px">
      <div class="hero-row">
        <div><div class="lvl-tag">◆ твоя империя</div><div class="lvl-name">Уровень ${L}</div><div class="lvl-rank">${rankName(r)}</div></div>
        <div class="building">${RANKS[r][3]}</div>
@@ -840,16 +862,10 @@ function vHome(root){
        <div class="tile"><div class="v vi">🏆 ${recordStreak()}</div><div class="l">рекорд серии</div></div>
      </div>
    </div>
-   <div class="glass card" style="margin-top:13px">
-     <h3>Сегодня <span id="todayCnt" style="color:var(--mut);font-weight:400;text-transform:none"></span></h3>
-     <div class="donut-wrap"><canvas id="todayRing"></canvas><div class="donut-c"><div class="p e" id="todayP">0%</div><div class="t">выполнено</div></div></div>
-     <div class="tchips" id="todayChips"></div>
-     <div style="font-size:10.5px;color:var(--mut2);margin-top:10px;text-align:center">каждая привычка +${COIN} 🪙 · день идёт в серию 🔥 от 3 отмеченных</div>
-   </div>
    ${ins?`<div class="glass card" style="margin-top:13px"><h3>Инсайт недели</h3>
      <div style="display:flex;gap:10px;font-size:13.5px;color:var(--mut);line-height:1.55;align-items:flex-start"><span style="flex:none">💡</span><span class="ins-t">${ins}</span></div></div>`:""}
    <button class="share-btn" id="shareBtn">📤 Поделиться своей империей</button>
-   <div class="grid" style="margin-top:13px">
+   <div class="grid sgrid" style="margin-top:13px">
      <div class="glass card" data-go="habits"><h3>Месяц выполнен <span class="go">›</span></h3><div class="donut-wrap"><canvas id="hDonut"></canvas><div class="donut-c"><div class="p e" id="hDonutP">0%</div><div class="t">привычки</div></div></div></div>
      <div class="glass card" data-go="habits"><h3>Разгон · 14 дней <span class="go">›</span></h3><canvas id="hSpark"></canvas><div style="margin-top:8px;font-size:12px;color:var(--mut)">🪙 сегодня: <b class="cy num" id="hToday">0</b></div></div>
      <div class="glass card" data-go="money"><h3>Баланс месяца <span class="go">›</span></h3><div class="stat"><div class="v ${inc-out>=0?'e':'dn'} num">${sgn(inc-out)} ₽</div><div class="l">доход ${nf(inc)} · расход ${nf(out)}</div></div><canvas id="hMoney" style="margin-top:8px"></canvas></div>
@@ -866,7 +882,7 @@ function vHome(root){
   // charts
   const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),diM=new Date(y,mo+1,0).getDate();
   let md=0,mp=0; for(let d=1;d<=Math.min(diM,now.getDate());d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;md+=checksOf(ds).length;mp+=poolOn(ds);}
-  const frac=mp?md/mp:0; donut(root.querySelector("#hDonut"),frac,gv("--emerald")); root.querySelector("#hDonutP").textContent=Math.round(frac*100)+"%";
+  const frac=mp?md/mp:0; donut(root.querySelector("#hDonut"),frac,gv("--emerald"),112); root.querySelector("#hDonutP").textContent=Math.round(frac*100)+"%";
   const sd=[];for(let k=13;k>=0;k--)sd.push(coinsFor(addDays(TODAY,-k))); line(root.querySelector("#hSpark"),sd,gv("--cyan")); root.querySelector("#hToday").textContent=nf(coinsFor(TODAY));
   bars(root.querySelector("#hMoney"),[inc,out],[gv("--emerald"),gv("--danger")],
        {labels:["доход","расход"],height:104});
@@ -875,7 +891,7 @@ function vHome(root){
   // «Сегодня»: кольцо наполняется, когда жмёшь чипы привычек
   const th=S.habits.length, tdn=checksOf(TODAY).length, tfrac=th?tdn/th:0;
   // кольцо «Сегодня» и полоса уровня доезжают до нового значения, а не прыгают
-  tween("ring",tfrac,v=>donut(root.querySelector("#todayRing"),v,gv("--emerald")));
+  tween("ring",tfrac,v=>donut(root.querySelector("#todayRing"),v,gv("--emerald"),84));
   const bt=root.querySelector(".hero .bar-t span"), lvKey=L+":"+pct;
   if(bt&&!RM&&bt.animate&&lastBar&&lastBar!==lvKey){
     const [pl0,pp0]=lastBar.split(":").map(Number);
@@ -883,7 +899,7 @@ function vHome(root){
   }
   lastBar=lvKey;
   root.querySelector("#todayP").textContent=Math.round(tfrac*100)+"%";
-  root.querySelector("#todayCnt").textContent=`· ${tdn} из ${th}`;
+  root.querySelector("#todayCnt").innerHTML=`<b>${tdn}</b> из ${th} ${pl(th,"привычки","привычек","привычек")}`;
   const cw=root.querySelector("#todayChips");
   S.habits.forEach(h=>{
     const on=isDone(h.id,TODAY);
@@ -1492,6 +1508,7 @@ const WD=["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
 const WDFULL=["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
 let calH="all", calM="";          // все привычки или одна (id); месяц "ГГГГ-ММ", "" — текущий
 const addMonths=(ym,n)=>{const d=new Date(+ym.slice(0,4),+ym.slice(5,7)-1+n,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;};
+const dayShort=ds=>{const d=parseYmd(ds);return `${["вс","пн","вт","ср","чт","пт","сб"][d.getDay()]}, ${d.getDate()} ${MONTHS_GEN[d.getMonth()]}`;};
 const dayLabel=ds=>{const d=parseYmd(ds);return `${d.getDate()} ${MONTHS_GEN[d.getMonth()]}, ${WDFULL[d.getDay()]}`;};
 
 // ---- город-империя: одно здание за каждый уровень + стройка следующего ----

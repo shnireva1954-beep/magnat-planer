@@ -76,7 +76,7 @@ async function walkTabs(p, label) {
     const names = st.hs.map(h => h[2]).join('|');
     names === 'Тренировка|Лента не больше 30 минут|Без мата|Чтение' ? ok('привычки ровно выбранные: ' + names) : bad('привычки: ' + JSON.stringify(st.hs));
     (st.hs[2][1] === '🤐' && st.hs.every((h, i) => h[0] === i + 1 && h[3] === '')) ? ok('своя с эмодзи, id по порядку') : bad('поля: ' + JSON.stringify(st.hs));
-    (st.gone && st.cnt.trim() === '· 0 из 4' && st.w === 0) ? ok('окна закрыты, «0 из 4», кошелёк 0') : bad('после старта: ' + JSON.stringify(st));
+    (st.gone && st.cnt.trim() === '0 из 4 привычек' && st.w === 0) ? ok('окна закрыты, «0 из 4», кошелёк 0') : bad('после старта: ' + JSON.stringify(st));
     st.sport.join() === 'Тренировка' ? ok('тренировкой считается только «Тренировка»') : bad('тренировки: ' + st.sport);
     label === '🚀 Начать (4)' ? ok('на кнопке число выбранных: ' + label) : bad('кнопка: ' + label);
     // ничего не выбрано — начать нельзя
@@ -205,6 +205,20 @@ async function walkTabs(p, label) {
     const card = 'rgb(17,24,42)';   // стеклянная карточка на тёмном фоне
     const weak = btns.filter(x => { const a = lum(x.border), c2 = lum(card); return (Math.max(a, c2) + .05) / (Math.min(a, c2) + .05) < 3 || x.style !== 'solid' || x.h < 48 || !x.pl; });
     (btns.length >= 5 && !weak.length) ? ok(`кнопки «Добавить» заметные и одинаковые: ${btns.map(x => x.id).join(', ')}`) : bad('слабые кнопки: ' + JSON.stringify(weak));
+    // Обзор (30.09.2026): «Сегодня» — первым, галочки на первом экране айфона без прокрутки.
+    // Было: карточка уровня сверху и кольцо 150 px — галочки начинались на 631 px из 664
+    await p.click('.tab[data-t="home"]'); await p.waitForTimeout(300);
+    await p.setViewportSize({ width: 390, height: 664 }); await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(200);
+    const fold = await p.evaluate(() => { const ch = document.querySelector('#todayChips').getBoundingClientRect(),
+      t = document.querySelector('.today'), h = document.querySelector('.hero');
+      return { bottom: Math.round(ch.bottom), vh: innerHeight, first: !!t && !!h && (t.compareDocumentPosition(h) & Node.DOCUMENT_POSITION_FOLLOWING) > 0,
+        seria: document.querySelector('.tds').textContent }; });
+    (fold.first && fold.bottom <= fold.vh) ? ok(`«Сегодня» первым, галочки видны без прокрутки (низ ${fold.bottom} из ${fold.vh})`)
+                                           : bad('Обзор: ' + JSON.stringify(fold));
+    /от 3 отметок/.test(fold.seria) ? ok('подпись про серию верная при трёх привычках: ' + fold.seria.trim()) : bad('подпись серии: ' + fold.seria);
+    await p.evaluate(() => { S.habits = S.habits.slice(0, 1); save(); render(); }); await p.waitForTimeout(150);
+    const one = await p.$eval('.tds', e => e.textContent);
+    /от 1 отметки/.test(one) ? ok('с одной привычкой — «в серию от 1 отметки», а не «от 3»') : bad('подпись при одной привычке: ' + one);
     errCheck(p, 'дизайн 29.09');
     await ctx.close();
   }
