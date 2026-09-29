@@ -91,6 +91,44 @@ async function walkTabs(p, label) {
     await ctx.close();
   }
 
+  // ---------- 1в. айфон во вкладке: зовём на экран «Домой» (29.09.2026) ----------
+  // WebKit стирает данные сайта во вкладке через 7 дней без открытия; значок на экране — нет
+  console.log('\n1в) Подсказка «на экран Домой» — только айфону во вкладке');
+  {
+    const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+    const probe = async (ua, standalone) => {
+      const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, userAgent: ua || undefined });
+      const p = await ctx.newPage(); p.errs = [];
+      p.on('pageerror', e => p.errs.push('PAGEERROR: ' + e.message));
+      await p.addInitScript(st => {
+        if (st) Object.defineProperty(navigator, 'standalone', { get: () => true });
+        window.__persist = 0;
+        if (navigator.storage) navigator.storage.persist = () => { window.__persist++; return Promise.resolve(true); };
+      }, !!standalone);
+      await p.goto(URL); await p.waitForTimeout(400);
+      await startClean(p);
+      return { ctx, p, hint: !!(await p.$('#a2hs')), persist: await p.evaluate(() => window.__persist) };
+    };
+    let r = await probe(IPHONE, false);
+    r.hint ? ok('айфон во вкладке: подсказка есть') : bad('айфон во вкладке: подсказки нет');
+    r.persist > 0 ? ok('айфон: браузер попросили хранить данные постоянно') : bad('storage.persist() не вызван');
+    await r.p.click('#a2hsOk'); await r.p.waitForTimeout(200);
+    const gone = !(await r.p.$('#a2hs'));
+    await r.p.reload(); await r.p.waitForTimeout(400);
+    const still = !(await r.p.$('#a2hs'));
+    (gone && still) ? ok('«Понятно» прячет подсказку, и после перезагрузки её нет') : bad(`после «Понятно»: скрыта ${gone}, после перезагрузки ${still}`);
+    const back = await r.p.evaluate(() => { localStorage.setItem('magnat_a2hs_hide', String(Date.now() - 1)); render(); return !!document.querySelector('#a2hs'); });
+    back ? ok('через неделю подсказка возвращается') : bad('через неделю подсказка не вернулась');
+    errCheck(r.p, 'подсказка на айфоне');
+    await r.ctx.close();
+    r = await probe(IPHONE, true);
+    !r.hint ? ok('айфон со значка на экране «Домой»: подсказки нет') : bad('подсказка показана в приложении с экрана «Домой»');
+    await r.ctx.close();
+    r = await probe(null, false);
+    (!r.hint && r.persist === 0) ? ok('компьютер: ни подсказки, ни просьбы хранить (Firefox спросил бы окном)') : bad(`компьютер: подсказка ${r.hint}, persist ${r.persist}`);
+    await r.ctx.close();
+  }
+
   // ---------- 2. демо ----------
   console.log('\n2) Онбординг → «Посмотреть пример» (демо-данные)');
   {

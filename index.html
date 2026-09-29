@@ -603,6 +603,16 @@ function celebrateLevel(L,prev,intro){
 // «Поделиться»: confirm() там сразу отвечает «нет» — молча не работали покупка наград,
 // удаление и сброс. Поэтому в рамке — свои окна, а на сайте всё как было и проверено тестами.
 const FRAMED=(()=>{ try{ return window.self!==window.top; }catch(e){ return true; } })();
+// iPhone/iPad во ВКЛАДКЕ браузера: WebKit стирает данные сайта (localStorage), если его не
+// открывали 7 дней. Значок на экране «Домой» живёт по своему счётчику и не стирается —
+// туда и зовём (29.09.2026: продукт на продажу, потеря прогресса у покупателя недопустима)
+const IOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const STANDALONE=navigator.standalone===true||matchMedia("(display-mode: standalone)").matches;
+const A2HS_KEY="magnat_a2hs_hide";   // до какого времени подсказку не показывать
+function a2hsHint(){
+  if(!IOS||STANDALONE||FRAMED) return false;
+  try{ return !(Date.now()<+localStorage.getItem(A2HS_KEY)); }catch(e){ return true; }
+}
 function askConfirm(text,okLabel,danger){
   if(!FRAMED) return Promise.resolve(confirm(text));
   return new Promise(resolve=>{
@@ -757,6 +767,7 @@ function vHome(root){
   const w=body_curW();
   const ins=homeInsight();
   root.innerHTML=`
+   ${a2hsHint()?`<div class="glass demonote" id="a2hs"><span>📲 <b style="color:var(--ink)">Поставь на экран «Домой»</b>: «Поделиться» → «На экран Домой». Во вкладке Safari прогресс может стереться, если не открывать Магнат 7&nbsp;дней.</span><button class="ok2" id="a2hsOk">Понятно</button></div>`:""}
    ${S.demoData?`<div class="glass demonote"><span>👀 Внутри — пример с демо-данными, чтобы всё пощупать.</span><button class="ok2" id="startOwn">🚀 Начать своё</button></div>`:""}
    <div class="glass hero">
      <div class="hero-row">
@@ -830,6 +841,9 @@ function vHome(root){
   });
   root.querySelector("#shareBtn").addEventListener("click",shareCard);
   root.querySelectorAll(".card[data-go]").forEach(c=>c.addEventListener("click",()=>{cur=c.dataset.go;render();window.scrollTo(0,0);}));
+  // «Понятно» прячет подсказку на неделю: осталось во вкладке — через неделю напомним снова
+  const ah=root.querySelector("#a2hsOk");
+  if(ah) ah.addEventListener("click",()=>{ try{ localStorage.setItem(A2HS_KEY,String(Date.now()+7*864e5)); }catch(e){} render(); });
   const so=root.querySelector("#startOwn");
   if(so) so.addEventListener("click",async()=>{
     if(await askConfirm("Стереть демо-данные и начать своё с чистого листа?","Начать своё")) await startFresh();
@@ -1668,6 +1682,9 @@ function showOnboarding(){
 
 render();
 if(FIRST_RUN) showOnboarding();
+// просим браузер не вытеснять данные; не умеет или отказал — ничего не меняется.
+// Только iPhone/iPad: Safari не спрашивает, а Firefox на компьютере показал бы окно-вопрос
+if(IOS) try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{}); }catch(e){}
 
 // офлайн: с домашнего экрана приложение должно открываться и без сети
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
