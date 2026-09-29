@@ -129,6 +129,86 @@ async function walkTabs(p, label) {
     await r.ctx.close();
   }
 
+  // ---------- 1г. дизайн 29.09.2026: календарь, кнопки «Добавить», анимации ----------
+  console.log('\n1г) Календарь похож на календарь, кнопки видно, отметка «щёлкает»');
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 844 });
+    await p.goto(URL); await p.waitForTimeout(400);
+    await startClean(p);
+    // «Сегодня» на Обзоре: отметка запускает анимацию, снятие — нет
+    await p.click('#todayChips .tchip'); await p.waitForTimeout(60);
+    // считаем анимации на САМОМ чипе: летящая монета — отдельный элемент и не в счёт
+    const popAnims = await p.evaluate(() => document.querySelector('#todayChips .tchip.on').getAnimations().length);
+    popAnims > 0 ? ok('отметка привычки «щёлкает» (анимаций на чипе: ' + popAnims + ')') : bad('при отметке чип не анимирован');
+    await p.waitForTimeout(600);
+    await p.click('#todayChips .tchip'); await p.waitForTimeout(300);
+    await p.click('.tab[data-t="habits"]'); await p.waitForTimeout(40);
+    const viewAnim = await p.evaluate(() => document.querySelector('#v-habits').getAnimations().length);
+    viewAnim > 0 ? ok('новая вкладка въезжает плавно') : bad('смена вкладки без анимации');
+    await p.waitForTimeout(400);
+    const c = await p.evaluate(() => {
+      const t = new Date(), mon = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+      const diM = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+      const cells = [...document.querySelectorAll('.cday')], r = cells[0].getBoundingClientRect();
+      const cols = new Set(cells.map(e => Math.round(e.getBoundingClientRect().left))).size;
+      return { title: document.querySelector('.calt').textContent, want: mon[t.getMonth()] + t.getFullYear(),
+        wd: [...document.querySelectorAll('.calwd')].map(e => e.textContent).join(' '), n: cells.length, diM, cols,
+        sq: Math.abs(r.width - r.height) < 2 && r.width >= 30, next: document.querySelector('#calNext').disabled,
+        sw: document.documentElement.scrollWidth > innerWidth };
+    });
+    c.title === c.want ? ok('над календарём месяц и год: ' + c.title) : bad('заголовок календаря: ' + c.title);
+    c.wd === 'Пн Вт Ср Чт Пт Сб Вс' ? ok('дни недели с понедельника') : bad('дни недели: ' + c.wd);
+    (c.n === c.diM && c.cols === 7 && c.sq && !c.sw) ? ok(`весь месяц на экране: ${c.n} дней, 7 столбцов, клетки квадратные, прокрутки вбок нет`)
+                                                   : bad('сетка: ' + JSON.stringify(c));
+    c.next ? ok('в будущий месяц листать нельзя') : bad('кнопка «следующий месяц» активна на текущем');
+    await p.click('#calPrev'); await p.waitForTimeout(250);
+    const prev = await p.evaluate(() => ({ t: document.querySelector('.calt').textContent, n: document.querySelectorAll('.cday').length,
+      fut: document.querySelectorAll('.cday.fut').length }));
+    await p.click('#calNext'); await p.waitForTimeout(250);
+    const back = await p.$eval('.calt', e => e.textContent);
+    (prev.t !== c.title && prev.fut === 0 && back === c.title) ? ok(`листается: ${prev.t} (${prev.n} дн.) → обратно ${back}`) : bad('листание: ' + JSON.stringify({ prev, back }));
+    // «Все»: день открывает окно с отметками за этот день
+    await p.click('.cday.tdy'); await p.waitForTimeout(300);
+    const nChips = await p.$$eval('#dayChips .tchip', e => e.length);
+    await p.click('#dayChips .tchip'); await p.waitForTimeout(200);
+    const dayOk = await p.evaluate(() => checksOf(TODAY).includes(S.habits[0].id));
+    await p.click('.ovl .ok'); await p.waitForTimeout(250);
+    const ring = await p.$eval('.cday.tdy', e => e.className);
+    (nChips === 3 && dayOk && /part|full/.test(ring)) ? ok('день в «Все» открывает окно, отметка видна кольцом') : bad(`окно дня: чипов ${nChips}, отмечено ${dayOk}, класс ${ring}`);
+    // одна привычка: нажатие на день ставит и снимает галочку
+    const hid = await p.evaluate(() => S.habits[1].id);
+    await p.click(`.fchip[data-f="${hid}"]`); await p.waitForTimeout(250);
+    await p.click('.hcell.tdy'); await p.waitForTimeout(60);
+    const cellPop = await p.evaluate(() => document.querySelector('.hcell.tdy').getAnimations().length);
+    await p.waitForTimeout(400);
+    const on1 = await p.evaluate(h => checksOf(TODAY).includes(h), hid);
+    await p.click('.hcell.tdy'); await p.waitForTimeout(250);
+    const on2 = await p.evaluate(h => checksOf(TODAY).includes(h), hid);
+    (on1 && !on2 && cellPop > 0) ? ok('день одной привычки отмечается и снимается, отметка «щёлкает»') : bad(`одна привычка: ${on1}/${on2}, анимаций ${cellPop}`);
+    const futN = await p.$$eval('.hcell.fut', e => e.length);
+    if (futN) { await p.click('.hcell.fut'); await p.waitForTimeout(200);
+      const futOn = await p.evaluate(h => Object.keys(S.checks).some(d => d > TODAY), hid);
+      !futOn ? ok('будущий день не отмечается') : bad('отметился будущий день'); }
+    // окно появляется анимацией
+    await p.click('#addHabit'); await p.waitForTimeout(30);
+    const mAnim = await p.evaluate(() => document.getAnimations().some(a => a.animationName === 'modalIn'));
+    mAnim ? ok('окно появляется, а не выскакивает') : bad('у окна нет анимации появления');
+    await p.click('.modal .no'); await p.waitForTimeout(250);
+    // кнопки «Добавить» на всех экранах: видимая рамка с контрастом ≥ 3 (WCAG 1.4.11), высота ≥ 48
+    const lum = rgb => { const [r, g, bl] = rgb.match(/\d+/g).slice(0, 3).map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); return .2126 * r + .7152 * g + .0722 * bl; };
+    const btns = [];
+    for (const t of ['habits', 'tasks', 'money', 'body', 'shop']) {
+      await p.click(`.tab[data-t="${t}"]`); await p.waitForTimeout(250);
+      btns.push(...await p.$$eval('.view.on .addbtn', els => els.map(e => { const cs = getComputedStyle(e);
+        return { id: e.id, border: cs.borderTopColor, style: cs.borderTopStyle, h: e.getBoundingClientRect().height, pl: !!e.querySelector('.pl') }; })));
+    }
+    const card = 'rgb(17,24,42)';   // стеклянная карточка на тёмном фоне
+    const weak = btns.filter(x => { const a = lum(x.border), c2 = lum(card); return (Math.max(a, c2) + .05) / (Math.min(a, c2) + .05) < 3 || x.style !== 'solid' || x.h < 48 || !x.pl; });
+    (btns.length >= 5 && !weak.length) ? ok(`кнопки «Добавить» заметные и одинаковые: ${btns.map(x => x.id).join(', ')}`) : bad('слабые кнопки: ' + JSON.stringify(weak));
+    errCheck(p, 'дизайн 29.09');
+    await ctx.close();
+  }
+
   // ---------- 2. демо ----------
   console.log('\n2) Онбординг → «Посмотреть пример» (демо-данные)');
   {
@@ -143,19 +223,17 @@ async function walkTabs(p, label) {
     if (!fillW.length || fillW.every(w => w < 1)) bad('.pfill не рисуется: ' + JSON.stringify(fillW));
     else ok('полоски «Топ привычек» рисуются: ' + fillW.map(w => Math.round(w)).join(','));
 
-    // календарь должен показывать сегодня, а не будущие дни
+    // календарь — весь месяц на экране: «сегодня» видно без прокрутки вбок
     const cal = await p.evaluate(() => {
-      const hs = document.querySelector('.hscroll'), td = document.querySelector('th.tdy');
-      const r1 = hs.getBoundingClientRect(), r2 = td.getBoundingClientRect();
-      const nameW = document.querySelector('th.name').getBoundingClientRect().width;
-      return { visible: r2.left >= r1.left + nameW - 2 && r2.right <= r1.right + 2 };
+      const td = document.querySelector('.cd.tdy'), r = td.getBoundingClientRect();
+      return { visible: r.left >= 0 && r.right <= innerWidth, sw: document.documentElement.scrollWidth > innerWidth };
     });
-    cal.visible ? ok('«сегодня» видно в календаре (не под липким столбцом)')
-                : bad('колонка «сегодня» не видна в календаре');
+    (cal.visible && !cal.sw) ? ok('«сегодня» видно в календаре, прокрутки вбок нет')
+                             : bad('календарь: ' + JSON.stringify(cal));
 
-    // галочки в календаре реально отрисованы
-    const onCells = await p.$$eval('.hcell.on', els => els.length);
-    onCells > 0 ? ok('в календаре ' + onCells + ' отмеченных клеток') : bad('в календаре нет отметок');
+    // отметки в календаре реально отрисованы: в «Все» — кольца и полные дни
+    const onCells = await p.$$eval('.cday.full, .cday.part', els => els.length);
+    onCells > 0 ? ok('в календаре ' + onCells + ' дней с отметками') : bad('в календаре нет отметок');
 
     await ctx.close();
   }
@@ -177,8 +255,9 @@ async function walkTabs(p, label) {
     const w2 = await p.$eval('#wallet', e => e.textContent);
     w2 === w0 ? ok('снятие галочки возвращает кошелёк') : bad(`снятие: ${w2} ≠ ${w0}`);
 
-    // клетка календаря
+    // клетка календаря: выбрать привычку и нажать на день
     await p.click('.tab[data-t="habits"]'); await p.waitForTimeout(300);
+    await p.click('.fchip:not([data-f="all"])'); await p.waitForTimeout(250);
     await p.evaluate(() => document.querySelector('.hcell:not(.fut)').click());
     await p.waitForTimeout(300);
     const marked = await p.$$eval('.hcell.on', e => e.length);
@@ -458,7 +537,8 @@ async function walkTabs(p, label) {
     perOne === 20 ? ok('одна отметка = 20 🪙') : bad('одна отметка дала ' + perOne);
     await p.evaluate(() => { delete S.checks[TODAY]; save(); render(); });
 
-    // эмодзи стирается и не возвращается
+    // эмодзи стирается и не возвращается: привычку правят из календаря («✏️ изменить»)
+    await p.evaluate(() => { calH = S.habits[0].id; render(); }); await p.waitForTimeout(200);
     await p.evaluate(() => { document.querySelector('.hedit').click(); }); await p.waitForTimeout(300);
     const before = await p.$eval('.modal input', e => e.value);
     await p.fill('.modal input', 'Тренировка');   // убрали смайлик

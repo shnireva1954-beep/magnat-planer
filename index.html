@@ -89,24 +89,47 @@
   .donut-wrap{position:relative; display:flex; justify-content:center;} .donut-c{position:absolute; text-align:center; top:50%; transform:translateY(-50%);}
   .donut-c .p{font-size:24px; font-weight:700; font-family:var(--fd);} .donut-c .t{font-size:10px; color:var(--mut2); text-transform:uppercase;}
 
-  /* habit grid */
-  .hscroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
-  table.hg{border-collapse:collapse; font-size:11px; min-width:100%;}
-  table.hg th,table.hg td{border:1px solid var(--line); padding:0; text-align:center;}
-  table.hg th{background:var(--panel2); color:var(--mut2); font-weight:600; padding:5px 4px;}
-  table.hg th.tdy{color:var(--emerald); background:#0e2f22;}
-  table.hg td.name{text-align:left; padding:6px 9px; white-space:nowrap; background:var(--panel); color:var(--ink); font-size:12.5px;
-    position:sticky; left:0; z-index:2;}
-  table.hg th.name{position:sticky; left:0; z-index:3; background:var(--panel2);}
-  .hcell{width:24px; height:27px; cursor:pointer; display:grid; place-items:center; line-height:1;}
-  .hcell.on{background:var(--emerald); box-shadow:inset 0 0 5px #0a3d28;}
-  .hcell.on:after{content:"✓"; color:#04120b; font-weight:900; font-size:12px;}
-  .hcell.fut{opacity:.22; cursor:default;}
-  .hcell.pre{opacity:.4;}   /* привычки тогда ещё не было — но отметить задним числом можно */
-  table.hg td.name.hedit{cursor:pointer;}
-  /* на телефоне длинные названия съедали календарь — обрезаем, чтобы влезло больше дней */
+  /* календарь привычек — настоящий месяц: 7 столбцов, дни недели, весь месяц на экране.
+     До 29.09.2026 была таблица «привычки × 31 день» с прокруткой вбок: на телефоне
+     видно 5–6 чисел без месяца и дней недели — Артём: «непонятно даже, что это календарь» */
+  .calhd{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px;}
+  .calt{font-family:var(--fd); font-size:21px; color:var(--ink);} .calt span{color:var(--mut2); font-size:17px; margin-left:3px;}
+  .calnav{width:40px; height:40px; flex:none; border-radius:12px; background:var(--panel); border:1px solid var(--line2); color:var(--ink); font-size:20px; line-height:1; cursor:pointer;}
+  .calnav:disabled{opacity:.28; cursor:default;}
+  .calf{display:flex; gap:7px; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; margin-bottom:13px; padding-bottom:1px;}
+  .calf::-webkit-scrollbar{display:none}
+  /* как у вкладок: край гаснет только там, где чипы продолжаются */
+  .calf.fl{mask-image:linear-gradient(90deg,transparent,#000 28px); -webkit-mask-image:linear-gradient(90deg,transparent,#000 28px);}
+  .calf.fr{mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent); -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);}
+  .calf.fl.fr{mask-image:linear-gradient(90deg,transparent,#000 28px,#000 calc(100% - 28px),transparent); -webkit-mask-image:linear-gradient(90deg,transparent,#000 28px,#000 calc(100% - 28px),transparent);}
+  .fchip{flex:none; padding:7px 13px; border-radius:99px; font-size:12.5px; background:var(--panel); border:1px solid var(--line2); color:var(--mut); cursor:pointer; white-space:nowrap; user-select:none;}
+  .fchip.on{background:#0e2f22; border-color:#2fa872; color:#e9fff6; font-weight:600;}
+  .fchip .hn{max-width:170px; vertical-align:top;}
+  .calg{display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px;}
+  .calwd{text-align:center; font-size:10.5px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:#8196b0; padding-bottom:3px;}
+  .calwd.we{color:#c9a55a;}
+  .cd{position:relative; aspect-ratio:1; min-height:32px; border-radius:11px; display:grid; place-items:center; background:var(--panel); border:1px solid var(--line); color:#b4c3d6; font-size:13.5px; font-weight:600; font-variant-numeric:tabular-nums; cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent;}
+  .cd>span{position:relative; z-index:1;}
+  /* сегодня: точка под числом — как в календаре телефона; у одной привычки ещё и рамка */
+  .cd.tdy>span::after{content:""; position:absolute; left:50%; bottom:-6px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:currentColor;}
+  .cd.tdy{color:var(--emerald);}
+  .hcell.tdy{border:2px solid var(--emerald); box-shadow:0 0 12px #2fe38f33;}
+  .cd.fut{background:transparent; border-style:dashed; color:var(--mut2); opacity:.45; cursor:default;}
+  .cd.pre{opacity:.45;}   /* привычки тогда ещё не было — но отметить задним числом можно */
+  .hcell.on, .cday.full{background:linear-gradient(155deg,#3cf0a0,#1db872); border-color:transparent; color:#04120b; font-weight:800; box-shadow:0 0 14px #2fe38f40;}
+  .hcell.on::after{content:"✓"; position:absolute; top:2px; right:5px; font-size:9px; font-weight:900; color:#04120b;}
+  /* «Все»: кольцо по краю дня — какая доля привычек отмечена */
+  .cday:not(.fut):not(.full)::before{content:""; position:absolute; inset:-1px; border-radius:inherit; padding:2.5px;
+    background:conic-gradient(var(--emerald) calc(var(--p,0)*360deg),#ffffff12 0);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor;
+    mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);}
+  .calleg{display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin-top:13px; font-size:11px; color:var(--mut2);}
+  .calleg i{display:inline-block; width:12px; height:12px; border-radius:4px; vertical-align:-2px; margin-right:5px;}
+  .calleg .lr{border:2px solid #2fa872;} .calleg .lf{background:var(--emerald);}
+  .calfoot{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:13px; font-size:12.5px; color:var(--mut);}
+  .calfoot b{color:var(--emerald);}
+  /* длинное название в чипе обрезается многоточием */
   .hn{display:inline-block; vertical-align:bottom; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:230px;}
-  @media(max-width:560px){ .hn{max-width:124px} }
   .prow{display:flex; align-items:center; gap:10px; padding:9px 2px; border-bottom:1px solid var(--line);}
   .prow:last-child{border:none} .prow .nm{flex:1; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .ptrack{width:90px; height:8px; border-radius:99px; background:#0a1119; border:1px solid var(--line); overflow:hidden; flex:none;}
@@ -121,7 +144,11 @@
   .q .meta{font-size:11px; color:var(--mut2);}
   .tag{font-size:10px; padding:2px 8px; border-radius:99px; font-weight:700;}
   .tag.hi{background:#3a1620;color:#ff8fa3;border:1px solid #7a2b3d} .tag.md{background:#2a2410;color:var(--gold);border:1px solid #6e5320} .tag.lo{background:#12243a;color:var(--cyan);border:1px solid #234b6e}
-  .addbtn{width:100%; padding:12px; border-radius:11px; background:var(--panel); border:1px dashed var(--line2); color:var(--mut); cursor:pointer; font-size:13.5px; margin-top:4px;}
+  /* кнопки «Добавить …» — заметные и одинаковые на всех экранах. У серой пунктирной рамки
+     был контраст 1,46 при норме 3 (WCAG 1.4.11): Артём 29.09 — «плохо видно». Здесь 5,9 */
+  .addbtn{display:flex; align-items:center; justify-content:center; gap:10px; width:100%; min-height:50px; padding:12px 14px; border-radius:13px; background:linear-gradient(180deg,#0f271e,#0c1f18); border:1.5px solid #2fa872; color:var(--emerald); font-size:14.5px; font-weight:700; cursor:pointer; margin-top:4px; user-select:none;}
+  .addbtn .pl{width:24px; height:24px; flex:none; border-radius:50%; background:var(--emerald); color:#04120b; display:grid; place-items:center; font-size:18px; font-weight:900; line-height:1; box-shadow:0 0 10px #2fe38f55;}
+  @media(hover:hover){ .addbtn:hover{background:linear-gradient(180deg,#12332a,#0e271e);} }
   /* цели для пальца: 21×22 приводили к промахам и потере данных одним касанием */
   .del{color:var(--danger); font-size:16px; cursor:pointer; min-width:40px; height:40px; display:inline-flex; align-items:center; justify-content:center; flex:none; margin:-9px 0;}
 
@@ -217,7 +244,15 @@
   .modal .btns #hpNo{flex:none; padding:13px 18px;}   /* «Назад» по размеру слова — «Начать (3)» в одну строку и на 320 px */
   .modal .ok:disabled{opacity:.45; cursor:default; box-shadow:none;}
   .shareimg{display:block; width:100%; max-width:100%; border-radius:14px; border:1px solid var(--line2); margin-top:12px;}
-  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+  /* отклик на нажатие: 120 мс — «сразу», но глаз замечает (для микровзаимодействий 100–150 мс) */
+  .fchip,.cd,.bk,.addbtn,.calnav,.catopt,.modal .btns button,.share-btn{transition:transform .12s ease-out, background .15s, border-color .15s;}
+  .tab:active,.fchip:active,.cd:not(.fut):active,.bk:active,.addbtn:active,.calnav:not(:disabled):active,.si:active,.modal .btns button:not(:disabled):active{transform:scale(.96);}
+  /* окна появляются, а не выскакивают: фон 180 мс, окно 240 мс с мягким торможением */
+  @keyframes ovlIn{from{opacity:0}to{opacity:1}}
+  @keyframes modalIn{from{opacity:0; transform:translateY(14px) scale(.97)}to{opacity:1; transform:none}}
+  .ovl{animation:ovlIn .18s ease-out;}
+  .ovl>.modal{animation:modalIn .24s cubic-bezier(.16,1,.3,1);}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
 </style>
 
 <header><div class="wrap">
@@ -547,6 +582,16 @@ let toastT; function toast(m){const t=document.getElementById("toast");t.textCon
 
 // ---- эмоции: конфетти, полёт монеты, празднование уровня ----
 const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+// «щелчок» отметки: чип или день чуть подпрыгивает, галочка въезжает — 380 мс, только при отметке
+let POP=null;                     // «привычка|дата», которую только что отметили; ищется после перерисовки
+function popEl(e){
+  if(!e||RM||!e.animate) return;
+  e.animate([{transform:"scale(1)"},{transform:"scale(1.13)",offset:.35},{transform:"scale(.97)",offset:.7},{transform:"scale(1)"}],
+            {duration:380,easing:"cubic-bezier(.2,.8,.3,1)"});
+  const d=e.querySelector(".d");
+  if(d&&d.animate) d.animate([{transform:"scale(.3) rotate(-15deg)"},{transform:"scale(1.25)",offset:.6},{transform:"scale(1)"}],
+                             {duration:300,easing:"cubic-bezier(.2,.8,.3,1)"});
+}
 function confettiBurst(x,y,n,colors){
   if(RM || !document.body.animate) return;
   for(let i=0;i<n;i++){
@@ -630,6 +675,18 @@ function askConfirm(text,okLabel,danger){
     ovl.addEventListener("keydown",e=>{ if(e.key==="Escape") close(false); });
     setTimeout(()=>ok.focus(),50);
   });
+}
+
+// плавный переход числа между перерисовками: рисуем кадры 450 мс, торможение в конце
+const TW={}; let lastBar="";
+function tween(key,to,draw){
+  const from=TW[key]; TW[key]=to;
+  if(TW[key+"#"]) cancelAnimationFrame(TW[key+"#"]);
+  if(from==null||from===to||RM){ draw(to); return; }
+  const t0=performance.now();
+  const step=t=>{ const k=Math.min(1,(t-t0)/450), e=1-Math.pow(1-k,3);
+    draw(from+(to-from)*e); TW[key+"#"]=k<1?requestAnimationFrame(step):0; };
+  draw(from); TW[key+"#"]=requestAnimationFrame(step);
 }
 
 // ---- canvas helpers ----
@@ -817,17 +874,24 @@ function vHome(root){
   city(root.querySelector("#hCity"),L,(xp-lo)/(hi-lo));
   // «Сегодня»: кольцо наполняется, когда жмёшь чипы привычек
   const th=S.habits.length, tdn=checksOf(TODAY).length, tfrac=th?tdn/th:0;
-  donut(root.querySelector("#todayRing"),tfrac,gv("--emerald"));
+  // кольцо «Сегодня» и полоса уровня доезжают до нового значения, а не прыгают
+  tween("ring",tfrac,v=>donut(root.querySelector("#todayRing"),v,gv("--emerald")));
+  const bt=root.querySelector(".hero .bar-t span"), lvKey=L+":"+pct;
+  if(bt&&!RM&&bt.animate&&lastBar&&lastBar!==lvKey){
+    const [pl0,pp0]=lastBar.split(":").map(Number);
+    bt.animate([{width:(pl0===L?pp0:0)+"%"},{width:pct+"%"}],{duration:520,easing:"cubic-bezier(.16,1,.3,1)"});
+  }
+  lastBar=lvKey;
   root.querySelector("#todayP").textContent=Math.round(tfrac*100)+"%";
   root.querySelector("#todayCnt").textContent=`· ${tdn} из ${th}`;
   const cw=root.querySelector("#todayChips");
   S.habits.forEach(h=>{
     const on=isDone(h.id,TODAY);
-    const chip=el(`<div class="tchip${on?" on":""}"><span class="d">${on?"✓":""}</span><span class="nm"></span></div>`);
+    const chip=el(`<div class="tchip${on?" on":""}" data-pop="${h.id}|${TODAY}"><span class="d">${on?"✓":""}</span><span class="nm"></span></div>`);
     chip.querySelector(".nm").textContent=withIco(h.ico,h.name);
     chip.addEventListener("click",()=>{
       const arr=checksOf(TODAY).slice(),i=arr.indexOf(h.id);
-      if(i>=0)arr.splice(i,1);else{arr.push(h.id);flyCoinToWallet(chip);}
+      if(i>=0)arr.splice(i,1);else{arr.push(h.id);flyCoinToWallet(chip);POP=`${h.id}|${TODAY}`;}
       if(arr.length)S.checks[TODAY]=arr;else delete S.checks[TODAY];
       save();render();
     });
@@ -857,59 +921,80 @@ function vHabits(root){
       <div style="font-size:42px">✅</div>
       <h3 style="text-transform:none;font-size:16px;color:var(--ink);margin:12px 0 6px">Привычек пока нет</h3>
       <p style="color:var(--mut);font-size:14px;margin-bottom:16px">Добавь первую — появится календарь месяца, серия и монеты.</p>
-      <div class="addbtn" id="addHabit">➕ Добавить привычку</div></div>`;
+      <div class="addbtn" id="addHabit"><span class="pl">+</span>Добавить привычку</div></div>`;
     root.querySelector("#addHabit").addEventListener("click",addHabit);
     return;
   }
-  const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),diM=new Date(y,mo+1,0).getDate();
-  let head="<tr><th class='name' style='text-align:left'>Привычка</th>";
-  for(let d=1;d<=diM;d++) head+=`<th${d===now.getDate()?' class="tdy"':''}>${d}</th>`; head+="<th>%</th></tr>";
-  let rows="";
-  const elapsed=Math.min(diM,now.getDate());
-  // процент считаем только за дни, когда привычка уже существовала
-  const daysOf=h=>{let n=0;for(let d=1;d<=elapsed;d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;if(!h.since||h.since<=ds)n++;}return n;};
-  const doneOf=h=>{let n=0;for(let d=1;d<=elapsed;d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;if((!h.since||h.since<=ds)&&isDone(h.id,ds))n++;}return n;};
-  S.habits.forEach(h=>{
-    let r=`<tr><td class="name hedit" data-edit="${h.id}"><span class="hn">${esc(withIco(h.ico,h.name))}</span> ✏️</td>`;
-    for(let d=1;d<=diM;d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;const on=isDone(h.id,ds);
-      const pre=!on&&h.since&&ds<h.since&&ds<=TODAY;
-      r+=`<td><span class="hcell${on?" on":""}${ds>TODAY?" fut":""}${pre?" pre":""}" data-h="${h.id}" data-d="${ds}"></span></td>`;}
-    const nd=daysOf(h), pc=nd?Math.round(doneOf(h)/nd*100):0;
-    r+=`<td style="color:var(--violet);font-weight:700">${pc}</td></tr>`; rows+=r;
-  });
+  if(calH!=="all" && !habitById(calH)) calH="all";          // привычку удалили — показываем все
+  const ym=calM&&calM<CURMONTH?calM:CURMONTH, y=+ym.slice(0,4), m=+ym.slice(5,7);
+  const diM=new Date(y,m,0).getDate(), lead=(new Date(y,m-1,1).getDay()+6)%7;   // неделя с понедельника
+  const one=calH==="all"?null:habitById(calH);
+  let cells=WD.map((w,i)=>`<div class="calwd${i>4?" we":""}">${w}</div>`).join("")+"<div></div>".repeat(lead);
+  let doneN=0, eligN=0;
+  for(let d=1;d<=diM;d++){
+    const ds=`${ym}-${pad(d)}`, fut=ds>TODAY, cls=`cd${ds===TODAY?" tdy":""}${fut?" fut":""}`;
+    if(one){
+      const on=isDone(one.id,ds), pre=!on&&!fut&&one.since&&ds<one.since;
+      if(!fut&&!pre){ eligN++; if(on) doneN++; }
+      cells+=`<div class="hcell ${cls}${on?" on":""}${pre?" pre":""}" role="button" tabindex="0" data-h="${one.id}" data-d="${ds}" data-pop="${one.id}|${ds}" aria-label="${dayLabel(ds)}${on?", выполнено":""}"><span>${d}</span></div>`;
+    }else{
+      const pool=poolOn(ds), n=checksOf(ds).length, p=pool?Math.min(1,n/pool):0;
+      cells+=`<div class="cday ${cls}${p>=1?" full":p>0?" part":""}" role="button" tabindex="0" data-d="${ds}" style="--p:${p.toFixed(3)}" aria-label="${dayLabel(ds)}: отмечено ${n} из ${pool}"><span>${d}</span></div>`;
+    }
+  }
+  const chips=`<div class="fchip${one?"":" on"}" data-f="all">Все</div>`+
+    S.habits.map(h=>`<div class="fchip${one&&one.id===h.id?" on":""}" data-f="${h.id}"><span class="hn">${esc(withIco(h.ico,h.name))}</span></div>`).join("");
+  const pc=eligN?Math.round(doneN/eligN*100):0;
+  const foot=one
+    ? `<div class="calfoot"><span>✓ <b>${doneN}</b> из ${eligN} ${pl(eligN,"дня","дней","дней")} · ${pc}%</span><span class="hedit2 hedit" data-edit="${one.id}">✏️ изменить</span></div>
+       <div class="calleg">нажми на день — отметить или снять</div>`
+    : `<div class="calleg"><span><i class="lr"></i>часть привычек</span><span><i class="lf"></i>все за день</span><span>нажми на день — отметить</span></div>`;
   // недельная сила (последние 8 недель — % выполнения)
   const wk=[]; for(let w=7;w>=0;w--){let dc=0,tp=0;for(let i=0;i<7;i++){const ds=addDays(TODAY,-(w*7+i));dc+=checksOf(ds).length;tp+=poolOn(ds);}wk.push(tp?Math.round(dc/tp*100):0);}
-  // топ привычек за месяц
+  // топ привычек за текущий месяц: процент только за дни, когда привычка уже существовала
+  const cy=+CURMONTH.slice(0,4), cm=+CURMONTH.slice(5,7), elapsed=+TODAY.slice(8,10);
+  const daysOf=h=>{let n=0;for(let d=1;d<=elapsed;d++){const ds=`${cy}-${pad(cm)}-${pad(d)}`;if(!h.since||h.since<=ds)n++;}return n;};
+  const doneOf=h=>{let n=0;for(let d=1;d<=elapsed;d++){const ds=`${cy}-${pad(cm)}-${pad(d)}`;if((!h.since||h.since<=ds)&&isDone(h.id,ds))n++;}return n;};
   const tops=S.habits.map(h=>{const nd=daysOf(h);return{h,pc:nd?Math.round(doneOf(h)/nd*100):0};}).sort((a,b)=>b.pc-a.pc);
   root.innerHTML=`
-    <div class="glass card"><h3>Календарь месяца <span style="color:var(--mut2);font-weight:400;text-transform:none">клетка → засчитать · название → изменить</span></h3>
-      <div class="hscroll"><table class="hg">${head}${rows}</table></div></div>
+    <div class="glass card">
+      <div class="calhd"><button class="calnav" id="calPrev" aria-label="Прошлый месяц"${ym<=addMonths(CURMONTH,-12)?" disabled":""}>‹</button>
+        <div class="calt">${MONTHS[m-1]}<span>${y}</span></div>
+        <button class="calnav" id="calNext" aria-label="Следующий месяц"${ym>=CURMONTH?" disabled":""}>›</button></div>
+      <div class="calf" id="calF">${chips}</div>
+      <div class="calg">${cells}</div>
+      ${foot}
+    </div>
     <div class="row2" style="margin-top:13px">
       <div class="glass card"><h3>Сила по неделям</h3><canvas id="hbWeeks"></canvas><div style="font-size:11px;color:var(--mut2);margin-top:6px">% выполнения, 8 недель</div></div>
       <div class="glass card"><h3>Топ привычек</h3>${tops.map(t=>`<div class="prow"><span class="nm">${esc(withIco(t.h.ico,t.h.name))}</span><span class="ptrack"><span class="pfill" style="width:${t.pc}%"></span></span><span class="pc">${t.pc}%</span></div>`).join("")}</div>
     </div>
-    <div class="addbtn" id="addHabit" style="margin-top:13px">➕ Добавить привычку</div>`;
+    <div class="addbtn" id="addHabit" style="margin-top:13px"><span class="pl">+</span>Добавить привычку</div>`;
   bars(root.querySelector("#hbWeeks"),wk,gv("--emerald"),
        {labels:wk.map((_,i)=>i===7?"эта":"−"+(7-i)),height:150});
-  // календарь открывается на сегодняшнем дне — с учётом липкого столбца с названиями,
-  // иначе «сегодня» уезжает под него и в кадре остаются пустые будущие дни
-  const hs=root.querySelector(".hscroll"), tdy=root.querySelector("th.tdy");
-  if(hs&&tdy){
-    const nameTh=root.querySelector("table.hg th.name");
-    const nw=nameTh?nameTh.getBoundingClientRect().width:130;
-    const free=Math.max(0,hs.clientWidth-nw);
-    hs.scrollLeft=Math.max(0, tdy.offsetLeft-nw-Math.max(0,free/2-tdy.offsetWidth/2));
-  }
-  root.querySelectorAll(".hcell").forEach(c=>c.addEventListener("click",()=>{
+  root.querySelector("#calPrev").addEventListener("click",()=>{ calM=addMonths(ym,-1); render(); });
+  root.querySelector("#calNext").addEventListener("click",()=>{ const n=addMonths(ym,1); calM=n>=CURMONTH?"":n; render(); });
+  const cf=root.querySelector("#calF"), onChip=cf.querySelector(".fchip.on");
+  if(onChip&&onChip.offsetLeft+onChip.offsetWidth>cf.clientWidth) cf.scrollLeft=onChip.offsetLeft-12;   // выбранная привычка видна
+  const cfFade=()=>{ const x=cf.scrollLeft, max=cf.scrollWidth-cf.clientWidth; cf.classList.toggle("fl",x>4); cf.classList.toggle("fr",x<max-4); };
+  cf.addEventListener("scroll",cfFade,{passive:true}); cfFade();
+  cf.querySelectorAll(".fchip").forEach(c=>c.addEventListener("click",()=>{ calH=c.dataset.f==="all"?"all":+c.dataset.f; render(); }));
+  const act=(c,fn)=>{ c.addEventListener("click",fn);
+    c.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); fn(); } }); };
+  root.querySelectorAll(".hcell").forEach(c=>act(c,()=>{
     const ds=c.dataset.d; if(ds>TODAY){toast("Будущий день ещё не наступил 🙂");return;}
     const hid=+c.dataset.h,arr=checksOf(ds).slice(),i=arr.indexOf(hid);
     if(i>=0)arr.splice(i,1);
     else{
-      arr.push(hid); flyCoinToWallet(c);
+      arr.push(hid); flyCoinToWallet(c); POP=`${hid}|${ds}`;
       const h=habitById(hid);                 // отметил день раньше старта — значит привычка была и тогда
       if(h&&h.since&&ds<h.since) h.since=ds;
     }
     if(arr.length)S.checks[ds]=arr;else delete S.checks[ds]; save(); render();
+  }));
+  root.querySelectorAll(".cday").forEach(c=>act(c,()=>{
+    if(c.dataset.d>TODAY){toast("Будущий день ещё не наступил 🙂");return;}
+    openDay(c.dataset.d);
   }));
   root.querySelectorAll(".hedit").forEach(td=>td.addEventListener("click",()=>editHabit(+td.dataset.edit)));
   root.querySelector("#addHabit").addEventListener("click",addHabit);
@@ -963,7 +1048,7 @@ function vTasks(root){
     </div>
     <div class="sec-h">Мои задачи <span style="font-size:12px;color:var(--mut2)">· выполненная +${TASKCOIN} 🪙</span></div>
     <div id="taskList"></div>
-    <div class="addbtn" id="addTask">➕ Добавить задачу</div>
+    <div class="addbtn" id="addTask"><span class="pl">+</span>Добавить задачу</div>
     ${S.tasks.some(t=>t.done)?'<button class="reset" id="clearDone">убрать выполненные из списка</button>':''}`;
   const list=root.querySelector("#taskList");
   const tg={hi:["hi","Высокий"],md:["md","Средний"],lo:["lo","Низкий"]};
@@ -1038,7 +1123,7 @@ function vMoney(root){
       <p style="color:var(--mut);font-size:14px;margin-top:10px">Добавь первый доход или расход — появятся графики и разбор трат по категориям.</p>
     </div>`}
     <div class="row2" style="margin-top:13px">
-      <div class="addbtn" id="addIn">➕ Доход</div><div class="addbtn" id="addOut">➖ Расход</div>
+      <div class="addbtn" id="addIn"><span class="pl">+</span>Доход</div><div class="addbtn" id="addOut"><span class="pl">−</span>Расход</div>
     </div>`;
   if(hasData){
     bars(root.querySelector("#mBars"),[inc,out],[gv("--emerald"),gv("--danger")],
@@ -1151,7 +1236,7 @@ function vBody(root){
       <div style="font-size:42px">⚖️</div>
       <h3 style="text-transform:none;font-size:16px;color:var(--ink);margin:12px 0 6px">Раздел «Тело»</h3>
       <p style="color:var(--mut);font-size:14px;margin-bottom:16px">Записывай вес — увидишь свою динамику красивым графиком.</p>
-      <div class="addbtn" id="addW">⚖️ Записать первый вес</div></div>`;
+      <div class="addbtn" id="addW"><span class="pl">+</span>Записать первый вес</div></div>`;
     root.querySelector("#addW").addEventListener("click",async()=>{
       const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",placeholder:"75"}],
         {check:r=>{const v=num(r.w); if(v<=0) return "Впиши вес числом, например 78,4"; if(v<20||v>400) return "Вес должен быть от 20 до 400 кг"; return null;}});
@@ -1212,8 +1297,8 @@ function vBody(root){
       <div style="font-size:34px">🧮</div>
       <h3 style="text-transform:none;font-size:16px;color:var(--ink);margin:10px 0 6px">Нормы калорий и воды</h3>
       <p style="color:var(--mut);font-size:13.5px;line-height:1.55;margin-bottom:15px">Приложение посчитает их само — по формуле Миффлина — Сан Жеора. Вес и тренировки оно уже знает, нужны только рост, пол и год рождения.</p>
-      <div class="addbtn" id="editProf">👤 Заполнить профиль</div></div>`}
-    <div class="addbtn" id="addW" style="margin-top:13px">⚖️ Записать вес на сегодня</div>`;
+      <div class="addbtn" id="editProf"><span class="pl">+</span>Заполнить профиль</div></div>`}
+    <div class="addbtn" id="addW" style="margin-top:13px"><span class="pl">+</span>Записать вес на сегодня</div>`;
   weightChart(root.querySelector("#bW"), S.body.log, goal);
   root.querySelectorAll("[data-wd]").forEach(d=>d.addEventListener("click",async()=>{
     if(!await askConfirm("Удалить запись за "+fmtD(d.dataset.wd)+"?","Удалить",true)) return;
@@ -1269,7 +1354,7 @@ function vShop(root){
       </div>
       <div class="nrm">Цена награды — в привычках: «5 привычек» = ${5*COIN} 🪙. Серия дней умножает монеты за привычки до ×2, так что с серией выходит быстрее.</div></div>
     <div class="sec-h">Награды</div><div class="shop" id="shopGrid"></div>
-    <div class="addbtn" id="addReward" style="margin-top:13px">➕ Своя награда</div>`;
+    <div class="addbtn" id="addReward" style="margin-top:13px"><span class="pl">+</span>Своя награда</div>`;
   const grid=root.querySelector("#shopGrid");
   if(!S.rewards.length) grid.innerHTML='<div style="color:var(--mut2);font-size:13px;padding:6px 2px">Наград нет — придумай первую кнопкой ниже 👇</div>';
   // награды многоразовые: «Кино» можно покупать хоть каждую неделю
@@ -1359,6 +1444,38 @@ function addFinance(type){
   };
 }
 
+// окно одного дня из календаря «Все»: отметить любую привычку за этот день
+function openDay(ds){
+  const ovl=el(`<div class="ovl"><div class="modal"><h4></h4><p class="mtxt" style="margin-top:2px"></p>
+    <div class="tchips" id="dayChips"></div><div class="btns"><button class="ok">Готово</button></div></div></div>`);
+  const t=dayLabel(ds); ovl.querySelector("h4").textContent=t[0].toUpperCase()+t.slice(1);
+  const sub=ovl.querySelector(".mtxt"), box=ovl.querySelector("#dayChips");
+  const paint=popId=>{
+    box.innerHTML=""; const arr=checksOf(ds);
+    sub.textContent=`Отмечено ${arr.length} из ${S.habits.length} · каждая +${COIN} 🪙`;
+    S.habits.forEach(h=>{
+      const on=arr.includes(h.id);
+      const c=el(`<div class="tchip${on?" on":""}" role="checkbox" tabindex="0" aria-checked="${on}"><span class="d">${on?"✓":""}</span><span class="nm"></span></div>`);
+      c.querySelector(".nm").textContent=withIco(h.ico,h.name);
+      const flip=()=>{
+        const a=checksOf(ds).slice(), i=a.indexOf(h.id);
+        if(i>=0) a.splice(i,1); else { a.push(h.id); if(h.since&&ds<h.since) h.since=ds; }
+        if(a.length) S.checks[ds]=a; else delete S.checks[ds];
+        save(); render(); paint(i<0?h.id:null);
+      };
+      c.onclick=flip;
+      c.onkeydown=e=>{ if(e.key===" "||e.key==="Enter"){ e.preventDefault(); flip(); } };
+      box.appendChild(c);
+      if(popId===h.id) popEl(c);
+    });
+  };
+  paint(null); document.body.appendChild(ovl);
+  const close=()=>ovl.remove();
+  ovl.querySelector(".ok").onclick=close;
+  ovl.onclick=e=>{ if(e.target===ovl) close(); };
+  ovl.addEventListener("keydown",e=>{ if(e.key==="Escape") close(); });
+}
+
 async function addHabit(){
   const r=await askModal("Новая привычка",[
     {name:"name",label:"Название (можно с эмодзи)",placeholder:"🏃 Бег по утрам"},
@@ -1368,6 +1485,15 @@ async function addHabit(){
   S.habits.push({id:Math.max(0,...S.habits.map(h=>h.id))+1,ico,name,since:TODAY});
   save(); render(); toast(`Привычка добавлена · +${COIN} 🪙 за отметку`);
 }
+// ---- календарь: названия месяцев и дней, что сейчас показано ----
+const MONTHS=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+const MONTHS_GEN=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+const WD=["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+const WDFULL=["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
+let calH="all", calM="";          // все привычки или одна (id); месяц "ГГГГ-ММ", "" — текущий
+const addMonths=(ym,n)=>{const d=new Date(+ym.slice(0,4),+ym.slice(5,7)-1+n,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;};
+const dayLabel=ds=>{const d=parseYmd(ds);return `${d.getDate()} ${MONTHS_GEN[d.getMonth()]}, ${WDFULL[d.getDay()]}`;};
+
 // ---- город-империя: одно здание за каждый уровень + стройка следующего ----
 // Одна рисовалка и для карточки на Обзоре, и для картинки в сторис (s — масштаб линий)
 const hash01=i=>{const x=Math.sin(i*127.1+311.7)*43758.5453;return x-Math.floor(x);};
@@ -1461,7 +1587,7 @@ function showImage(blob){
 }
 
 // ---- router ----
-let cur="home";
+let cur="home", lastView="";
 const RENDER={home:vHome,habits:vHabits,tasks:vTasks,money:vMoney,body:vBody,shop:vShop};
 function render(){
   try{ draw(); }
@@ -1483,6 +1609,11 @@ function draw(){
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===cur));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
   const root=document.getElementById("v-"+cur); root.classList.add("on"); RENDER[cur](root);
+  // новая вкладка въезжает снизу на 8 px за 220 мс; перерисовка той же вкладки — без движения
+  if(cur!==lastView&&!RM&&root.animate)
+    root.animate([{opacity:0,transform:"translateY(8px)"},{opacity:1,transform:"none"}],{duration:220,easing:"cubic-bezier(.16,1,.3,1)"});
+  lastView=cur;
+  if(POP){ popEl(root.querySelector(`[data-pop="${POP}"]`)); POP=null; }
   // активная вкладка не должна оставаться наполовину за краем полосы
   const at=tabsEl.querySelector(".tab.on");
   if(at) tabsEl.scrollTo({left:Math.max(0,at.offsetLeft-(tabsEl.clientWidth-at.offsetWidth)/2),

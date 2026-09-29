@@ -167,9 +167,16 @@ function serve(port, root) {
     await startClean(p);
     await p.click('#todayChips .tchip'); await p.waitForTimeout(300);
     const parts = await p.evaluate(() => document.querySelectorAll('body > i').length);
-    for (const t of TABS) { await p.click(`.tab[data-t="${t}"]`); await p.waitForTimeout(200); }
-    (parts === 0 && !p.errs.length) ? ok('анимаций нет, все экраны работают')
-                                    : bad('частиц: ' + parts + ' ошибок: ' + p.errs.join(' | '));
+    // ни одной анимации — ни частиц, ни «щелчка», ни въезда вкладок и окон (29.09.2026)
+    let anims = await p.evaluate(() => document.getAnimations().length);
+    for (const t of TABS) { await p.click(`.tab[data-t="${t}"]`); await p.waitForTimeout(30);
+      anims += await p.evaluate(() => document.getAnimations().length); await p.waitForTimeout(170); }
+    await p.click('.tab[data-t="habits"]'); await p.waitForTimeout(200);
+    await p.click('#addHabit'); await p.waitForTimeout(30);
+    anims += await p.evaluate(() => document.getAnimations().length);
+    await p.click('.modal .no'); await p.waitForTimeout(100);
+    (parts === 0 && anims === 0 && !p.errs.length) ? ok('анимаций нет, все экраны работают')
+                                    : bad('частиц: ' + parts + ' анимаций: ' + anims + ' ошибок: ' + p.errs.join(' | '));
     await ctx.close();
   }
 
