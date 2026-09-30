@@ -223,6 +223,77 @@ async function walkTabs(p, label) {
     await ctx.close();
   }
 
+  // ---------- 1д. глазами клиента 30.09.2026: понятно ли всё, анимация ----------
+  console.log('\n1д) Глазами клиента: приветствие, кошелёк ждёт монету, награды, цифры в ряд');
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 844 });
+    await p.goto(URL); await p.waitForTimeout(400);
+    // приветствие объясняет игру короткими строками, а не одним абзацем
+    const how = await p.$$eval('.how > div', e => e.length);
+    how === 4 ? ok('приветствие: четыре строки «как это работает»') : bad('строк в приветствии: ' + how);
+    await startClean(p);
+    // пустые графики не рисуют выдуманных линий; «Разгон» переименован в понятное
+    const home = await p.evaluate(() => ({ body: !!document.querySelector('#hBody'), money: !!document.querySelector('#hMoney'),
+      t: document.querySelector('#v-home').textContent }));
+    (!home.body && !home.money && !/Разгон/.test(home.t) && /Монеты по дням/.test(home.t))
+      ? ok('без веса и денег пустых графиков нет, «Монеты по дням» вместо «Разгона»') : bad('Обзор новичка: ' + JSON.stringify({ body: home.body, money: home.money }));
+    await p.click('.tab[data-t="habits"]'); await p.waitForTimeout(300);
+    const wk = await p.evaluate(() => ({ empty: !!document.querySelector('#v-habits .chempty'), cv: !!document.querySelector('#hbWeeks') }));
+    (wk.empty && !wk.cv) ? ok('«Сила по неделям» без отметок говорит словами') : bad('пустая «Сила по неделям»: ' + JSON.stringify(wk));
+    await p.click('.tab[data-t="home"]'); await p.waitForTimeout(300);
+    // кошелёк меняется, когда монета долетела, а не в миг нажатия
+    await p.click('#todayChips .tchip'); await p.waitForTimeout(120);
+    const early = await p.$eval('#wallet', e => e.textContent);
+    await p.waitForTimeout(1300);
+    const late = await p.$eval('#wallet', e => e.textContent);
+    (early === '0' && late === '20') ? ok(`кошелёк ждёт монету: через 0,1 с «${early}», после прилёта «${late}»`)
+                                     : bad(`кошелёк: через 0,1 с «${early}», потом «${late}» (ожидали «0» → «20»)`);
+    // награды: не хватает — полоска и «ещё N привычек»; хватает — кнопка «Купить»
+    await p.click('.tab[data-t="shop"]'); await p.waitForTimeout(400);
+    const poor = await p.$$eval('#shopGrid .si', els => els.map(e => ({ buy: !!e.querySelector('.buy'), bar: !!e.querySelector('.sbar'), t: e.textContent })));
+    (poor.length && poor.every(x => x.bar && !x.buy) && /ещё 4 привычки/.test(poor[0].t))
+      ? ok('на 20 🪙 у наград полоска и «ещё 4 привычки»') : bad('награды без монет: ' + JSON.stringify(poor.slice(0, 2)));
+    await p.evaluate(() => { for (let k = 1; k <= 4; k++) S.checks[addDays(TODAY, -k)] = S.habits.map(h => h.id); save(); render(); });
+    const cel = await p.$('.ovl .ok'); if (cel) { await cel.click(); await p.waitForTimeout(300); }
+    const rich = await p.$$eval('#shopGrid .si', els => els.map(e => ({ buy: e.querySelector('.buy') && e.querySelector('.buy').textContent, bar: !!e.querySelector('.sbar'), afford: e.classList.contains('afford') })));
+    (rich.some(x => x.buy === 'Купить') && rich.every(x => x.afford ? x.buy === 'Купить' && !x.bar : x.bar && !x.buy))
+      ? ok('хватает — «Купить», не хватает — полоска') : bad('награды с монетами: ' + JSON.stringify(rich));
+    // покупка: карточка откликается, сумма докручивается вниз, а не прыгает
+    const w0 = await p.evaluate(() => wallet()), cost = await p.evaluate(() => rwCost(S.rewards[0]));
+    await p.click('#shopGrid .si .i'); await p.waitForTimeout(80);
+    const mid = await p.evaluate(() => ({ pop: document.querySelector('#shopGrid .si').getAnimations().length, shown: (document.querySelector('#shopW') || {}).textContent }));
+    await p.waitForTimeout(700);
+    const end = await p.evaluate(() => ({ w: wallet(), shown: (document.querySelector('#shopW') || {}).textContent, head: document.querySelector('#wallet').textContent, nf: nf(wallet()) }));
+    (end.w === w0 - cost && mid.pop > 0 && mid.shown !== end.shown && end.shown === end.nf + ' 🪙' && end.head === end.nf)
+      ? ok(`покупка: карточка щёлкнула, сумма докрутилась ${w0} → ${end.nf}`) : bad('покупка: ' + JSON.stringify({ w0, cost, mid, end }));
+    // «Задачи», «Тело»: три цифры одной строкой, и на 320 px тоже
+    await p.evaluate(() => { logWeight(80); save(); });
+    for (const W of [390, 320]) {
+      await p.setViewportSize({ width: W, height: 800 });
+      for (const t of ['tasks', 'body']) {
+        await p.click(`.tab[data-t="${t}"]`); await p.waitForTimeout(300);
+        const r = await p.evaluate(() => ({ tops: [...document.querySelectorAll('.view.on .g3 > .card')].map(e => Math.round(e.getBoundingClientRect().top)),
+          sw: document.documentElement.scrollWidth > innerWidth }));
+        (r.tops.length === 3 && new Set(r.tops).size === 1 && !r.sw) ? ok(`${t} на ${W} px: три цифры в одну строку`) : bad(`${t} на ${W} px: ` + JSON.stringify(r));
+      }
+    }
+    await p.setViewportSize({ width: 390, height: 844 });
+    // приоритет задачи — под названием, чтобы название не ломалось по слову
+    await p.evaluate(() => { S.tasks.push({ id: 5, name: 'Смонтировать ролик', prio: 'hi', due: TODAY, done: false }); save(); cur = 'tasks'; render(); });
+    // строк у названия = прямоугольников у его текста
+    const tq = await p.evaluate(() => { const n = document.querySelector('.q .nm'), r = document.createRange();
+      r.selectNodeContents(n.firstChild); return { tagIn: !!n.querySelector('.meta .tag'), lines: r.getClientRects().length }; });
+    (tq.tagIn && tq.lines === 1) ? ok('приоритет под названием, «Смонтировать ролик» в одну строку') : bad('строка задачи: ' + JSON.stringify(tq));
+    // «Финансы»: итог месяца назван месяцем, «Доход» и «Расход» рядом
+    await p.click('.tab[data-t="money"]'); await p.waitForTimeout(300);
+    const fin = await p.evaluate(() => { const mon = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'][new Date().getMonth()];
+      return { month: ((document.querySelector('#v-money h3') || {}).textContent || '').includes(mon), fsum: !!document.querySelector('.fsum'),
+        row: Math.round(document.querySelector('#addIn').getBoundingClientRect().top) === Math.round(document.querySelector('#addOut').getBoundingClientRect().top) }; });
+    (fin.month && fin.fsum && fin.row) ? ok('«Финансы»: итог назван месяцем, «Доход» и «Расход» в одну строку') : bad('финансы: ' + JSON.stringify(fin));
+    errCheck(p, 'глазами клиента 30.09');
+    await ctx.close();
+  }
+
   // ---------- 2. демо ----------
   console.log('\n2) Онбординг → «Посмотреть пример» (демо-данные)');
   {
@@ -261,7 +332,8 @@ async function walkTabs(p, label) {
 
     // отметить привычку чипом на Обзоре
     const w0 = await p.$eval('#wallet', e => e.textContent);
-    await p.click('#todayChips .tchip'); await p.waitForTimeout(350);
+    // число в кошельке меняется, когда монета долетела (620 мс) и докрутилась (450 мс)
+    await p.click('#todayChips .tchip'); await p.waitForTimeout(1300);
     const w1 = await p.$eval('#wallet', e => e.textContent);
     w1 !== w0 ? ok(`чип привычки: кошелёк ${w0} → ${w1}`) : bad('чип привычки не начислил монеты');
     // снять обратно

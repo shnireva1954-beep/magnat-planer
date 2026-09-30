@@ -86,6 +86,23 @@
   .g{color:var(--gold)} .e{color:var(--emerald)} .cy{color:var(--cyan)} .vi{color:var(--violet)} .dn{color:var(--danger)} .or{color:var(--orange)}
 
   .stat .v{font-size:26px; font-weight:700; font-family:var(--fd); line-height:1;} .stat .l{font-size:12px; color:var(--mut); margin-top:5px;}
+  /* три цифры одной строкой на любой ширине — «Задачи» и «Тело» выглядят одинаково.
+     До 30.09.2026 в «Задачах» они вставали столбиком и занимали пол-экрана */
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px;} .g3 .card{padding:13px 11px;}
+  /* итог месяца в «Финансах»: остаток крупно, доход и расход под ним */
+  .fsum{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:13px;}
+  .fsum>div{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; min-width:0;}
+  .fsum span{display:block; font-size:11px; color:var(--mut2);}
+  /* миллион на 320 px влезает целиком: шрифт ужимается, в крайнем случае «₽» уходит строкой ниже */
+  .fsum b{display:block; font-size:clamp(13px,4.3vw,17px); margin-top:3px; font-variant-numeric:tabular-nums;}
+  .addrow{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:13px;}
+  .addrow .addbtn{margin-top:0;}
+  /* график, которому пока нечего показать, говорит об этом словами, а не пустой рамкой */
+  .chempty{display:grid; place-items:center; text-align:center; min-height:110px; padding:0 10px; font-size:12px; color:var(--mut2); line-height:1.5;}
+  /* приветствие: как устроена игра — четыре короткие строки вместо одного длинного абзаца */
+  .how{display:grid; gap:9px; margin-top:12px;}
+  .how>div{display:flex; gap:11px; align-items:flex-start; font-size:13.5px; color:var(--mut); line-height:1.45;}
+  .how>div>span:first-child{flex:none; width:22px; text-align:center; font-size:16px; line-height:1.25;}
   .donut-wrap{position:relative; display:flex; justify-content:center;} .donut-c{position:absolute; text-align:center; top:50%; transform:translateY(-50%);}
   .donut-c .p{font-size:24px; font-weight:700; font-family:var(--fd);} .donut-c .t{font-size:10px; color:var(--mut2); text-transform:uppercase;}
 
@@ -141,7 +158,9 @@
   .q .box{width:22px;height:22px;margin-right:4px;border-radius:6px;border:2px solid var(--line2);flex:none;display:grid;place-items:center;color:#04120b;font-weight:900;font-size:13px;}
   .q.done{background:linear-gradient(90deg,#0e2f22,var(--panel)); border-color:#1c7a54;} .q.done .box{background:var(--emerald);border-color:var(--emerald);}
   .q .nm{flex:1; font-size:14px;} .q.done .nm{color:#e9fff6} .q .cn{color:var(--gold); font-size:12.5px; font-variant-numeric:tabular-nums;}
-  .q .meta{font-size:11px; color:var(--mut2);}
+  .q .meta{font-size:11px; color:var(--mut2); margin-top:3px; line-height:1.7;}
+  /* приоритет стоит под названием: справа он отнимал у названия 70 px, и оно ломалось по слову в строку */
+  .q .meta .tag{margin-right:3px;}
   .tag{font-size:10px; padding:2px 8px; border-radius:99px; font-weight:700;}
   .tag.hi{background:#3a1620;color:#ff8fa3;border:1px solid #7a2b3d} .tag.md{background:#2a2410;color:var(--gold);border:1px solid #6e5320} .tag.lo{background:#12243a;color:var(--cyan);border:1px solid #234b6e}
   /* кнопки «Добавить …» — заметные и одинаковые на всех экранах. У серой пунктирной рамки
@@ -172,6 +191,10 @@
   .si .i{font-size:26px} .si .n{font-size:11.5px; color:var(--mut); margin:8px 0 6px; min-height:30px; display:flex; align-items:center; justify-content:center;}
   .si .pr{font-size:13px; color:#8a6f2e; font-weight:700; font-variant-numeric:tabular-nums;}
   .si.afford{border-color:#1c7a54; box-shadow:0 0 14px #2fe38f22;} .si.afford .pr{color:var(--emerald)}
+  /* хватает монет — кнопка «Купить»; не хватает — полоска, сколько накоплено */
+  .si .buy{display:inline-block; margin-top:9px; padding:6px 16px; border-radius:99px; background:linear-gradient(180deg,var(--emerald),#17a768); color:#04120b; font-size:12px; font-weight:800; box-shadow:0 0 12px #2fe38f44;}
+  .si .sbar{height:6px; margin:10px 12px 0; border-radius:99px; background:#0a1119; border:1px solid var(--line); overflow:hidden;}
+  .si .sbar span{display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#8a6f2e,var(--gold));}
 
   .sec-h{font-size:15px; margin:22px 2px 12px;}
   .ins-t b{color:var(--gold);}
@@ -619,6 +642,17 @@ function confettiBurst(x,y,n,colors){
     ],{duration:950+Math.random()*500, easing:"cubic-bezier(.2,.6,.4,1)"}).onfinish=()=>p.remove();
   }
 }
+// Число в кошельке меняется, когда монета ДОЛЕТЕЛА, и докручивается до новой суммы.
+// До 30.09.2026 оно менялось в миг нажатия — монета прилетала в уже пересчитанный кошелёк.
+// ROLL — «сейчас есть повод прокрутить число» (монета долетела, куплена награда);
+// без повода число ставится сразу: снятая галочка не должна устраивать представление.
+let coinsInAir=0, ROLL=false;
+function showWallet(){
+  if(coinsInAir) return;                         // монета в пути — покажем, когда долетит
+  const node=document.getElementById("wallet"), w=wallet();
+  if(!ROLL) TW.wallet=w;
+  tween("wallet",w,v=>{ node.textContent=nf(v); });
+}
 function flyCoinToWallet(fromEl){
   const w=document.getElementById("wallet"); if(RM||!w||!fromEl.animate) return;
   const chip=w.closest(".chip"), r1=fromEl.getBoundingClientRect(), r2=chip.getBoundingClientRect();
@@ -626,14 +660,21 @@ function flyCoinToWallet(fromEl){
   c.style.cssText=`position:fixed;z-index:80;pointer-events:none;font-size:15px;line-height:1;left:${r1.left+r1.width/2-8}px;top:${r1.top+r1.height/2-8}px;`;
   document.body.appendChild(c);
   const dx=(r2.left+r2.width/2)-(r1.left+r1.width/2), dy=(r2.top+r2.height/2)-(r1.top+r1.height/2);
+  coinsInAir++;
+  // приземление по таймеру, а не только по onfinish: в свёрнутой вкладке анимация может
+  // не закончиться, и кошелёк застыл бы на старой сумме
+  let landed=false;
+  const land=()=>{ if(landed) return; landed=true; c.remove();
+    coinsInAir=Math.max(0,coinsInAir-1);
+    if(!coinsInAir){ ROLL=true; showWallet(); ROLL=false; }
+    if(chip.animate) chip.animate([{transform:"scale(1)"},{transform:"scale(1.16)"},{transform:"scale(1)"}],{duration:260});
+  };
   c.animate([
     {transform:"translate(0,0) scale(1)", opacity:1},
     {transform:`translate(${dx*.45}px,${dy*.45-48}px) scale(1.3)`, offset:.55},
     {transform:`translate(${dx}px,${dy}px) scale(.4)`, opacity:.3}
-  ],{duration:620, easing:"cubic-bezier(.25,.7,.3,1)"}).onfinish=()=>{
-    c.remove();
-    if(chip.animate) chip.animate([{transform:"scale(1)"},{transform:"scale(1.16)"},{transform:"scale(1)"}],{duration:260});
-  };
+  ],{duration:620, easing:"cubic-bezier(.25,.7,.3,1)"}).onfinish=land;
+  setTimeout(land,900);
 }
 // L — новый уровень, prev — с какого поднялись. intro — первый запуск после появления уровней
 function celebrateLevel(L,prev,intro){
@@ -867,10 +908,10 @@ function vHome(root){
    <button class="share-btn" id="shareBtn">📤 Поделиться своей империей</button>
    <div class="grid sgrid" style="margin-top:13px">
      <div class="glass card" data-go="habits"><h3>Месяц выполнен <span class="go">›</span></h3><div class="donut-wrap"><canvas id="hDonut"></canvas><div class="donut-c"><div class="p e" id="hDonutP">0%</div><div class="t">привычки</div></div></div></div>
-     <div class="glass card" data-go="habits"><h3>Разгон · 14 дней <span class="go">›</span></h3><canvas id="hSpark"></canvas><div style="margin-top:8px;font-size:12px;color:var(--mut)">🪙 сегодня: <b class="cy num" id="hToday">0</b></div></div>
-     <div class="glass card" data-go="money"><h3>Баланс месяца <span class="go">›</span></h3><div class="stat"><div class="v ${inc-out>=0?'e':'dn'} num">${sgn(inc-out)} ₽</div><div class="l">доход ${nf(inc)} · расход ${nf(out)}</div></div><canvas id="hMoney" style="margin-top:8px"></canvas></div>
+     <div class="glass card" data-go="habits"><h3>Монеты по дням <span class="go">›</span></h3><canvas id="hSpark"></canvas><div style="margin-top:8px;font-size:12px;color:var(--mut)">🪙 сегодня: <b class="cy num" id="hToday">0</b></div></div>
+     <div class="glass card" data-go="money"><h3>Баланс месяца <span class="go">›</span></h3><div class="stat"><div class="v ${inc-out>=0?'e':'dn'} num">${sgn(inc-out)} ₽</div><div class="l">доход ${nf(inc)} · расход ${nf(out)}</div></div>${inc||out?'<canvas id="hMoney" style="margin-top:8px"></canvas>':""}</div>
      <div class="glass card" data-go="tasks"><h3>Задачи <span class="go">›</span></h3><div class="stat"><div class="v g num">${tOpen}</div><div class="l">открыто · ${S.tasks.filter(t=>t.done).length} готово</div></div></div>
-     <div class="glass card" data-go="body"><h3>Вес <span class="go">›</span></h3><div class="stat"><div class="v cy num">${w?w+" кг":"-"}</div><div class="l">${S.body.goalW?"цель "+S.body.goalW+" кг":"запиши вес"}</div></div><canvas id="hBody" style="margin-top:8px"></canvas></div>
+     <div class="glass card" data-go="body"><h3>Вес <span class="go">›</span></h3><div class="stat"><div class="v cy num">${w?w+" кг":"—"}</div><div class="l">${S.body.goalW?"цель "+S.body.goalW+" кг":"запиши вес"}</div></div>${S.body.log.length?'<canvas id="hBody" style="margin-top:8px"></canvas>':""}</div>
      <div class="glass card" data-go="shop"><h3>Империя · уровень ${L} <span class="go">›</span></h3><canvas id="hCity"></canvas><div style="text-align:center;font-size:11px;color:var(--mut2);margin-top:6px"><b class="e">${L} ${pl(L,"здание","здания","зданий")}</b> · следующее через ${nf(hi-xp)} ⭐</div></div>
    </div>
    <div class="bkrow">
@@ -884,9 +925,10 @@ function vHome(root){
   let md=0,mp=0; for(let d=1;d<=Math.min(diM,now.getDate());d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;md+=checksOf(ds).length;mp+=poolOn(ds);}
   const frac=mp?md/mp:0; donut(root.querySelector("#hDonut"),frac,gv("--emerald"),112); root.querySelector("#hDonutP").textContent=Math.round(frac*100)+"%";
   const sd=[];for(let k=13;k>=0;k--)sd.push(coinsFor(addDays(TODAY,-k))); line(root.querySelector("#hSpark"),sd,gv("--cyan")); root.querySelector("#hToday").textContent=nf(coinsFor(TODAY));
-  bars(root.querySelector("#hMoney"),[inc,out],[gv("--emerald"),gv("--danger")],
+  // без данных графиков нет: ровная линия «веса» без единого замера выглядела как данные
+  if(inc||out) bars(root.querySelector("#hMoney"),[inc,out],[gv("--emerald"),gv("--danger")],
        {labels:["доход","расход"],height:104});
-  line(root.querySelector("#hBody"),S.body.log.length?S.body.log.map(x=>x.w):[0,0],gv("--cyan"));
+  if(S.body.log.length) line(root.querySelector("#hBody"),S.body.log.map(x=>x.w),gv("--cyan"));
   city(root.querySelector("#hCity"),L,(xp-lo)/(hi-lo));
   // «Сегодня»: кольцо наполняется, когда жмёшь чипы привычек
   const th=S.habits.length, tdn=checksOf(TODAY).length, tfrac=th?tdn/th:0;
@@ -982,11 +1024,11 @@ function vHabits(root){
       ${foot}
     </div>
     <div class="row2" style="margin-top:13px">
-      <div class="glass card"><h3>Сила по неделям</h3><canvas id="hbWeeks"></canvas><div style="font-size:11px;color:var(--mut2);margin-top:6px">% выполнения, 8 недель</div></div>
+      <div class="glass card"><h3>Сила по неделям</h3>${wk.some(v=>v>0)?'<canvas id="hbWeeks"></canvas>':'<div class="chempty">Столбики вырастут, когда отметишь первые дни</div>'}<div style="font-size:11px;color:var(--mut2);margin-top:6px">% выполнения, 8 недель</div></div>
       <div class="glass card"><h3>Топ привычек</h3>${tops.map(t=>`<div class="prow"><span class="nm">${esc(withIco(t.h.ico,t.h.name))}</span><span class="ptrack"><span class="pfill" style="width:${t.pc}%"></span></span><span class="pc">${t.pc}%</span></div>`).join("")}</div>
     </div>
     <div class="addbtn" id="addHabit" style="margin-top:13px"><span class="pl">+</span>Добавить привычку</div>`;
-  bars(root.querySelector("#hbWeeks"),wk,gv("--emerald"),
+  if(wk.some(v=>v>0)) bars(root.querySelector("#hbWeeks"),wk,gv("--emerald"),
        {labels:wk.map((_,i)=>i===7?"эта":"−"+(7-i)),height:150});
   root.querySelector("#calPrev").addEventListener("click",()=>{ calM=addMonths(ym,-1); render(); });
   root.querySelector("#calNext").addEventListener("click",()=>{ const n=addMonths(ym,1); calM=n>=CURMONTH?"":n; render(); });
@@ -1057,10 +1099,10 @@ function vTasks(root){
   const sorted=[...S.tasks].sort((a,b)=>a.done-b.done || order[a.prio]-order[b.prio] || (a.due<b.due?-1:a.due>b.due?1:0));
   const open=S.tasks.filter(t=>!t.done).length, over=S.tasks.filter(t=>!t.done&&t.due<TODAY).length;
   root.innerHTML=`
-    <div class="grid">
-      <div class="glass card"><div class="stat"><div class="v g num">${open}</div><div class="l">открытых задач</div></div></div>
-      <div class="glass card"><div class="stat"><div class="v e num">${S.tasks.filter(t=>t.done).length}</div><div class="l">выполнено</div></div></div>
-      <div class="glass card"><div class="stat"><div class="v dn num">${over}</div><div class="l">просрочено</div></div></div>
+    <div class="grid g3">
+      <div class="glass card"><div class="stat"><div class="v g num">${open}</div><div class="l">открыто</div></div></div>
+      <div class="glass card"><div class="stat"><div class="v e num">${S.tasks.filter(t=>t.done).length}</div><div class="l">готово</div></div></div>
+      <div class="glass card"><div class="stat"><div class="v dn num">${over}</div><div class="l">в просрочке</div></div></div>
     </div>
     <div class="sec-h">Мои задачи <span style="font-size:12px;color:var(--mut2)">· выполненная +${TASKCOIN} 🪙</span></div>
     <div id="taskList"></div>
@@ -1071,8 +1113,8 @@ function vTasks(root){
   sorted.forEach(t=>{
     const late=!t.done&&t.due<TODAY;
     const q=el(`<div class="q${t.done?" done":""}"><div class="box">${t.done?"✓":""}</div>
-      <div class="nm">${esc(t.name)}<div class="meta">📅 ${fmtD(t.due)}${late?' · <span style="color:var(--danger)">просрочено</span>':''} · <span class="g">+${TASKCOIN} 🪙${t.done?" получено":""}</span></div></div>
-      <span class="tag ${tg[t.prio][0]}">${tg[t.prio][1]}</span><span class="ted" title="изменить">✏️</span><span class="del" title="удалить">✕</span></div>`);
+      <div class="nm">${esc(t.name)}<div class="meta"><span class="tag ${tg[t.prio][0]}">${tg[t.prio][1]}</span> 📅 ${fmtD(t.due)}${late?' · <span style="color:var(--danger)">просрочено</span>':''} · <span class="g">+${TASKCOIN} 🪙${t.done?" получено":""}</span></div></div>
+      <span class="ted" title="изменить">✏️</span><span class="del" title="удалить">✕</span></div>`);
     q.addEventListener("click",e=>{
       // выполненную убираем без потери монет: они уходят в копилку задач
       if(e.target.classList.contains("del")){dropTasks(x=>x.id===t.id);save();render();return;}
@@ -1119,12 +1161,10 @@ function vMoney(root){
   const parts=Object.entries(byCat).map(([cat,v],i)=>({cat,v,color:cols[i%cols.length]}));
   const hasData=me.length>0;
   root.innerHTML=`
-    <div class="grid">
-      <div class="glass card"><div class="stat"><div class="v e num">${nf(inc)} ₽</div><div class="l">доход</div></div></div>
-      <div class="glass card"><div class="stat"><div class="v dn num">${nf(out)} ₽</div><div class="l">расход</div></div></div>
-      <div class="glass card"><div class="stat"><div class="v ${bal>=0?'g':'dn'} num">${nf(Math.abs(bal))} ₽</div><div class="l">${bal>=0?"осталось":"перерасход"}</div></div>
-        ${inc===0&&out>0?'<div class="nrm">доход за месяц ещё не внесён</div>':""}</div>
-    </div>
+    <div class="glass card"><h3>${MONTHS[+CURMONTH.slice(5,7)-1]} · итог месяца</h3>
+      <div class="stat"><div class="v ${bal>=0?'g':'dn'} num">${nf(Math.abs(bal))} ₽</div><div class="l">${bal>=0?"осталось":"перерасход"}</div></div>
+      <div class="fsum"><div><span>доход</span><b class="e">+${nf(inc)} ₽</b></div><div><span>расход</span><b class="dn">−${nf(out)} ₽</b></div></div>
+      ${inc===0&&out>0?'<div class="nrm">доход за месяц ещё не внесён</div>':""}</div>
     ${hasData?`
     <div class="row2" style="margin-top:13px">
       <div class="glass card"><h3>Доход vs Расход</h3><canvas id="mBars"></canvas></div>
@@ -1138,7 +1178,7 @@ function vMoney(root){
       <div style="font-size:40px">💰</div>
       <p style="color:var(--mut);font-size:14px;margin-top:10px">Добавь первый доход или расход — появятся графики и разбор трат по категориям.</p>
     </div>`}
-    <div class="row2" style="margin-top:13px">
+    <div class="addrow">
       <div class="addbtn" id="addIn"><span class="pl">+</span>Доход</div><div class="addbtn" id="addOut"><span class="pl">−</span>Расход</div>
     </div>`;
   if(hasData){
@@ -1283,7 +1323,7 @@ function vBody(root){
       <div class="bar-m"><span>${reached?"🎉 цель достигнута — задай новую":"осталось <b>"+left.toFixed(1)+" кг</b>"}</span><span><b>${prog}%</b> пути</span></div>`
       :`<div style="font-size:12px;color:var(--mut2);margin-top:10px">Задай цель — появится прогресс до неё.</div>`}
     </div>
-    <div class="grid" style="margin-top:13px;grid-template-columns:repeat(3,1fr)">
+    <div class="grid g3" style="margin-top:13px">
       <div class="glass card"><div class="stat"><div class="v e num">${Math.abs(lost)<0.05?"0.0":(lost>0?"−":"+")+Math.abs(lost).toFixed(1)}</div><div class="l">кг с ${fmtD(S.body.log[0].date)}</div></div></div>
       <div class="glass card"><div class="stat"><div class="v g num">${prog!=null?prog+"%":"—"}</div><div class="l">пути пройдено</div></div></div>
       <div class="glass card"><div class="stat"><div class="v or num">${workouts}</div><div class="l">тренировок · 30 дн</div></div></div>
@@ -1362,7 +1402,7 @@ function vBody(root){
 
 function vShop(root){
   const w=wallet();
-  root.innerHTML=`<div class="glass card"><h3>Кошелёк</h3><div class="stat"><div class="v g num">${nf(w)} 🪙</div><div class="l">заработано дисциплиной · трать на реальное</div></div>
+  root.innerHTML=`<div class="glass card"><h3>Кошелёк</h3><div class="stat"><div class="v g num" id="shopW">${nf(w)} 🪙</div><div class="l">заработано дисциплиной · трать на реальное</div></div>
       <div class="earn">
         <div><b>+${COIN}</b>за привычку</div>
         <div><b>+${TASKCOIN}</b>за задачу</div>
@@ -1371,15 +1411,22 @@ function vShop(root){
       <div class="nrm">Цена награды — в привычках: «5 привычек» = ${5*COIN} 🪙. Серия дней умножает монеты за привычки до ×2, так что с серией выходит быстрее.</div></div>
     <div class="sec-h">Награды</div><div class="shop" id="shopGrid"></div>
     <div class="addbtn" id="addReward" style="margin-top:13px"><span class="pl">+</span>Своя награда</div>`;
+  // после покупки сумма докручивается вниз, как в шапке
+  const sv=root.querySelector("#shopW"); if(!ROLL) TW.shopW=w;
+  tween("shopW",w,v=>{ sv.textContent=nf(v)+" 🪙"; });
   const grid=root.querySelector("#shopGrid");
   if(!S.rewards.length) grid.innerHTML='<div style="color:var(--mut2);font-size:13px;padding:6px 2px">Наград нет — придумай первую кнопкой ниже 👇</div>';
   // награды многоразовые: «Кино» можно покупать хоть каждую неделю
   S.rewards.forEach(rw=>{
-    const cnt=S.boughtCnt[rw.id]||0, cost=rwCost(rw);
-    const it=el(`<div class="si${w>=cost?" afford":""}"><span class="rm" title="изменить">✏️</span>
+    const cnt=S.boughtCnt[rw.id]||0, cost=rwCost(rw), lack=cost-w, need=Math.ceil(lack/COIN);
+    // хватает — на карточке кнопка «Купить»; нет — полоска и сколько привычек осталось.
+    // До 30.09.2026 карточка просто тускнела, и было непонятно, что её вообще можно нажать
+    const it=el(`<div class="si${lack<=0?" afford":""}" data-pop="rw${rw.id}"><span class="rm" title="изменить">✏️</span>
       <div class="i">${rw.ico||"🎁"}</div><div class="n"></div>
       <div class="pr">🪙 ${nf(cost)}</div>
       <div class="cnt hintc">= ${rw.n} ${plH(rw.n)}</div>
+      ${lack<=0?`<div class="buy">Купить</div>`
+        :`<div class="sbar"><span style="width:${Math.floor(Math.max(0,w)/cost*100)}%"></span></div>${w>0?`<div class="cnt hintc">ещё ${need} ${plH(need)}</div>`:""}`}
       ${cnt?`<div class="cnt">куплено ×${cnt}</div>`:""}</div>`);
     it.querySelector(".n").textContent=rw.name;
     it.addEventListener("click",async e=>{
@@ -1388,7 +1435,7 @@ function vShop(root){
       if(lack>0){ const n=Math.ceil(lack/COIN); toast(`Не хватает ${nf(lack)} 🪙 — это ещё ${n} ${plH(n)}`); return; }
       if(!await askConfirm(`Купить «${rw.name}» за ${nf(cost)} 🪙?`,"Купить")) return;
       S.boughtCnt[rw.id]=(S.boughtCnt[rw.id]||0)+1; S.spent+=cost;
-      save(); render(); toast("Награда твоя — заработано честно 🎉");
+      save(); ROLL=true; POP="rw"+rw.id; render(); toast("Награда твоя — заработано честно 🎉");
     });
     grid.appendChild(it);
   });
@@ -1609,6 +1656,7 @@ const RENDER={home:vHome,habits:vHabits,tasks:vTasks,money:vMoney,body:vBody,sho
 function render(){
   try{ draw(); }
   catch(err){ rescue(err); }
+  ROLL=false;                    // повод прокрутить кошелёк живёт одну перерисовку
 }
 function draw(){
   invalidate();
@@ -1621,7 +1669,7 @@ function draw(){
     if(!FIRST_RUN && L>1) celebrateLevel(L,1,true);
   }
   else if(L>S.lastLv){ const p=S.lastLv; S.lastLv=L; save(); celebrateLevel(L,p); }
-  document.getElementById("wallet").textContent=nf(wallet());
+  showWallet();
   document.getElementById("lvlChip").innerHTML=`Ур. ${L}<span class="rk"> · ${rankName(rankOf(L))}</span>`;
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===cur));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
@@ -1817,7 +1865,13 @@ function showOnboarding(){
   const ovl=el(`<div class="ovl"></div>`);
   const m=el(`<div class="modal" style="max-width:380px">
     <h4 style="font-size:22px">🏛 Добро пожаловать</h4>
-    <p style="color:var(--mut);font-size:14px;margin:10px 0 4px;line-height:1.55">Это <b>Магнат</b> — ты превращаешь свою жизнь в игру-тайкун. Привычки и задачи дают <b class="e">⭐ опыт</b> (каждый уровень — новое здание в твоей империи) и <b class="g">🪙 монеты</b> (тратишь на реальные награды: TikTok, игры, читмил). Серия дней подряд множит доход.</p>
+    <p style="color:var(--mut);font-size:14px;margin:8px 0 0;line-height:1.5"><b style="color:var(--ink)">Магнат</b> превращает твою жизнь в игру-тайкун:</p>
+    <div class="how">
+      <div><span>✅</span><span>Отмечаешь привычки и задачи — за каждую <b class="g">+${COIN} 🪙</b></span></div>
+      <div><span>🏛</span><span>Копится <b class="e">⭐ опыт</b>: каждый уровень — новое здание в твоей империи</span></div>
+      <div><span>🎁</span><span>Монеты тратишь на реальные награды: TikTok, игры, читмил</span></div>
+      <div><span>🔥</span><span>Дни подряд — серия: монет за привычку до ×2</span></div>
+    </div>
     <p style="color:var(--mut2);font-size:12.5px;margin:12px 0 2px">Сейчас внутри — пример для наглядности. С чего начнём?</p>
     <div class="btns" style="flex-direction:column">
       <button class="ok" id="obFresh">🚀 Начать своё (чистый лист)</button>
