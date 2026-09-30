@@ -71,11 +71,12 @@ async function walkTabs(p, label) {
     await p.fill('#hpOwn', 'Чтение');
     const label = await p.$eval('#hpGo', e => e.textContent);
     await p.click('#hpGo'); await p.waitForTimeout(400);
-    const st = await p.evaluate(() => ({ hs: S.habits.map(h => [h.id, h.ico, h.name, h.since]), gone: !document.querySelector('.ovl'),
+    const st = await p.evaluate(() => ({ hs: S.habits.map(h => [h.id, h.ico, h.name, h.since]), today: TODAY, gone: !document.querySelector('.ovl'),
       cnt: document.querySelector('#todayCnt').textContent, w: wallet(), sport: S.habits.filter(isWorkout).map(h => h.name) }));
     const names = st.hs.map(h => h[2]).join('|');
     names === 'Тренировка|Лента не больше 30 минут|Без мата|Чтение' ? ok('привычки ровно выбранные: ' + names) : bad('привычки: ' + JSON.stringify(st.hs));
-    (st.hs[2][1] === '🤐' && st.hs.every((h, i) => h[0] === i + 1 && h[3] === '')) ? ok('своя с эмодзи, id по порядку') : bad('поля: ' + JSON.stringify(st.hs));
+    // с 30.09.2026 привычки чистого листа считаются с сегодняшнего дня, а не «всегда»
+    (st.hs[2][1] === '🤐' && st.hs.every((h, i) => h[0] === i + 1 && h[3] === st.today)) ? ok('своя с эмодзи, id по порядку, считаются с сегодня') : bad('поля: ' + JSON.stringify(st.hs));
     (st.gone && st.cnt.trim() === '0 из 4 привычек' && st.w === 0) ? ok('окна закрыты, «0 из 4», кошелёк 0') : bad('после старта: ' + JSON.stringify(st));
     st.sport.join() === 'Тренировка' ? ok('тренировкой считается только «Тренировка»') : bad('тренировки: ' + st.sport);
     label === '🚀 Начать (4)' ? ok('на кнопке число выбранных: ' + label) : bad('кнопка: ' + label);
@@ -304,6 +305,54 @@ async function walkTabs(p, label) {
     await ctx.close();
   }
 
+  // ---------- 1е. второй проход клиентом 30.09.2026: первый день ----------
+  console.log('\n1е) Первый день: месяц не 3%, серия объясняет себя, цель не выдумана, запятые');
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 844 });
+    await p.goto(URL); await p.waitForTimeout(400);
+    await startClean(p);
+    // «Сила по неделям» — шкала от 0 до 100%, а не от самого высокого столбика
+    const wkOpt = await p.evaluate(() => { let seen = null; const orig = bars;
+      bars = (cv, d, c, o) => { if (cv && cv.id === 'hbWeeks') seen = o; return orig(cv, d, c, o); };
+      S.checks[TODAY] = [S.habits[0].id]; save(); cur = 'habits'; render(); bars = orig; cur = 'home'; delete S.checks[TODAY]; save(); render();
+      return seen && seen.max; });
+    wkOpt === 100 ? ok('«Сила по неделям» меряется от 0 до 100%') : bad('шкала недель: ' + wkOpt);
+    // сделал в первый день всё — месяц 100%, а не 3%; третья галочка говорит про серию
+    const toasts = [];
+    await p.exposeFunction('__t', m => toasts.push(m));
+    await p.evaluate(() => { const t = document.getElementById('toast'); new MutationObserver(() => { if (t.classList.contains('show')) __t(t.textContent); }).observe(t, { attributes: true, childList: true }); });
+    for (let i = 0; i < 3; i++) { await p.click('#todayChips .tchip:not(.on)'); await p.waitForTimeout(250); }
+    await p.waitForTimeout(300);
+    const d1 = await p.evaluate(() => ({ month: document.querySelector('#hDonutP').textContent,
+      tile: [...document.querySelectorAll('.tile .l')].map(e => e.textContent).join('|'), mult: document.querySelectorAll('.tile .v')[1].textContent }));
+    d1.month === '100%' ? ok('первый день, всё отмечено — «Месяц выполнен 100%»') : bad('месяц в первый день: ' + d1.month);
+    toasts.some(t => /День в серии: 1 · завтра монеты ×1,1/.test(t)) ? ok('третья галочка: «🔥 День в серии: 1 · завтра монеты ×1,1»') : bad('тосты: ' + JSON.stringify(toasts));
+    (/бонус серии/.test(d1.tile) && d1.mult === '×1,1') ? ok('плитка «бонус серии ×1,1» — с запятой') : bad('плитки: ' + JSON.stringify(d1));
+    await p.click('.tab[data-t="habits"]'); await p.waitForTimeout(300);
+    const top = await p.$$eval('.prow .pc', e => e.map(x => x.textContent));
+    top.every(t => t === '100%') ? ok('«Топ привычек» в первый день — 100%') : bad('топ: ' + top.join(','));
+    // первый вес: цель спрашивают, не выдумывают; вес и числа — с запятой
+    await p.click('.tab[data-t="body"]'); await p.waitForTimeout(300);
+    await p.click('#addW'); await p.waitForTimeout(250);
+    const nIn = await p.$$eval('.modal input', e => e.length);
+    await p.fill('.modal input >> nth=0', '82,4'); await p.click('.modal .ok'); await p.waitForTimeout(400);
+    const bd = await p.evaluate(() => ({ goal: S.body.goalW, t: document.querySelector('#v-body').textContent }));
+    (nIn === 2 && bd.goal === 0 && /82,4 кг/.test(bd.t) && !/82\.4/.test(bd.t) && /1\s*тренировка · 30 дн/.test(bd.t))
+      ? ok('в форме веса есть цель; пустая — не выдумана; «82,4 кг»; «1 тренировка»') : bad('тело: ' + JSON.stringify({ nIn, goal: bd.goal, t: bd.t.slice(0, 160) }));
+    const hb = await p.evaluate(() => { cur = 'home'; render(); return { line: !!document.querySelector('#hBody'), t: document.querySelector('[data-go="body"]').textContent }; });
+    (!hb.line && /82,4 кг/.test(hb.t) && /цель не задана/.test(hb.t)) ? ok('на Обзоре один замер без черты, «цель не задана»') : bad('вес на Обзоре: ' + JSON.stringify(hb));
+    // активность новичка: неделя тренировок не делится на 4 недели
+    await p.evaluate(() => { S.body.sex = 'm'; S.body.height = 180; S.body.birth = 2000; save(); });
+    const act = await p.evaluate(() => { const N = norms(); return { f: N.f, pw: N.perWeek, line: actLine(N) }; });
+    (act.pw === 1 && act.f === 1.375 && /за 7 дней/.test(act.line)) ? ok(`первый день с тренировкой: ${act.pw} в неделю → лёгкая, «${act.line.match(/в среднем[^)]*/)[0]}»`)
+      : bad('активность новичка: ' + JSON.stringify(act));
+    // без цели норма не пишет «поддержание 2 560 · поддержание веса», а говорит, что цели нет
+    const nt = await p.evaluate(() => { cur = 'body'; render(); return document.querySelector('#editCal .nrm').textContent; });
+    (/цель не задана/.test(nt) && !/поддержание веса.*поддержание|поддержание \d.*поддержание веса/.test(nt)) ? ok('норма без цели: «' + nt.trim().slice(0, 40) + '…»') : bad('подпись нормы без цели: ' + nt);
+    errCheck(p, 'первый день 30.09');
+    await ctx.close();
+  }
+
   // ---------- 2. демо ----------
   console.log('\n2) Онбординг → «Посмотреть пример» (демо-данные)');
   {
@@ -524,7 +573,9 @@ async function walkTabs(p, label) {
     // без веса — сначала просят вес
     (await p.$('#addW')) ? ok('без веса зовут записать вес') : bad('нет приглашения записать вес');
     await p.click('#addW'); await p.waitForTimeout(250);
-    await p.fill('.modal input', '80'); await p.click('.modal .ok'); await p.waitForTimeout(400);
+    // цель спрашивают в той же форме (с 30.09.2026 она больше не ставится сама «вес − 3»)
+    await p.fill('.modal input >> nth=0', '80'); await p.fill('.modal input >> nth=1', '77');
+    await p.click('.modal .ok'); await p.waitForTimeout(400);
 
     // вес есть, профиля нет — предлагают заполнить
     const prompt = await p.$eval('#v-body', e => e.textContent.includes('Заполнить профиль'));
@@ -537,7 +588,7 @@ async function walkTabs(p, label) {
     await p.click('.modal .ok'); await p.waitForTimeout(400);
 
     // Миффлин — Сан Жеор вручную: 10*80 + 6.25*180 - 5*36 + 5 = 1750 (муж, 2026-1990=36)
-    // цель = 80-3 = 77, до неё 3 кг → дефицит 8% + 1,5%×3 = 12,5%; активность без тренировок = 1.2
+    // цель 77, до неё 3 кг → дефицит 8% + 1,5%×3 = 12,5%; активность без тренировок = 1.2
     // (с 24.09.2026 дефицит зависит от расстояния до цели: 10–25%, раньше был ровно 15%)
     const got = await p.evaluate(() => ({ n: norms(), cal: calGoalNow(), water: waterGoalNow(), goal: S.body.goalW }));
     const expBmr = 10*80 + 6.25*180 - 5*36 + 5;

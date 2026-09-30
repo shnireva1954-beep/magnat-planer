@@ -353,6 +353,8 @@ const TABS=[["home","🏛 Обзор"],["habits","✅ Привычки"],["tasks
 const nf=n=>Math.round(n).toLocaleString("ru-RU");
 // в суммах — настоящий минус «−», а не дефис: с дефисом «-300» слипается с соседним значком
 const sgn=n=>(n<0?"−":"")+nf(Math.abs(n));
+// дробные на экране — с запятой, как пишут по-русски: «82,4 кг», «×1,1». Раньше рядом стояли «82.4 кг» и «0,3 кг»
+const dcm=v=>String(v).replace(".",",");
 const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const gv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const pad=x=>String(x).padStart(2,"0");
@@ -576,10 +578,15 @@ function dropTasks(pred){
 
 // ---- честные инсайты: только из реальных локальных данных ----
 const firstDay=()=>{const ks=Object.keys(S.checks); if(!ks.length) return TODAY; return ks.sort()[0];};
+// за сколько дней считать «тренировок в неделю»: 4 недели, а новичку — сколько он в приложении,
+// но не меньше недели. До 30.09.2026 первая неделя делилась на четыре, и тренирующийся
+// каждый день новичок получал «0,3 тренировки в неделю → сидячий»
+const actDays=()=>Math.max(7,Math.min(28,Math.round((parseYmd(TODAY)-parseYmd(firstDay()))/864e5)+1));
+const actSpan=()=>actDays()>=28?"за 4 недели":`за ${actDays()} ${pl(actDays(),"день","дня","дней")}`;
 function pctRange(fromAgo,toAgo){ // % выполнения за диапазон дней назад (включительно)
   let dc=0,tp=0,used=0;
   for(let k=fromAgo;k>=toAgo;k--){ const ds=addDays(TODAY,-k);
-    dc+=checksOf(ds).length; tp+=poolOn(ds); if(checksOf(ds).length) used++; }
+    dc+=Math.min(checksOf(ds).length,poolOn(ds)); tp+=poolOn(ds); if(checksOf(ds).length) used++; }
   return {pct:tp?dc/tp:0, used};
 }
 function homeInsight(){
@@ -614,6 +621,12 @@ function homeInsight(){
 }
 const monthEntries=()=>S.finance.entries.filter(e=>e.date.slice(0,7)===CURMONTH);
 
+// день только что пошёл в серию — сказать, что это дало. До 30.09.2026 третья галочка молча
+// меняла «серию» и «множитель» в карточке ниже, и связь «отметки → серия → монеты» не читалась
+function streakNote(ds,was){
+  if(ds!==TODAY||was||!dayComplete(TODAY)) return;
+  const st=curStreak(); toast(`🔥 День в серии: ${st} · завтра монеты ×${dcm(mult(st).toFixed(1))}`);
+}
 let toastT; function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),1900);}
 
 // ---- эмоции: конфетти, полёт монеты, празднование уровня ----
@@ -750,7 +763,7 @@ function line(cv,data,color){const {c,w,h}=setup(cv,110);if(data.length<2)data=[
 // столбики: color — строка или массив по столбцу; opts.labels — подписи снизу, opts.values — значения сверху
 function bars(cv,data,color,opts){
   const o=opts||{}, {c,w,h}=setup(cv,o.height||120);
-  const n=data.length, mx=Math.max(...data,1);
+  const n=data.length, mx=o.max||Math.max(...data,1);   // max: шкала от нуля до max (проценты — до 100)
   const base=h-(o.labels?15:3), top=o.values?16:6;
   const gap=w/n, bw=Math.min(gap*(n<=3?0.44:0.62), 74);
   c.strokeStyle="#1c2735"; c.lineWidth=1;
@@ -775,10 +788,10 @@ function weightChart(cv,log,goal){
       c.setLineDash([5,4]); c.strokeStyle=gold; c.globalAlpha=.65; c.lineWidth=1.4;
       c.beginPath(); c.moveTo(10,gy); c.lineTo(w-58,gy); c.stroke();
       c.setLineDash([]); c.globalAlpha=1;
-      c.fillStyle=gold; c.font="600 10px system-ui"; c.textAlign="left"; c.fillText("цель "+goal, w-52, gy+3.5); }
+      c.fillStyle=gold; c.font="600 10px system-ui"; c.textAlign="left"; c.fillText("цель "+dcm(goal), w-52, gy+3.5); }
     const py=goal?36:h/2;
     c.beginPath(); c.arc(w/2,py,4.5,0,7); c.fillStyle=cy1; c.shadowColor=cy1; c.shadowBlur=10; c.fill(); c.shadowBlur=0;
-    c.fillStyle=cy1; c.font="700 13px system-ui"; c.textAlign="center"; c.fillText(String(log[0].w)+" кг", w/2, py-12);
+    c.fillStyle=cy1; c.font="700 13px system-ui"; c.textAlign="center"; c.fillText(dcm(log[0].w)+" кг", w/2, py-12);
     c.fillStyle="#68809b"; c.font="11px system-ui";
     c.fillText("запиши вес ещё раз — появится линия", w/2, py+26);
     return;
@@ -797,7 +810,7 @@ function weightChart(cv,log,goal){
     c.beginPath(); c.moveTo(padL,gy); c.lineTo(w-padR+6,gy); c.stroke();
     c.setLineDash([]); c.globalAlpha=1;
     c.fillStyle=gold; c.font="600 10px system-ui"; c.textAlign="left";
-    c.fillText("цель "+goal, w-padR+9, gy+3.5);
+    c.fillText("цель "+dcm(goal), w-padR+9, gy+3.5);
   }
   const g=c.createLinearGradient(0,0,0,h); g.addColorStop(0,cy+"55"); g.addColorStop(1,cy+"00");
   c.beginPath(); c.moveTo(X(0),Y(data[0])); data.forEach((v,i)=>c.lineTo(X(i),Y(v)));
@@ -807,14 +820,14 @@ function weightChart(cv,log,goal){
   if(log.length>1){ // стартовая точка есть смысл только при истории
     c.beginPath(); c.arc(X(0),Y(data[0]),3.2,0,7); c.fillStyle="#5f7288"; c.fill();
     c.fillStyle="#93a6bd"; c.font="600 10px system-ui"; c.textAlign="left";
-    c.fillText(String(log[0].w), X(0)+3, Y(data[0])-8);
+    c.fillText(dcm(log[0].w), X(0)+3, Y(data[0])-8);
   }
   const li=data.length-1;
   c.beginPath(); c.arc(X(li),Y(data[li]),4,0,7); c.fillStyle=cy; c.shadowColor=cy; c.shadowBlur=8; c.fill(); c.shadowBlur=0;
   let ly=Y(data[li])+3.5;
   if(goal && Math.abs(Y(goal)-Y(data[li]))<13) ly=Y(goal)+(Y(data[li])>=Y(goal)?15:-11);
   c.fillStyle=cy; c.font="700 11px system-ui"; c.textAlign="left";
-  c.fillText(String(log[log.length-1].w), w-padR+9, ly);
+  c.fillText(dcm(log[log.length-1].w), w-padR+9, ly);
 }
 function pie(cv,parts){const {c,w,h}=setup(cv,150);const cx=w/2,cy=h/2,r=Math.min(w,h)/2-6;let a=-Math.PI/2;const tot=parts.reduce((s,p)=>s+p.v,0)||1;parts.forEach(p=>{const ang=p.v/tot*Math.PI*2;c.beginPath();c.moveTo(cx,cy);c.arc(cx,cy,r,a,a+ang);c.closePath();c.fillStyle=p.color;c.fill();a+=ang;});c.beginPath();c.arc(cx,cy,r*0.55,0,7);c.fillStyle=gv("--panel");c.fill();}
 
@@ -899,7 +912,7 @@ function vHome(root){
      <div class="lvl-next">${nr?`Следующее звание — <b>${rankName(r+1)}</b>, с ${nr[2]}-го уровня`:`Высшее звание взято 👑 Уровни растут дальше`} · каждый уровень +${LVLBONUS} 🪙</div>
      <div class="tiles">
        <div class="tile"><div class="v g">${st}</div><div class="l">серия 🔥</div></div>
-       <div class="tile"><div class="v e">×${mult(st).toFixed(1)}</div><div class="l">множитель</div></div>
+       <div class="tile"><div class="v e">×${dcm(mult(st).toFixed(1))}</div><div class="l">бонус серии</div></div>
        <div class="tile"><div class="v vi">🏆 ${recordStreak()}</div><div class="l">рекорд серии</div></div>
      </div>
    </div>
@@ -911,7 +924,7 @@ function vHome(root){
      <div class="glass card" data-go="habits"><h3>Монеты по дням <span class="go">›</span></h3><canvas id="hSpark"></canvas><div style="margin-top:8px;font-size:12px;color:var(--mut)">🪙 сегодня: <b class="cy num" id="hToday">0</b></div></div>
      <div class="glass card" data-go="money"><h3>Баланс месяца <span class="go">›</span></h3><div class="stat"><div class="v ${inc-out>=0?'e':'dn'} num">${sgn(inc-out)} ₽</div><div class="l">доход ${nf(inc)} · расход ${nf(out)}</div></div>${inc||out?'<canvas id="hMoney" style="margin-top:8px"></canvas>':""}</div>
      <div class="glass card" data-go="tasks"><h3>Задачи <span class="go">›</span></h3><div class="stat"><div class="v g num">${tOpen}</div><div class="l">открыто · ${S.tasks.filter(t=>t.done).length} готово</div></div></div>
-     <div class="glass card" data-go="body"><h3>Вес <span class="go">›</span></h3><div class="stat"><div class="v cy num">${w?w+" кг":"—"}</div><div class="l">${S.body.goalW?"цель "+S.body.goalW+" кг":"запиши вес"}</div></div>${S.body.log.length?'<canvas id="hBody" style="margin-top:8px"></canvas>':""}</div>
+     <div class="glass card" data-go="body"><h3>Вес <span class="go">›</span></h3><div class="stat"><div class="v cy num">${w?dcm(w)+" кг":"—"}</div><div class="l">${S.body.goalW?"цель "+dcm(S.body.goalW)+" кг":w?"цель не задана":"запиши вес"}</div></div>${S.body.log.length>1?'<canvas id="hBody" style="margin-top:8px"></canvas>':""}</div>
      <div class="glass card" data-go="shop"><h3>Империя · уровень ${L} <span class="go">›</span></h3><canvas id="hCity"></canvas><div style="text-align:center;font-size:11px;color:var(--mut2);margin-top:6px"><b class="e">${L} ${pl(L,"здание","здания","зданий")}</b> · следующее через ${nf(hi-xp)} ⭐</div></div>
    </div>
    <div class="bkrow">
@@ -922,13 +935,14 @@ function vHome(root){
    <button class="reset" id="resetBtn">сбросить всё и начать с чистого листа</button>`;
   // charts
   const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),diM=new Date(y,mo+1,0).getDate();
-  let md=0,mp=0; for(let d=1;d<=Math.min(diM,now.getDate());d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;md+=checksOf(ds).length;mp+=poolOn(ds);}
+  let md=0,mp=0; for(let d=1;d<=Math.min(diM,now.getDate());d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;md+=Math.min(checksOf(ds).length,poolOn(ds));mp+=poolOn(ds);}
   const frac=mp?md/mp:0; donut(root.querySelector("#hDonut"),frac,gv("--emerald"),112); root.querySelector("#hDonutP").textContent=Math.round(frac*100)+"%";
   const sd=[];for(let k=13;k>=0;k--)sd.push(coinsFor(addDays(TODAY,-k))); line(root.querySelector("#hSpark"),sd,gv("--cyan")); root.querySelector("#hToday").textContent=nf(coinsFor(TODAY));
   // без данных графиков нет: ровная линия «веса» без единого замера выглядела как данные
   if(inc||out) bars(root.querySelector("#hMoney"),[inc,out],[gv("--emerald"),gv("--danger")],
        {labels:["доход","расход"],height:104});
-  if(S.body.log.length) line(root.querySelector("#hBody"),S.body.log.map(x=>x.w),gv("--cyan"));
+  // линия — от двух замеров: один замер рисовался ровной чертой во всю карточку
+  if(S.body.log.length>1) line(root.querySelector("#hBody"),S.body.log.map(x=>x.w),gv("--cyan"));
   city(root.querySelector("#hCity"),L,(xp-lo)/(hi-lo));
   // «Сегодня»: кольцо наполняется, когда жмёшь чипы привычек
   const th=S.habits.length, tdn=checksOf(TODAY).length, tfrac=th?tdn/th:0;
@@ -948,10 +962,10 @@ function vHome(root){
     const chip=el(`<div class="tchip${on?" on":""}" data-pop="${h.id}|${TODAY}"><span class="d">${on?"✓":""}</span><span class="nm"></span></div>`);
     chip.querySelector(".nm").textContent=withIco(h.ico,h.name);
     chip.addEventListener("click",()=>{
-      const arr=checksOf(TODAY).slice(),i=arr.indexOf(h.id);
+      const arr=checksOf(TODAY).slice(),i=arr.indexOf(h.id),was=dayComplete(TODAY);
       if(i>=0)arr.splice(i,1);else{arr.push(h.id);flyCoinToWallet(chip);POP=`${h.id}|${TODAY}`;}
       if(arr.length)S.checks[TODAY]=arr;else delete S.checks[TODAY];
-      save();render();
+      save();render();streakNote(TODAY,was);
     });
     cw.appendChild(chip);
   });
@@ -1009,7 +1023,7 @@ function vHabits(root){
        <div class="calleg">нажми на день — отметить или снять</div>`
     : `<div class="calleg"><span><i class="lr"></i>часть привычек</span><span><i class="lf"></i>все за день</span><span>нажми на день — отметить</span></div>`;
   // недельная сила (последние 8 недель — % выполнения)
-  const wk=[]; for(let w=7;w>=0;w--){let dc=0,tp=0;for(let i=0;i<7;i++){const ds=addDays(TODAY,-(w*7+i));dc+=checksOf(ds).length;tp+=poolOn(ds);}wk.push(tp?Math.round(dc/tp*100):0);}
+  const wk=[]; for(let w=7;w>=0;w--){let dc=0,tp=0;for(let i=0;i<7;i++){const ds=addDays(TODAY,-(w*7+i));dc+=Math.min(checksOf(ds).length,poolOn(ds));tp+=poolOn(ds);}wk.push(tp?Math.round(dc/tp*100):0);}
   // топ привычек за текущий месяц: процент только за дни, когда привычка уже существовала
   const cy=+CURMONTH.slice(0,4), cm=+CURMONTH.slice(5,7), elapsed=+TODAY.slice(8,10);
   const daysOf=h=>{let n=0;for(let d=1;d<=elapsed;d++){const ds=`${cy}-${pad(cm)}-${pad(d)}`;if(!h.since||h.since<=ds)n++;}return n;};
@@ -1030,7 +1044,7 @@ function vHabits(root){
     </div>
     <div class="addbtn" id="addHabit" style="margin-top:13px"><span class="pl">+</span>Добавить привычку</div>`;
   if(wk.some(v=>v>0)) bars(root.querySelector("#hbWeeks"),wk,gv("--emerald"),
-       {labels:wk.map((_,i)=>i===7?"эта":"−"+(7-i)),height:150});
+       {labels:wk.map((_,i)=>i===7?"эта":"−"+(7-i)),height:150,max:100});
   root.querySelector("#calPrev").addEventListener("click",()=>{ calM=addMonths(ym,-1); render(); });
   root.querySelector("#calNext").addEventListener("click",()=>{ const n=addMonths(ym,1); calM=n>=CURMONTH?"":n; render(); });
   const cf=root.querySelector("#calF"), onChip=cf.querySelector(".fchip.on");
@@ -1042,14 +1056,14 @@ function vHabits(root){
     c.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); fn(); } }); };
   root.querySelectorAll(".hcell").forEach(c=>act(c,()=>{
     const ds=c.dataset.d; if(ds>TODAY){toast("Будущий день ещё не наступил 🙂");return;}
-    const hid=+c.dataset.h,arr=checksOf(ds).slice(),i=arr.indexOf(hid);
+    const hid=+c.dataset.h,arr=checksOf(ds).slice(),i=arr.indexOf(hid),was=dayComplete(ds);
     if(i>=0)arr.splice(i,1);
     else{
       arr.push(hid); flyCoinToWallet(c); POP=`${hid}|${ds}`;
       const h=habitById(hid);                 // отметил день раньше старта — значит привычка была и тогда
       if(h&&h.since&&ds<h.since) h.since=ds;
     }
-    if(arr.length)S.checks[ds]=arr;else delete S.checks[ds]; save(); render();
+    if(arr.length)S.checks[ds]=arr;else delete S.checks[ds]; save(); render(); streakNote(ds,was);
   }));
   root.querySelectorAll(".cday").forEach(c=>act(c,()=>{
     if(c.dataset.d>TODAY){toast("Будущий день ещё не наступил 🙂");return;}
@@ -1215,7 +1229,7 @@ function workoutDays(n){ const hs=workoutHabits(); if(!hs.length) return 0;
 function actFactor(){
   const a=S.body.act||"auto";
   if(a!=="auto") return num(a)||1.375;
-  const pw=workoutDays(28)/4;   // тренировок в неделю по собственным отметкам
+  const pw=workoutDays(actDays())/(actDays()/7);   // тренировок в неделю по собственным отметкам
   return pw<0.5?1.2:pw<2.5?1.375:pw<4.5?1.55:pw<6.5?1.725:1.9;
 }
 const profileReady=()=>!!(body_curW() && S.body.height>0 && S.body.birth>0 && S.body.sex);
@@ -1246,14 +1260,14 @@ function norms(){
   return { bmr:Math.round(base/10)*10, tdee:Math.round(tdee/10)*10, cal:Math.round(cal/10)*10,
            water:Math.round(w*30/50)*50+(trained?500:0), trained,
            mode, floored, f, dir, perWk:Math.round(perWk*10)/10, weeks,
-           perWeek:Math.round(workoutDays(28)/4*10)/10 };
+           perWeek:Math.round(workoutDays(actDays())/(actDays()/7)*10)/10 };
 }
 // строка «откуда активность» — чтобы «по моим тренировкам» не было загадкой
 function actLine(N){
   if(S.body.act!=="auto") return "активность: "+ACTNAME(N.f)+" (выбрана вручную)";
   if(!workoutHabits().length) return "активность: сидячий — нет привычки-тренировки. Нажми ✏️ у привычки и включи «Это тренировка»";
   const p=N.perWeek, word=Number.isInteger(p)?pl(p,"тренировка","тренировки","тренировок"):"тренировки";
-  return `активность по отметкам ${workoutNames()}: ${String(p).replace(".",",")} ${word} в неделю (среднее за 4 недели) → ${ACTNAME(N.f)}`;
+  return `активность по отметкам ${workoutNames()}: ${String(p).replace(".",",")} ${word} в неделю (в среднем ${actSpan()}) → ${ACTNAME(N.f)}`;
 }
 const calGoalNow =()=>S.body.calManual   ? S.body.calGoal   : (norms()?norms().cal   : 0);
 const waterGoalNow=()=>S.body.waterManual? S.body.waterGoal : (norms()?norms().water : 0);
@@ -1266,7 +1280,7 @@ async function editProfile(){
     {name:"birth",label:"Год рождения",type:"number",value:b.birth?String(b.birth):"",placeholder:"1990"},
     {name:"act",label:"Активность",type:"select",options:ACTS,value:b.act||"auto",
      note:workoutHabits().length
-       ? `«Сам» — считает дни, когда отмечена ${workoutNames()} (за 4 недели). Другая привычка тоже тренировка? Нажми ✏️ у неё и включи «Это тренировка».`
+       ? `«Сам» — считает дни, когда отмечена ${workoutNames()} (${actSpan()}). Другая привычка тоже тренировка? Нажми ✏️ у неё и включи «Это тренировка».`
        : `«Сам» — считает дни с отмеченной тренировкой, но сейчас ни одна привычка не отмечена как тренировка. Нажми ✏️ у привычки и включи «Это тренировка» — или выбери активность из списка.`},
   ],{check:r=>{
     const nowY=+TODAY.slice(0,4), h=Math.round(num(r.height)), y=Math.round(num(r.birth));
@@ -1289,10 +1303,14 @@ function vBody(root){
       <p style="color:var(--mut);font-size:14px;margin-bottom:16px">Записывай вес — увидишь свою динамику красивым графиком.</p>
       <div class="addbtn" id="addW"><span class="pl">+</span>Записать первый вес</div></div>`;
     root.querySelector("#addW").addEventListener("click",async()=>{
-      const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",placeholder:"75"}],
-        {check:r=>{const v=num(r.w); if(v<=0) return "Впиши вес числом, например 78,4"; if(v<20||v>400) return "Вес должен быть от 20 до 400 кг"; return null;}});
+      // цель спрашиваем здесь же: до 30.09.2026 она ставилась сама «вес − 3 кг», и человек
+      // видел «цель 79 кг», которую не выбирал
+      const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",placeholder:"75"},
+        {name:"g",label:"Цель, кг — можно позже",type:"number",placeholder:"70"}],
+        {check:r=>{const v=num(r.w), g=num(r.g); if(v<=0) return "Впиши вес числом, например 78,4"; if(v<20||v>400) return "Вес должен быть от 20 до 400 кг";
+          if(String(r.g).trim()&&(g<20||g>400)) return "Цель должна быть от 20 до 400 кг — или оставь поле пустым"; return null;}});
       if(!r)return;
-      logWeight(num(r.w)); if(!S.body.goalW)S.body.goalW=Math.round(num(r.w)-3); save(); render();
+      logWeight(num(r.w)); if(num(r.g)>0) S.body.goalW=Math.round(num(r.g)*10)/10; save(); render();
     });
     return;
   }
@@ -1310,32 +1328,32 @@ function vBody(root){
     <div class="glass card">
       <h3>Путь к цели <span class="hedit2" id="editGoal">✏️ изменить цель</span></h3>
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
-        <div><div class="num" style="font-size:26px;font-weight:700;font-family:var(--fd);color:var(--cyan)">${w} кг</div><div style="font-size:11px;color:var(--mut2)">сейчас</div></div>
-        <div style="text-align:right"><div class="num" style="font-size:20px;font-weight:700;color:var(--gold)">${goal?goal+" кг":"—"}</div><div style="font-size:11px;color:var(--mut2)">цель</div></div>
+        <div><div class="num" style="font-size:26px;font-weight:700;font-family:var(--fd);color:var(--cyan)">${dcm(w)} кг</div><div style="font-size:11px;color:var(--mut2)">сейчас</div></div>
+        <div style="text-align:right"><div class="num" style="font-size:20px;font-weight:700;color:var(--gold)">${goal?dcm(goal)+" кг":"—"}</div><div style="font-size:11px;color:var(--mut2)">цель</div></div>
       </div>
       ${prog!=null?`
       <div class="bar-t" style="margin-top:12px"><span style="width:${prog}%"></span></div>
-      <div class="bar-m"><span>${reached?"🎉 цель достигнута — задай новую":"осталось <b>"+left.toFixed(1)+" кг</b>"}</span><span><b>${prog}%</b> пути</span></div>`
+      <div class="bar-m"><span>${reached?"🎉 цель достигнута — задай новую":"осталось <b>"+dcm(left.toFixed(1))+" кг</b>"}</span><span><b>${prog}%</b> пути</span></div>`
       :`<div style="font-size:12px;color:var(--mut2);margin-top:10px">Задай цель — появится прогресс до неё.</div>`}
     </div>
     <div class="grid g3" style="margin-top:13px">
-      <div class="glass card"><div class="stat"><div class="v e num">${Math.abs(lost)<0.05?"0.0":(lost>0?"−":"+")+Math.abs(lost).toFixed(1)}</div><div class="l">кг с ${fmtD(S.body.log[0].date)}</div></div></div>
+      <div class="glass card"><div class="stat"><div class="v e num">${Math.abs(lost)<0.05?"0,0":(lost>0?"−":"+")+dcm(Math.abs(lost).toFixed(1))}</div><div class="l">кг с ${fmtD(S.body.log[0].date)}</div></div></div>
       <div class="glass card"><div class="stat"><div class="v g num">${prog!=null?prog+"%":"—"}</div><div class="l">пути пройдено</div></div></div>
-      <div class="glass card"><div class="stat"><div class="v or num">${workouts}</div><div class="l">тренировок · 30 дн</div></div></div>
+      <div class="glass card"><div class="stat"><div class="v or num">${workouts}</div><div class="l">${pl(workouts,"тренировка","тренировки","тренировок")} · 30 дн</div></div></div>
     </div>
     <div class="glass card" style="margin-top:13px"><h3>Динамика веса</h3><canvas id="bW" height="150"></canvas>
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mut2);margin-top:6px"><span>${fmtD(S.body.log[0].date)}</span><span>сегодня</span></div></div>
     <div class="glass card" style="margin-top:13px"><h3>Последние записи</h3>
-      ${S.body.log.slice(-5).reverse().map(e=>`<div class="frow"><span class="cat" style="color:var(--mut)">${fmtD(e.date)}</span><span class="amt cy num">${e.w} кг</span><span class="del" data-wd="${e.date}" title="удалить запись">✕</span></div>`).join("")}
+      ${S.body.log.slice(-5).reverse().map(e=>`<div class="frow"><span class="cat" style="color:var(--mut)">${fmtD(e.date)}</span><span class="amt cy num">${dcm(e.w)} кг</span><span class="del" data-wd="${e.date}" title="удалить запись">✕</span></div>`).join("")}
     </div>
     ${N?`
     <div class="row2" style="margin-top:13px">
       <div class="glass card" id="editCal" style="cursor:pointer"><h3>Норма калорий <span class="hedit2">${S.body.calManual?"✏️ вручную":"🧮 авто"}</span></h3>
         <div class="stat"><div class="v g num">${nf(calGoalNow())}</div><div class="l">ккал / день</div></div>
         ${S.body.calManual?`<div class="nrm">вписана вручную — цель веса её не меняет. Нажми и сотри число, чтобы считалось само</div>`
-          :`<div class="nrm">поддержание ${nf(N.tdee)} · ${N.mode}${N.dir?`<br>≈ ${String(N.perWk).replace(".",",")} кг в неделю${N.weeks?` · цель примерно через ${N.weeks} ${pl(N.weeks,"неделю","недели","недель")}`:""}`:""}${N.floored?"<br>ниже основного обмена не опускаем":""}</div>`}</div>
+          :`<div class="nrm">${N.dir?`поддержание ${nf(N.tdee)} · ${N.mode}`:goal?"цель достигнута — норма на поддержание веса":"цель не задана — норма на поддержание веса. Задай цель, и норма посчитается под неё"}${N.dir?`<br>≈ ${String(N.perWk).replace(".",",")} кг в неделю${N.weeks?` · цель примерно через ${N.weeks} ${pl(N.weeks,"неделю","недели","недель")}`:""}`:""}${N.floored?"<br>ниже основного обмена не опускаем":""}</div>`}</div>
       <div class="glass card" id="editWater" style="cursor:pointer"><h3>Норма воды <span class="hedit2">${S.body.waterManual?"✏️ вручную":"🧮 авто"}</span></h3>
-        <div class="stat"><div class="v cy num">${(waterGoalNow()/1000).toFixed(1)} л</div><div class="l">в день</div></div>
+        <div class="stat"><div class="v cy num">${dcm((waterGoalNow()/1000).toFixed(1))} л</div><div class="l">в день</div></div>
         ${S.body.waterManual?"":`<div class="nrm">30 мл на кг веса${N.trained?" · сегодня тренировка, +0,5 л":" · в день тренировки прибавится 0,5 л"}</div>`}</div>
     </div>
     <div class="glass card nprof" id="editProf" style="margin-top:13px;cursor:pointer">
@@ -1356,7 +1374,7 @@ function vBody(root){
     S.body.log=S.body.log.filter(x=>x.date!==d.dataset.wd); save(); render();
   }));
   root.querySelector("#editGoal").addEventListener("click",async()=>{
-    const r=await askModal("Цель веса",[{name:"g",label:"Цель, кг",type:"number",value:goal?String(goal):""}],
+    const r=await askModal("Цель веса",[{name:"g",label:"Цель, кг",type:"number",value:goal?dcm(goal):""}],
       {check:r=>{const v=num(r.g); if(v<=0) return "Впиши цель числом"; if(v<20||v>400) return "Цель должна быть от 20 до 400 кг"; return null;}});
     if(!r)return; S.body.goalW=Math.round(num(r.g)*10)/10; save(); render();
     // сказать вслух, что стало с нормой — иначе смена цели выглядит так, будто ничего не произошло
@@ -1389,7 +1407,7 @@ function vBody(root){
     save(); render();
   });
   root.querySelector("#addW").addEventListener("click",async()=>{
-    const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",value:String(w)}],
+    const r=await askModal("Вес сегодня",[{name:"w",label:"Вес, кг",type:"number",value:dcm(w)}],
       {check:r=>{const v=num(r.w); if(v<=0) return "Впиши вес числом, например 78,4"; if(v<20||v>400) return "Вес должен быть от 20 до 400 кг"; return null;}});
     if(!r)return; logWeight(num(r.w)); save(); render();
   });
@@ -1516,10 +1534,10 @@ function openDay(ds){
       const c=el(`<div class="tchip${on?" on":""}" role="checkbox" tabindex="0" aria-checked="${on}"><span class="d">${on?"✓":""}</span><span class="nm"></span></div>`);
       c.querySelector(".nm").textContent=withIco(h.ico,h.name);
       const flip=()=>{
-        const a=checksOf(ds).slice(), i=a.indexOf(h.id);
+        const a=checksOf(ds).slice(), i=a.indexOf(h.id), was=dayComplete(ds);
         if(i>=0) a.splice(i,1); else { a.push(h.id); if(h.since&&ds<h.since) h.since=ds; }
         if(a.length) S.checks[ds]=a; else delete S.checks[ds];
-        save(); render(); paint(i<0?h.id:null);
+        save(); render(); paint(i<0?h.id:null); streakNote(ds,was);
       };
       c.onclick=flip;
       c.onkeydown=e=>{ if(e.key===" "||e.key==="Enter"){ e.preventDefault(); flip(); } };
@@ -1590,7 +1608,7 @@ function rr(c,x,yy,w,h,r){c.beginPath();c.moveTo(x+r,yy);c.arcTo(x+w,yy,x+w,yy+h
 function shareCard(){
   const xp=totalXP(),L=levelOf(xp),r=rankOf(L),st=curStreak(),w=wallet();
   const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),diM=new Date(y,mo+1,0).getDate();
-  let md=0,mp=0;for(let d=1;d<=Math.min(diM,now.getDate());d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;md+=checksOf(ds).length;mp+=S.habits.length;}
+  let md=0,mp=0;for(let d=1;d<=Math.min(diM,now.getDate());d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;md+=Math.min(checksOf(ds).length,poolOn(ds));mp+=poolOn(ds);}
   const mpct=mp?Math.round(md/mp*100):0;
   const W=1080,H=1920,cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
   const bg=c.createLinearGradient(0,0,0,H);bg.addColorStop(0,"#0b0f17");bg.addColorStop(1,"#080b11");c.fillStyle=bg;c.fillRect(0,0,W,H);
@@ -1851,7 +1869,9 @@ async function startFresh(){
   const picked=await pickHabits();
   if(!picked) return false;
   S=freshStart();
-  S.habits=picked.map(([ico,name],i)=>({id:i+1,ico,name,since:""}));
+  // привычки считаются с сегодняшнего дня: до 30.09.2026 они были «всегда», и новичок,
+  // сделавший в первый день всё, видел «Месяц выполнен 3%» — месяц делился на 30 дней
+  S.habits=picked.map(([ico,name],i)=>({id:i+1,ico,name,since:TODAY}));
   save(); render(); window.scrollTo(0,0);
   return true;
 }
