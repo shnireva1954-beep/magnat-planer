@@ -905,7 +905,7 @@ function vHome(root){
    </div>
    ${ins?`<div class="glass card" style="margin-top:13px"><h3>Инсайт недели</h3>
      <div style="display:flex;gap:10px;font-size:13.5px;color:var(--mut);line-height:1.55;align-items:flex-start"><span style="flex:none">💡</span><span class="ins-t">${ins}</span></div></div>`:""}
-   <button class="share-btn" id="shareBtn">📤 Поделиться своей империей</button>
+   ${L>1?'<button class="share-btn" id="shareBtn">📤 Поделиться своей империей</button>':""}
    <div class="grid sgrid" style="margin-top:13px">
      <div class="glass card" data-go="habits"><h3>Месяц выполнен <span class="go">›</span></h3><div class="donut-wrap"><canvas id="hDonut"></canvas><div class="donut-c"><div class="p e" id="hDonutP">0%</div><div class="t">привычки</div></div></div></div>
      <div class="glass card" data-go="habits"><h3>Монеты по дням <span class="go">›</span></h3><canvas id="hSpark"></canvas><div style="margin-top:8px;font-size:12px;color:var(--mut)">🪙 сегодня: <b class="cy num" id="hToday">0</b></div></div>
@@ -961,7 +961,8 @@ function vHome(root){
   root.querySelector("#resetBtn").addEventListener("click",async()=>{
     if(await askConfirm("Стереть весь прогресс (привычки, задачи, финансы, вес) и начать с чистого листа?","Стереть всё",true)) await startFresh();
   });
-  root.querySelector("#shareBtn").addEventListener("click",shareCard);
+  // делиться есть чем со 2-го уровня: у новичка в карточке пустая империя и 0 монет
+  const sb=root.querySelector("#shareBtn"); if(sb) sb.addEventListener("click",shareCard);
   root.querySelectorAll(".card[data-go]").forEach(c=>c.addEventListener("click",()=>{cur=c.dataset.go;render();window.scrollTo(0,0);}));
   // «Понятно» прячет подсказку на неделю: осталось во вкладке — через неделю напомним снова
   const ah=root.querySelector("#a2hsOk");
@@ -1166,11 +1167,8 @@ function vMoney(root){
       <div class="fsum"><div><span>доход</span><b class="e">+${nf(inc)} ₽</b></div><div><span>расход</span><b class="dn">−${nf(out)} ₽</b></div></div>
       ${inc===0&&out>0?'<div class="nrm">доход за месяц ещё не внесён</div>':""}</div>
     ${hasData?`
-    <div class="row2" style="margin-top:13px">
-      <div class="glass card"><h3>Доход vs Расход</h3><canvas id="mBars"></canvas></div>
-      <div class="glass card"><h3>Расходы по категориям</h3><div class="donut-wrap"><canvas id="mPie"></canvas></div>
-        <div style="margin-top:10px">${parts.map(p=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;margin-bottom:4px"><span style="width:9px;height:9px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:var(--mut)">${p.cat}</span><b class="num">${nf(p.v)}</b></div>`).join("")}</div></div>
-    </div>
+    ${parts.length?`<div class="glass card" style="margin-top:13px"><h3>Расходы по категориям</h3><div class="donut-wrap"><canvas id="mPie"></canvas></div>
+        <div style="margin-top:10px">${parts.map(p=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;margin-bottom:4px"><span style="width:9px;height:9px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:var(--mut)">${p.cat}</span><b class="num">${nf(p.v)}</b></div>`).join("")}</div></div>`:""}
     <div class="sec-h">Операции месяца</div>
     <div class="glass card">${me.slice().sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:b.id-a.id).map(e=>`<div class="frow"><span class="cat">${esc(e.cat)}</span><span class="fdt">${fmtD(e.date)}</span><span class="amt ${e.type==='in'?'e':'dn'}">${e.type==='in'?'+':'−'}${nf(e.amount)} ₽</span><span class="del" data-id="${e.id}" title="удалить">✕</span></div>`).join("")}</div>
     `:`
@@ -1181,11 +1179,8 @@ function vMoney(root){
     <div class="addrow">
       <div class="addbtn" id="addIn"><span class="pl">+</span>Доход</div><div class="addbtn" id="addOut"><span class="pl">−</span>Расход</div>
     </div>`;
-  if(hasData){
-    bars(root.querySelector("#mBars"),[inc,out],[gv("--emerald"),gv("--danger")],
-         {labels:["доход","расход"],values:[nf(inc),nf(out)],height:150});
-    pie(root.querySelector("#mPie"),parts);
-  }
+  // «Доход vs Расход» столбиками убран 30.09.2026: он повторял две цифры итога прямо над ним
+  if(parts.length) pie(root.querySelector("#mPie"),parts);
   root.querySelector("#addIn").addEventListener("click",()=>addFinance("in"));
   root.querySelector("#addOut").addEventListener("click",()=>addFinance("out"));
   root.querySelectorAll(".frow .del").forEach(d=>d.addEventListener("click",async()=>{

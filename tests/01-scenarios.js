@@ -234,7 +234,9 @@ async function walkTabs(p, label) {
     await startClean(p);
     // пустые графики не рисуют выдуманных линий; «Разгон» переименован в понятное
     const home = await p.evaluate(() => ({ body: !!document.querySelector('#hBody'), money: !!document.querySelector('#hMoney'),
-      t: document.querySelector('#v-home').textContent }));
+      share: !!document.querySelector('#shareBtn'), t: document.querySelector('#v-home').textContent }));
+    // «Поделиться» у новичка нет: в карточке была бы пустая империя и 0 монет
+    !home.share ? ok('на 1-м уровне кнопки «Поделиться» нет') : bad('новичку предлагают поделиться пустой империей');
     (!home.body && !home.money && !/Разгон/.test(home.t) && /Монеты по дням/.test(home.t))
       ? ok('без веса и денег пустых графиков нет, «Монеты по дням» вместо «Разгона»') : bad('Обзор новичка: ' + JSON.stringify({ body: home.body, money: home.money }));
     await p.click('.tab[data-t="habits"]'); await p.waitForTimeout(300);
@@ -255,6 +257,9 @@ async function walkTabs(p, label) {
       ? ok('на 20 🪙 у наград полоска и «ещё 4 привычки»') : bad('награды без монет: ' + JSON.stringify(poor.slice(0, 2)));
     await p.evaluate(() => { for (let k = 1; k <= 4; k++) S.checks[addDays(TODAY, -k)] = S.habits.map(h => h.id); save(); render(); });
     const cel = await p.$('.ovl .ok'); if (cel) { await cel.click(); await p.waitForTimeout(300); }
+    const share2 = await p.evaluate(() => { cur = 'home'; render(); const b = !!document.querySelector('#shareBtn'); cur = 'shop'; render();
+      return { b, L: levelOf(totalXP()) }; });
+    (share2.L > 1 && share2.b) ? ok(`на ${share2.L}-м уровне «Поделиться» появилась`) : bad('«Поделиться» после роста: ' + JSON.stringify(share2));
     const rich = await p.$$eval('#shopGrid .si', els => els.map(e => ({ buy: e.querySelector('.buy') && e.querySelector('.buy').textContent, bar: !!e.querySelector('.sbar'), afford: e.classList.contains('afford') })));
     (rich.some(x => x.buy === 'Купить') && rich.every(x => x.afford ? x.buy === 'Купить' && !x.bar : x.bar && !x.buy))
       ? ok('хватает — «Купить», не хватает — полоска') : bad('награды с монетами: ' + JSON.stringify(rich));
@@ -290,6 +295,11 @@ async function walkTabs(p, label) {
       return { month: ((document.querySelector('#v-money h3') || {}).textContent || '').includes(mon), fsum: !!document.querySelector('.fsum'),
         row: Math.round(document.querySelector('#addIn').getBoundingClientRect().top) === Math.round(document.querySelector('#addOut').getBoundingClientRect().top) }; });
     (fin.month && fin.fsum && fin.row) ? ok('«Финансы»: итог назван месяцем, «Доход» и «Расход» в одну строку') : bad('финансы: ' + JSON.stringify(fin));
+    // столбики «Доход vs Расход» повторяли две цифры итога — их нет; разбор трат по категориям остался
+    const fin2 = await p.evaluate(() => { S.finance.entries.push({ id: 91, type: 'in', amount: 50000, cat: '💼 Работа', date: TODAY },
+      { id: 92, type: 'out', amount: 12000, cat: '🍔 Еда', date: TODAY }); save(); render();
+      return { bars: !!document.querySelector('#mBars'), pie: !!document.querySelector('#mPie') }; });
+    (!fin2.bars && fin2.pie) ? ok('в «Финансах» нет дублирующих столбиков, круг трат на месте') : bad('графики финансов: ' + JSON.stringify(fin2));
     errCheck(p, 'глазами клиента 30.09');
     await ctx.close();
   }
