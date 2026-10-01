@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Магнат — жизнь как игра-тайкун</title>
+<meta name="description" content="Привычки, задачи, деньги и тело в одной игре: делаешь дела — получаешь монеты, растёт уровень, строится твоя империя. 7 дней бесплатно.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080b11">
+<meta property="og:title" content="Магнат — жизнь как игра-тайкун">
+<meta property="og:description" content="Хватит начинать с понедельника. Делаешь дела — получаешь монеты, растёт уровень, строится твоя империя.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%8F%9B%3C/text%3E%3C/svg%3E">
+<!--
+  ЧЕРНОВИК продающей страницы (01.10.2026). Не опубликован: живёт в ветке.
+
+  🔁 СТРАНИЦА СДЕЛАНА ПОД ПЕРЕДЕЛКУ — владелец: «делай так, чтобы переделать
+  можно было, сам Магнат ещё не полностью готов». Поэтому:
+  • цена, пробный срок, адрес приложения — ТОЛЬКО в блоке CFG в начале скрипта;
+    в разметке стоят те же числа как запаска, скрипт их переписывает;
+  • правила мини-игры (монеты, серия, уровни, звания) — копия правил index.html.
+    Разошлись — краснеет tests/05-landing.js, не молча;
+  • экраны приложения (img/*.jpg) переснимаются одной командой: node tools/shots.js
+  Оформление — токены самого приложения (:root ниже совпадает с index.html).
+-->
+<style>
+  :root{
+    --bg:#080b11; --bg2:#0b0f17; --panel:#0f1520; --panel2:#131b28;
+    --line:#1c2735; --line2:#26374b;
+    --emerald:#2fe38f; --cyan:#35d0ff; --gold:#f5c451; --danger:#ff6b6b;
+    --ink:#eef4fb; --mut:#93a6bd; --mut2:#68809b;
+    --fd:Georgia,"Times New Roman",serif; --fb:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html{scroll-behavior:smooth; -webkit-text-size-adjust:100%;}
+  html,body{overflow-x:hidden;}
+  body{background:radial-gradient(1100px 620px at 82% -6%,#123044 0%,transparent 55%),radial-gradient(800px 560px at 6% 3%,#0f2a20 0%,transparent 55%),linear-gradient(180deg,var(--bg2),var(--bg));
+    color:var(--ink); font-family:var(--fb); line-height:1.5; -webkit-font-smoothing:antialiased; min-height:100vh;}
+  ::selection{background:#2fe38f3d;}
+  :focus-visible{outline:2px solid var(--emerald); outline-offset:3px; border-radius:6px;}
+  a{color:inherit;}
+  .wrap{max-width:1080px; margin:0 auto; padding-left:max(16px,env(safe-area-inset-left)); padding-right:max(16px,env(safe-area-inset-right));}
+  .glass{background:linear-gradient(168deg,rgba(20,28,42,.62),rgba(15,21,32,.62)); backdrop-filter:blur(11px) saturate(1.15); -webkit-backdrop-filter:blur(11px) saturate(1.15); border:1px solid var(--line2); border-radius:18px; box-shadow:inset 0 1px 0 #ffffff0e,0 8px 26px #00000038;}
+  em{font-style:normal; color:var(--emerald);}
+
+  /* шапка */
+  .top{position:sticky; top:0; z-index:30; background:#080b11d9; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-bottom:1px solid var(--line); padding-top:env(safe-area-inset-top);}
+  .top .wrap{display:flex; align-items:center; justify-content:space-between; height:58px;}
+  .logo{display:flex; align-items:center; gap:10px; font-family:var(--fd); font-size:21px; font-weight:700; text-decoration:none;}
+  .logo i{font-style:normal; width:36px; height:36px; border-radius:11px; display:grid; place-items:center; background:#0e2f22; border:1px solid #1c7a54; font-size:18px;}
+  .btn-s{display:inline-flex; align-items:center; min-height:40px; padding:0 16px; border-radius:99px; border:1.5px solid #2fa872; color:var(--emerald); font-weight:700; font-size:14px; text-decoration:none; background:#0c1f18;}
+
+  /* кнопка — та же, что «ok» в окнах приложения */
+  /* display:block, а не flex: у flex каждый кусок текста вокруг <span data-k> становится
+     отдельным столбиком — «Попробовать / 7 дней / бесплатно» разваливалось втрое (01.10) */
+  .btn{display:block; width:100%; min-height:56px; padding:17px 20px; border-radius:15px; border:none; cursor:pointer;
+    background:linear-gradient(180deg,var(--emerald),#17a768); color:#04120b; font:800 16.5px/22px var(--fb); text-decoration:none; text-align:center; box-shadow:0 0 22px #2fe38f44, 0 8px 22px #00000040; transition:transform .12s;}
+  .btn:active{transform:scale(.97);}
+  .under{font-size:13px; color:var(--mut); text-align:center; margin-top:10px;}
+
+  section{padding:64px 0 0;}
+  .tag{font-size:11.5px; color:var(--emerald); letter-spacing:1.5px; text-transform:uppercase; font-weight:700;}
+  h1,h2{font-family:var(--fd); font-weight:700; letter-spacing:-.01em; line-height:1.12;}
+  h1{font-size:clamp(36px,10.4vw,62px); margin-top:14px;}
+  h2{font-size:clamp(27px,7.2vw,40px); margin-top:10px;}
+  .lead{font-size:17px; color:var(--mut); margin-top:16px; max-width:560px;}
+  .lead b{color:var(--ink); font-weight:600;}
+
+  /* первый экран */
+  .hero{padding-top:34px;}
+  .hero-grid{display:grid; gap:30px; align-items:center;}
+  .hero .cta{margin-top:24px; max-width:420px;}
+  @media (min-width:900px){ .hero{padding-top:64px;} .hero-grid{grid-template-columns:1.05fr .95fr; gap:56px;} }
+
+  /* мини-игра */
+  .demo{padding:16px;}
+  .dhead{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .chip{display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:99px; font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .chip.coin{background:linear-gradient(180deg,#1d1707,#120d04); border:1px solid #6e5320; color:var(--gold);}
+  .chip.coin.pulse{animation:pulse .45s;}
+  @keyframes pulse{50%{transform:scale(1.12); box-shadow:0 0 18px #f5c45155;}}
+  .dsub{font-size:13px; color:var(--mut); margin-top:8px;}
+  .dgrid{display:grid; grid-template-columns:30px repeat(7,minmax(0,1fr)); gap:5px; margin-top:14px; align-items:center;}
+  .dgrid .dd{font-size:10.5px; color:var(--mut2); text-align:center; text-transform:uppercase; letter-spacing:.5px; font-weight:700;}
+  .dgrid .dd.we{color:#c9a24a;}
+  .dgrid .hi{font-size:18px; text-align:center;}
+  .cell{aspect-ratio:1; min-height:30px; border-radius:9px; border:1.5px solid var(--line2); background:#0a1119; cursor:pointer; display:grid; place-items:center; color:#04120b; font-weight:900; font-size:14px; transition:background .15s,border-color .15s,transform .12s; -webkit-tap-highlight-color:transparent;}
+  .cell:active{transform:scale(.9);}
+  .cell.on{background:linear-gradient(180deg,var(--emerald),#17a768); border-color:var(--emerald); box-shadow:0 0 10px #2fe38f55;}
+  .cell.on::after{content:"✓";}
+  .dlegend{font-size:12px; color:var(--mut2); margin-top:9px; line-height:1.45;}
+  .dlvl{margin-top:16px; padding-top:14px; border-top:1px solid var(--line);}
+  .dlvl-row{display:flex; align-items:baseline; justify-content:space-between; gap:10px;}
+  .dlv{font-family:var(--fd); font-size:22px;}
+  .drank{font-size:13.5px; color:var(--mut);}
+  .dbar{height:10px; border-radius:99px; background:#0a1119; border:1px solid var(--line); overflow:hidden; margin-top:10px;}
+  .dbar span{display:block; height:100%; width:0; background:linear-gradient(90deg,#178a5a,var(--emerald)); box-shadow:0 0 13px #2fe38f88; transition:width .45s cubic-bezier(.2,.8,.2,1);}
+  .dnext{font-size:12px; color:var(--mut2); margin-top:7px;}
+  .dnext b{color:var(--gold); font-weight:600;}
+  .city{display:flex; align-items:flex-end; gap:6px; height:64px; margin-top:14px; padding:0 2px; border-bottom:1.5px solid #35d0ff88; box-shadow:0 1px 8px -2px #35d0ff55;}
+  .bld{flex:1; max-width:26px; border:1.5px solid var(--emerald); border-bottom:none; border-radius:3px 3px 0 0; background:#2fe38f1f; position:relative; transition:height .45s;}
+  .bld.gold{border-color:var(--gold);}
+  .bld.cur{background:#2fe38f40; box-shadow:0 0 14px #2fe38f66;}
+  .bld.next{border:1.3px dashed var(--mut2); border-bottom:none; background:linear-gradient(to top,#2fe38f30 var(--f,0%),transparent var(--f,0%));}
+  .bld.new{animation:rise .6s cubic-bezier(.2,.8,.2,1);}
+  @keyframes rise{from{transform:scaleY(.2); transform-origin:bottom;} to{transform:scaleY(1); transform-origin:bottom;}}
+  .dmsg{min-height:44px; margin-top:13px; font-size:13.5px; color:var(--mut); line-height:1.45;}
+  .dmsg b{color:var(--ink);}
+  .dmsg.hot{color:var(--ink);}
+  .dfin{display:none; margin-top:12px;}
+  .dfin.on{display:block;}
+  .fly{position:fixed; z-index:60; pointer-events:none; font-size:16px; font-weight:800; color:var(--gold); text-shadow:0 0 10px #f5c45188;}
+
+  /* как это работает */
+  .steps{display:grid; gap:12px; margin-top:24px;}
+  @media (min-width:760px){ .steps{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  .step{display:flex; gap:14px; padding:18px;}
+  .step .ic{flex:none; width:44px; height:44px; border-radius:13px; display:grid; place-items:center; font-size:22px; background:#0e2f22; border:1px solid #1c7a54;}
+  .step h3{font-size:16.5px; line-height:1.3;}
+  .step p{font-size:14.5px; color:var(--mut); margin-top:4px;}
+  .step b{color:var(--gold); font-weight:700;}
+
+  /* экраны */
+  .shots{display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; margin:24px -16px 0; padding:4px 16px 14px; scrollbar-width:none;}
+  .shots::-webkit-scrollbar{display:none;}
+  .shot{flex:none; width:min(250px,70vw); scroll-snap-align:center;}
+  .phone{border-radius:30px; padding:7px; background:#05080d; border:1px solid var(--line2); box-shadow:0 16px 40px #000a, inset 0 1px 0 #ffffff12;}
+  .phone img{display:block; width:100%; height:auto; aspect-ratio:390/800; border-radius:24px; background:var(--panel);}
+  .shot figcaption{font-size:13.5px; color:var(--mut); margin-top:10px; text-align:center;}
+  .shot figcaption b{color:var(--ink); display:block; font-size:15px;}
+  .inside{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+  .inside span{font-size:13.5px; padding:7px 12px; border-radius:99px; border:1px solid var(--line2); background:var(--panel); color:var(--mut);}
+  .inside span b{color:var(--ink); font-weight:600;}
+  .hint{font-size:12px; color:var(--mut2); margin-top:4px;}
+
+  /* почему работает */
+  .why{display:grid; gap:12px; margin-top:24px;}
+  @media (min-width:760px){ .why{grid-template-columns:repeat(3,minmax(0,1fr));} }
+  .why>div{padding:18px;}
+  .why h3{font-size:16.5px;}
+  .why p{font-size:14.5px; color:var(--mut); margin-top:6px;}
+
+  /* тарифы */
+  .plans{display:grid; gap:14px; margin-top:24px;}
+  @media (min-width:760px){ .plans{grid-template-columns:repeat(2,minmax(0,1fr)); max-width:820px;} }
+  .plan{padding:22px 20px; position:relative;}
+  .plan.best{border:1.5px solid #2fa872; background:linear-gradient(168deg,#10291f,#0f1520); box-shadow:0 0 30px #2fe38f22, inset 0 1px 0 #ffffff0e;}
+  .badge{position:absolute; top:-12px; left:18px; padding:4px 11px; border-radius:99px; background:var(--gold); color:#1a1200; font-size:12px; font-weight:800;}
+  .plan h3{font-size:15px; color:var(--mut); font-weight:600;}
+  .price{font-family:var(--fd); font-size:44px; margin-top:6px; line-height:1;}
+  .price small{font-family:var(--fb); font-size:15px; color:var(--mut); font-weight:500;}
+  .perday{font-size:14px; color:var(--emerald); margin-top:8px; font-weight:600;}
+  .plan .old{font-size:13px; color:var(--mut2); margin-top:4px;}
+  .incl{list-style:none; display:grid; gap:9px; margin-top:22px; max-width:820px;}
+  .incl li{display:flex; gap:10px; font-size:15px; color:var(--mut);}
+  .incl li::before{content:"✓"; flex:none; width:22px; height:22px; border-radius:50%; display:grid; place-items:center; background:#0e2f22; border:1px solid #1c7a54; color:var(--emerald); font-size:12px; font-weight:900;}
+  .incl b{color:var(--ink); font-weight:600;}
+  .pcta{margin-top:24px; max-width:420px;}
+  .fine{font-size:12.5px; color:var(--mut2); margin-top:12px; max-width:560px; line-height:1.5;}
+
+  /* вопросы */
+  .faq{margin-top:22px; display:grid; gap:10px; max-width:760px;}
+  .faq details{padding:0 18px;}
+  .faq summary{list-style:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:58px; font-weight:650; font-size:15.5px;}
+  .faq summary::-webkit-details-marker{display:none;}
+  .faq summary::after{content:"+"; flex:none; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; border:1px solid var(--line2); color:var(--emerald); font-size:18px; transition:transform .2s;}
+  .faq details[open] summary::after{transform:rotate(45deg);}
+  .faq details p{font-size:14.5px; color:var(--mut); padding-bottom:18px;}
+
+  /* финал и подвал */
+  .final{text-align:center; padding-top:72px;}
+  .final .lead{margin-left:auto; margin-right:auto;}
+  .final .btn{max-width:420px; margin:26px auto 0;}
+  footer{margin-top:72px; border-top:1px solid var(--line); padding:26px 0 calc(110px + env(safe-area-inset-bottom)); font-size:13px; color:var(--mut2);}
+  footer nav{display:flex; flex-wrap:wrap; gap:6px 18px; margin-bottom:12px;}
+  footer nav a{color:var(--mut); text-decoration:none; padding:6px 0;}
+  footer p{line-height:1.6;}
+
+  /* липкая кнопка на телефоне */
+  .sticky{position:fixed; left:0; right:0; bottom:0; z-index:40; padding:10px max(16px,env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)); background:#080b11e6; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-top:1px solid var(--line); transform:translateY(110%); transition:transform .25s;}
+  .sticky.on{transform:none;}
+  .sticky .btn{min-height:52px; padding-top:15px; padding-bottom:15px; max-width:480px; margin:0 auto;}
+  @media (min-width:900px){ .sticky{display:none;} footer{padding-bottom:40px;} }
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important; transition:none!important;}
+    html{scroll-behavior:auto;}
+  }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#"><i>🏛</i>Магнат</a>
+    <a class="btn-s" data-app href="./app/">Попробовать</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="tag">Привычки · задачи · деньги · тело</div>
+        <h1>Хватит начинать с&nbsp;<em>понедельника</em></h1>
+        <p class="lead">Магнат превращает жизнь в игру-тайкун. Сделал дело — получил <b>монеты</b>, растёт <b>уровень</b>, а каждый уровень — новое здание в твоей империи.</p>
+        <div class="cta" id="heroCta">
+          <a class="btn" data-app href="./app/">🚀 Попробовать бесплатно</a>
+          <p class="under"><span data-k="trial">7 дней</span> без карты и регистрации</p>
+        </div>
+      </div>
+
+      <div class="demo glass" id="demo">
+        <div class="dhead">
+          <span class="tag">◆ Попробуй прямо тут</span>
+          <span class="chip coin" id="dCoins">🪙 0</span>
+        </div>
+        <p class="dsub">Отметь неделю — монеты и уровни считаются по правилам приложения.</p>
+        <div class="dgrid" id="dGrid"></div>
+        <p class="dlegend" id="dLegend"></p>
+        <div class="dlvl">
+          <div class="dlvl-row"><span class="dlv" id="dLv">Уровень 1</span><span class="drank" id="dRank">🐣 Новичок</span></div>
+          <div class="dbar"><span id="dBar"></span></div>
+          <div class="dnext" id="dNext">до 2-го уровня — 100 ⭐</div>
+          <div class="city" id="dCity" aria-hidden="true"></div>
+        </div>
+        <p class="dmsg" id="dMsg" aria-live="polite">Нажми на клетку — за каждую привычку +20 🪙.</p>
+        <div class="dfin" id="dFin"><a class="btn" data-app href="./app/">Начать по-настоящему</a></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="tag">Как это работает</div>
+      <h2>Дисциплина, которая <em>платит</em></h2>
+      <div class="steps">
+        <div class="step glass"><div class="ic">✅</div><div><h3>Отмечаешь привычки и задачи</h3><p>За каждую — <b>+20 🪙</b> сразу. Не через полгода в зеркале, а прямо сейчас.</p></div></div>
+        <div class="step glass"><div class="ic">🔥</div><div><h3>Дни подряд — серия</h3><p>Монеты за привычку растут до <b>×2</b>. Бросить становится жалко.</p></div></div>
+        <div class="step glass"><div class="ic">🏛</div><div><h3>Растёт твоя империя</h3><p>Каждый уровень — новое здание в городе и <b>+50 🪙</b>. Звания — от 🐣 Новичка до 👑 Магната.</p></div></div>
+        <div class="step glass"><div class="ic">🎁</div><div><h3>Монеты — на настоящие награды</h3><p>TikTok, игры, читмил, кино. Без чувства вины: ты их заработал.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="inside">
+    <div class="wrap">
+      <div class="tag">Что внутри</div>
+      <h2>Вся жизнь — в <em>одной</em> игре</h2>
+      <div class="inside">
+        <span>🏛 <b>Обзор</b> дня</span><span>✅ <b>Привычки</b> и календарь</span><span>🎯 <b>Задачи</b> со сроками</span>
+        <span>💰 <b>Финансы</b> за месяц</span><span>💪 <b>Тело</b>: вес и нормы</span><span>🛒 <b>Награды</b></span>
+      </div>
+      <div class="shots" id="shots">
+        <figure class="shot"><div class="phone"><img src="img/obzor.jpg" alt="Экран «Обзор»: галочки дня, уровень империи" loading="lazy" width="390" height="800"></div><figcaption><b>Обзор</b>галочки дня и твой уровень</figcaption></figure>
+        <figure class="shot"><div class="phone"><img src="img/privychki.jpg" alt="Экран «Привычки»: календарь месяца" loading="lazy" width="390" height="800"></div><figcaption><b>Привычки</b>месяц как на ладони</figcaption></figure>
+        <figure class="shot"><div class="phone"><img src="img/nagrady.jpg" alt="Экран «Награды»: кошелёк и награды" loading="lazy" width="390" height="800"></div><figcaption><b>Награды</b>трать заработанное</figcaption></figure>
+      </div>
+      <p class="hint">Экраны — настоящие, на примере данных.</p>
+    </div>
+  </section>
+
+  <section id="why">
+    <div class="wrap">
+      <div class="tag">Почему это держит</div>
+      <h2>Сила воли кончается. <em>Игра</em> — нет</h2>
+      <div class="why">
+        <div class="glass"><h3>Награда сразу</h3><p>Обычная привычка платит через месяцы. Здесь галочка даёт монету в ту же секунду.</p></div>
+        <div class="glass"><h3>Серию жалко терять</h3><p>Множитель копится днями подряд. Пропустить — значит потерять заработанный бонус.</p></div>
+        <div class="glass"><h3>Видно, что ты строишь</h3><p>Город растёт с каждым уровнем. Прогресс не в голове, а перед глазами.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="price">
+    <div class="wrap">
+      <div class="tag">Тарифы</div>
+      <h2>Сначала <em data-k="trial">7 дней</em> бесплатно</h2>
+      <p class="lead">Попробуй без карты. Понравится — выбери тариф.</p>
+      <div class="plans">
+        <div class="plan glass best">
+          <span class="badge">Выгоднее всего</span>
+          <h3>Год</h3>
+          <div class="price"><span data-k="year">1 490</span> ₽ <small>/ год</small></div>
+          <div class="perday">≈ <span data-k="yearDay">4</span> ₽ в день</div>
+          <div class="old">на <span data-k="save">58</span>% дешевле, чем помесячно</div>
+        </div>
+        <div class="plan glass">
+          <h3>Месяц</h3>
+          <div class="price"><span data-k="month">299</span> ₽ <small>/ месяц</small></div>
+          <div class="perday">≈ <span data-k="monthDay">10</span> ₽ в день</div>
+        </div>
+      </div>
+      <ul class="incl">
+        <li><span>Все шесть разделов <b>без ограничений</b></span></li>
+        <li><span>Прогресс <b>не пропадёт</b>: вход по почте с любого телефона</span></li>
+        <li><span>Работает <b>без интернета</b>, ставится значком на экран</span></li>
+        <li><span>Обновления — <b>бесплатно</b></span></li>
+        <li><span>Отмена — <b>в один клик</b> прямо в приложении</span></li>
+      </ul>
+      <div class="pcta"><a class="btn" data-app href="./app/">🚀 Начать бесплатно</a></div>
+      <p class="fine">Карту на пробный период не просим. Подписка оформляется только с твоего согласия и продлевается автоматически, пока ты её не отменишь. Оплата через СБП в приложении твоего банка.</p>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <div class="tag">Вопросы</div>
+      <h2>Коротко о главном</h2>
+      <div class="faq">
+        <details class="glass"><summary>Что будет после пробных дней?</summary><p>Магнат предложит выбрать тариф. Карту на пробный период мы не просим, поэтому без твоего согласия ничего не спишется.</p></details>
+        <details class="glass"><summary>Как отменить подписку?</summary><p>В приложении — кнопка «Отменить подписку». Списания прекращаются, доступ остаётся до конца оплаченного срока. Ссылка на отмену приходит и в письме об оплате.</p></details>
+        <details class="glass"><summary>Сменю телефон — прогресс пропадёт?</summary><p>Нет. С подпиской прогресс хранится в аккаунте: войди по почте на новом телефоне — монеты, уровень и история на месте.</p></details>
+        <details class="glass"><summary>Нужно что-то скачивать?</summary><p>Нет. Магнат открывается в браузере и ставится значком на экран «Домой» — как обычное приложение. Работает и без интернета.</p></details>
+        <details class="glass"><summary>Это для меня?</summary><p>Если хочешь больше тренироваться, меньше залипать в телефоне и двигаться к деньгам, но бросаешь через неделю — Магнат сделан ровно под это.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="final" id="final">
+    <div class="wrap">
+      <h2>Начни строить <em>империю</em> сегодня</h2>
+      <p class="lead">Не с понедельника. Первая монета — через минуту.</p>
+      <a class="btn" data-app href="./app/">🚀 Попробовать бесплатно</a>
+    </div>
+  </section>
+</main>
+
+<footer id="foot">
+  <div class="wrap">
+    <nav><a href="#" data-todo="оферта">Публичная оферта</a><a href="#" data-todo="политика">Политика конфиденциальности</a><a href="#" data-todo="поддержка">Поддержка</a></nav>
+    <p>«Магнат» — жизнь как игра-тайкун.<br><span data-todo="реквизиты">Реквизиты продавца — при запуске</span></p>
+  </div>
+</footer>
+
+<div class="sticky" id="sticky"><a class="btn" data-app href="./app/">🚀 Попробовать бесплатно</a></div>
+
+<script>
+// ═══ ВСЁ, ЧТО МЕНЯЕТСЯ ЧАЩЕ ВСЕГО, — ЗДЕСЬ ═════════════════════════════════
+// Цена — решение владельца. Поменял число — страница пересчитает «в день»,
+// скидку и все упоминания сама. В разметке те же числа стоят как запаска.
+const CFG = {
+  trialDays: 7,
+  month: 299,          // ₽ в месяц
+  year: 1490,          // ₽ в год
+  appUrl: "./app/",    // куда ведут кнопки «Попробовать»
+};
+
+// ═══ Правила игры — КОПИЯ правил index.html ════════════════════════════════
+// Разойдутся с приложением — краснеет tests/05-landing.js. Не правь молча.
+const RULES = {
+  COIN: 20,                                   // монет за отметку привычки
+  DAYOK: 3,                                   // отметок за день, чтобы день пошёл в серию
+  LVLBONUS: 50,                               // монет в кошелёк за каждый новый уровень
+  mult: s => Math.min(2, 1 + 0.1 * s),        // множитель серии: +0,1 за день, не больше ×2
+  xpForLevel: L => { const k = Math.max(0, L - 1); return 20 * k * (2 * k + 3); },
+  RANKS: [["🐣","Новичок",1],["🚀","Стартапер",3],["💼","Предприниматель",6],["🏢","Директор",11],["👑","Магнат",19]],
+};
+const HABITS = [["🏋️","Тренировка"],["📵","Лента не больше 30 минут"],["💼","Шаг к работе"]];  // = отмеченные в HABITPICK
+const DAYS = ["пн","вт","ср","чт","пт","сб","вс"];
+
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = id => document.getElementById(id);
+const nf = n => Math.round(n).toLocaleString("ru-RU").replace(/ /g, " ");
+const dcm = x => String(Math.round(x * 10) / 10).replace(".", ",");
+const pl = (n, a, b, c) => { const m = n % 100, d = n % 10; return m > 10 && m < 20 ? c : d === 1 ? a : d >= 2 && d <= 4 ? b : c; };
+
+// ── цены и сроки из CFG во все места страницы ───────────────────────────────
+function fillPrices() {
+  const save = Math.round((1 - CFG.year / (CFG.month * 12)) * 100);
+  const v = {
+    trial: `${CFG.trialDays} ${pl(CFG.trialDays, "день", "дня", "дней")}`,
+    month: nf(CFG.month), year: nf(CFG.year),
+    monthDay: nf(CFG.month / 30), yearDay: nf(CFG.year / 365), save,
+  };
+  document.querySelectorAll("[data-k]").forEach(el => { if (el.dataset.k in v) el.textContent = v[el.dataset.k]; });
+  document.querySelectorAll("[data-app]").forEach(a => a.href = CFG.appUrl);
+}
+
+// ── мини-игра: неделя × три привычки, счёт как в stats() приложения ─────────
+const on = HABITS.map(() => Array(7).fill(false));
+const levelOf = xp => { let L = 1; while (RULES.xpForLevel(L + 1) <= xp) L++; return L; };
+const rankOf = L => { let r = 0; RULES.RANKS.forEach((x, i) => { if (L >= x[2]) r = i; }); return r; };
+function calc() {
+  let xp = 0, streak = 0; const streakAt = [];
+  for (let d = 0; d < 7; d++) {
+    const n = on.reduce((s, row) => s + (row[d] ? 1 : 0), 0);
+    const before = streak;                       // пустой день рвёт серию, как в приложении
+    xp += Math.round(n * RULES.COIN * RULES.mult(before));
+    streak = n >= RULES.DAYOK ? before + 1 : 0;
+    streakAt.push(streak);
+  }
+  const L = levelOf(xp);
+  return { xp, L, coins: xp + (L - 1) * RULES.LVLBONUS, streakAt, total: on.flat().filter(Boolean).length };
+}
+
+const HEIGHTS = [44, 58, 50, 70, 62, 82, 74, 90, 68, 96, 80, 100];   // город растёт ввысь
+function drawCity(st, fresh) {
+  const L = st.L, n = Math.max(L + 1, 6), frac = (st.xp - RULES.xpForLevel(L)) / (RULES.xpForLevel(L + 1) - RULES.xpForLevel(L));
+  const rankAt = new Set(RULES.RANKS.map(x => x[2]));
+  $("dCity").innerHTML = Array.from({ length: n }, (_, i) => {
+    const lv = i + 1, h = HEIGHTS[i % HEIGHTS.length];
+    if (lv <= L) return `<div class="bld${rankAt.has(lv) && lv > 1 ? " gold" : ""}${lv === L ? " cur" : ""}${fresh && lv === L ? " new" : ""}" style="height:${h}%"></div>`;
+    if (lv === L + 1) return `<div class="bld next" style="height:${h}%;--f:${Math.round(frac * 100)}%"></div>`;
+    return `<div class="bld next" style="height:${h}%;opacity:.35"></div>`;
+  }).join("");
+}
+
+let prev = calc(), coinsShown = 0;
+function render(st, fresh) {
+  const L = st.L, a = RULES.xpForLevel(L), b = RULES.xpForLevel(L + 1);
+  $("dLv").textContent = `Уровень ${L}`;
+  $("dRank").textContent = RULES.RANKS[rankOf(L)].slice(0, 2).join(" ");
+  $("dBar").style.width = `${Math.max(0, Math.min(100, (st.xp - a) / (b - a) * 100))}%`;
+  $("dNext").innerHTML = `до ${L + 1}-го уровня — ещё <b>${nf(b - st.xp)} ⭐</b>`;
+  drawCity(st, fresh);
+}
+function setCoins(v, roll) {
+  const chip = $("dCoins");
+  if (RM || !roll) { coinsShown = v; chip.textContent = `🪙 ${nf(v)}`; return; }
+  const from = coinsShown, t0 = performance.now(); coinsShown = v;
+  const step = t => { const k = Math.min(1, (t - t0) / 450), e = 1 - Math.pow(1 - k, 3);
+    chip.textContent = `🪙 ${nf(from + (v - from) * e)}`; if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+  chip.classList.remove("pulse"); void chip.offsetWidth; chip.classList.add("pulse");
+}
+function flyCoin(fromEl, amount, done) {
+  if (RM) { done(); return; }
+  const a = fromEl.getBoundingClientRect(), b = $("dCoins").getBoundingClientRect();
+  const f = document.createElement("div"); f.className = "fly"; f.textContent = `+${amount}`;
+  f.style.left = `${a.left + a.width / 2 - 14}px`; f.style.top = `${a.top}px`; document.body.appendChild(f);
+  let ended = false; const end = () => { if (ended) return; ended = true; f.remove(); done(); };
+  f.animate([{ transform: "translate(0,0)", opacity: 1 }, { transform: `translate(${b.left - a.left}px,${b.top - a.top}px) scale(.7)`, opacity: .2 }],
+    { duration: 520, easing: "cubic-bezier(.5,0,.5,1)" }).onfinish = end;
+  setTimeout(end, 900);                                   // свёрнутая вкладка может не прислать onfinish
+}
+function message(st, d, wasOn) {
+  const m = $("dMsg");
+  m.classList.remove("hot");
+  if (st.L > prev.L) {
+    const newRank = rankOf(st.L) > rankOf(prev.L);
+    m.innerHTML = newRank ? `<b>${RULES.RANKS[rankOf(st.L)][0]} Новое звание — ${RULES.RANKS[rankOf(st.L)][1]}!</b> Уровень ${st.L}, в городе новое здание, +${RULES.LVLBONUS} 🪙.`
+                          : `<b>🏛 Уровень ${st.L}!</b> В городе новое здание и +${RULES.LVLBONUS} 🪙 в кошелёк.`;
+    m.classList.add("hot");
+  } else if (!wasOn && st.streakAt[d] > 0 && prev.streakAt[d] === 0) {
+    m.innerHTML = `<b>🔥 День в серии: ${st.streakAt[d]}</b> · завтра монеты ×${dcm(RULES.mult(st.streakAt[d]))}`;
+  } else if (!wasOn) {
+    m.innerHTML = `+${RULES.COIN} 🪙 за привычку. Три за день — и день пойдёт в серию 🔥`;
+  } else {
+    m.textContent = "Галочку сняли — монеты за неё ушли из кошелька.";
+  }
+  if (st.total === 21) {
+    m.innerHTML = `<b>Неделя закрыта:</b> ${nf(st.coins)} 🪙 и уровень ${st.L} — ${RULES.RANKS[rankOf(st.L)].slice(0, 2).join(" ")}. Это одна неделя. Дальше уровни растут до 👑 Магната.`;
+    m.classList.add("hot");
+  }
+  $("dFin").classList.toggle("on", st.total >= 7);
+}
+
+function buildDemo() {
+  const g = $("dGrid");
+  g.innerHTML = `<span></span>` + DAYS.map((d, i) => `<span class="dd${i > 4 ? " we" : ""}">${d}</span>`).join("") +
+    HABITS.map((h, r) => `<span class="hi" title="${h[1]}">${h[0]}</span>` +
+      DAYS.map((d, c) => `<button class="cell" data-r="${r}" data-c="${c}" aria-pressed="false" aria-label="${h[1]}, ${d}"></button>`).join("")).join("");
+  $("dLegend").textContent = HABITS.map(h => h.join(" ")).join(" · ");
+  g.addEventListener("click", e => {
+    const cell = e.target.closest(".cell"); if (!cell) return;
+    const r = +cell.dataset.r, c = +cell.dataset.c, wasOn = on[r][c];
+    on[r][c] = !wasOn; cell.classList.toggle("on", !wasOn); cell.setAttribute("aria-pressed", String(!wasOn));
+    const st = calc(), fresh = st.L > prev.L;
+    render(st, fresh); message(st, c, wasOn);
+    if (wasOn) setCoins(st.coins, false);
+    else flyCoin(cell, st.coins - prev.coins, () => setCoins(st.coins, true));
+    prev = st;
+  });
+  render(prev, false); setCoins(prev.coins, false);
+}
+
+// ── липкая кнопка: видна, когда первая кнопка ушла с экрана; прячется там, где
+//    своя кнопка уже на экране (тарифы, финал, подвал) — две одинаковые рядом не нужны
+function sticky() {
+  const s = $("sticky"), zones = ["heroCta", "price", "final", "foot"], seen = { heroCta: true };
+  const io = new IntersectionObserver(es => {
+    es.forEach(e => { seen[e.target.id] = e.isIntersecting; });
+    s.classList.toggle("on", !zones.some(z => seen[z]));
+  });
+  zones.forEach(z => io.observe($(z)));
+}
+
+fillPrices(); buildDemo(); sticky();
+</script>
+</html>
