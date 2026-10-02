@@ -49,7 +49,7 @@ as_user() {
   # Git ходит в сеть не от root: если с той стороны придёт что-то не то,
   # оно останется в правах пользователя magnat.
   if [ "$(id -u)" -eq 0 ] && [ "$(id -un)" != "$USER_NAME" ]; then
-    runuser -u "$USER_NAME" -- "$@"
+    runuser -u "$USER_NAME" -- env HOME="$STATE" "$@"
   else
     "$@"
   fi
@@ -107,7 +107,7 @@ publish() {
     log "коммит ${sha:0:7}: нет index.html Магната — НЕ выкладываю, остаётся прежняя версия" >&2
     return 1
   fi
-  chmod -R a+rX "$tmp"
+  chmod -R u=rwX,go=rX "$tmp"
   rm -rf "$rel"; mv "$tmp" "$rel"
   switch_to "$sha"
   log "выложено ${sha:0:7}"

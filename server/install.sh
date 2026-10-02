@@ -25,7 +25,55 @@ ok()   { echo "${C_OK}[ОК]${C_OFF}   $*"; }
 warn() { echo "${C_WARN}[!]${C_OFF}    $*"; }
 fail() { echo "${C_ERR}[ОШИБКА]${C_OFF} $*" >&2; exit 1; }
 
+# --- 0. Замок «не тот сервер» — ДО любого изменения ------------------------------
+# Просьба Артёма 02.10: «Впн там не наделай фигни. Не перепутай. Не сломай».
+# Команду вставляют руками в Termius, где рядом лежит сервер VPN. Вставленная
+# туда, эта установка сбросила бы его файрвол и заняла 80/443 — VPN лёг бы у
+# всех. Поэтому два независимых замка, и каждый останавливает сам:
+#   1) признаки сервера VPN (панель, нода, боты, docker, xray) — стоп;
+#   2) адрес машины не тот, под который всё готовилось, — стоп.
+# Новая машина под Магнат (если эту отберут) — MAGNAT_IP=<её адрес> перед bash.
+EXPECTED_IP="${MAGNAT_IP:-193.108.113.70}"
+ROOTFS="${MAGNAT_ROOTFS:-}"          # только для проверки: корень «чужой» машины
+
+guard() {
+  local found="" d
+  for d in /opt/remnawave /opt/remnanode /opt/genavpn-repo /opt/genavpn-bot \
+           /opt/genavpn-support /opt/genavpn /opt/caddy /etc/remnanode /usr/local/bin/xray; do
+    [ -e "$ROOTFS$d" ] && found="$found $d"
+  done
+  if [ -z "$ROOTFS" ]; then
+    if command -v docker >/dev/null 2>&1 && [ -n "$(docker ps -q 2>/dev/null || true)" ]; then
+      found="$found docker-контейнеры"
+    fi
+    pgrep -x 'xray|rw-core|remnawave|hysteria|sing-box' >/dev/null 2>&1 && found="$found процесс-VPN"
+  fi
+  if [ -n "$found" ]; then
+    echo "${C_ERR}[СТОП]${C_OFF} Это похоже на сервер VPN:$found" >&2
+    echo "        Ничего не тронуто. Установка Магната — только на 193.108.113.70." >&2
+    return 1
+  fi
+
+  local mine="${MAGNAT_MY_IP:-}" u
+  if [ -z "$mine" ]; then
+    for u in https://api.ipify.org https://ifconfig.me/ip https://icanhazip.com; do
+      mine="$(curl -fsS --max-time 5 "$u" 2>/dev/null | tr -d '[:space:]')" || true
+      [[ "$mine" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] && break
+      mine=""
+    done
+    mine="$mine $(ip -4 -o addr show scope global 2>/dev/null | awk '{split($4,a,"/"); print a[1]}' | tr '\n' ' ' || true)"
+  fi
+  if ! grep -qwF -- "$EXPECTED_IP" <<<"$mine"; then
+    echo "${C_ERR}[СТОП]${C_OFF} Не тот сервер: у этой машины адрес ${mine// /, }, а нужен $EXPECTED_IP." >&2
+    echo "        Ничего не тронуто. Зайди в Termius именно на $EXPECTED_IP." >&2
+    return 1
+  fi
+  return 0
+}
+
+if [ -n "${MAGNAT_GUARD_ONLY:-}" ]; then guard; exit $?; fi   # только проверка, без установки
 [ "$(id -u)" -eq 0 ] || fail "Запускать от root."
+guard || exit 1
 command -v apt-get >/dev/null || fail "Нужна Ubuntu или Debian."
 export DEBIAN_FRONTEND=noninteractive
 
@@ -60,12 +108,15 @@ echo; echo "--- 2/7 Пакеты: Caddy, git, файрвол, защита SSH, 
 # Полгигабайта памяти: apt и Caddy на старте могут упереться. Файл подкачки
 # на 1 ГБ — дешёвая страховка от «убит по нехватке памяти».
 if ! swapon --show=NAME --noheadings | grep -q .; then
-  fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap -q /swapfile && swapon /swapfile
-  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
-  ok "Подкачка 1 ГБ включена."
+  if fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap -q /swapfile && swapon /swapfile; then
+    grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    ok "Подкачка 1 ГБ включена."
+  else
+    rm -f /swapfile; warn "Подкачку включить не вышло (так бывает на контейнерных VPS) — не страшно."
+  fi
 fi
 apt-get update -qq
-apt-get install -y -qq ca-certificates curl gnupg git ufw fail2ban python3-systemd unattended-upgrades >/dev/null
+apt-get install -y -qq ca-certificates curl gnupg git openssh-client ufw fail2ban python3-systemd unattended-upgrades >/dev/null
 
 # Caddy — из официального репозитория (свежий, сам обновляется). Не вышло —
 # из репозитория Ubuntu: старее, но рабочий.

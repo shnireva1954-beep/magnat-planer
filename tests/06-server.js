@@ -65,6 +65,37 @@ async function waitPort(port, ms = 8000) {
   const sc = sh("command -v shellcheck >/dev/null && shellcheck -S style server/install.sh server/magnat.sh", { cwd: ROOT });
   if (sh("command -v shellcheck").status === 0) sc.status === 0 ? ok("shellcheck — чисто") : bad("shellcheck:\n" + sc.stdout);
 
+  // ---- 1б. замок «не тот сервер» ------------------------------------------
+  console.log("\n1б. server/install.sh — замок «не тот сервер» (до любого изменения)");
+  const FS = path.join(T, "fs"); fs.mkdirSync(FS);
+  const guard = (myIp, extra = {}) => spawnSync("bash", [path.join(ROOT, "server/install.sh")], { encoding: "utf8",
+    env: { ...process.env, MAGNAT_GUARD_ONLY: "1", MAGNAT_ROOTFS: FS, MAGNAT_MY_IP: myIp, ...extra } });
+  let g = guard("193.108.113.70");
+  g.status === 0 ? ok("машина Магната (193.108.113.70, без следов VPN) — пускает") : bad("свою машину не пустил: " + g.stderr);
+  g = guard("10.0.0.5 193.108.113.70 ");
+  g.status === 0 ? ok("адрес нашёлся среди нескольких (внешний + на интерфейсе) — пускает") : bad("не нашёл адрес в списке: " + g.stderr);
+  g = guard("45.94.37.94");
+  g.status === 1 && /Не тот сервер/.test(g.stderr) ? ok("адрес сервера VPN (45.94.37.94) — СТОП") : bad("чужой адрес пропущен: " + g.status + g.stderr);
+  g = guard("193.108.113.700");
+  g.status === 1 ? ok("похожий, но другой адрес (…70 → …700) — СТОП") : bad("похожий адрес пропущен");
+  g = guard("");
+  g.status === 1 && /Не тот сервер/.test(g.stderr) ? ok("адрес узнаётся сам (здесь он чужой) — СТОП") : bad("сам узнанный чужой адрес: код " + g.status + " " + g.stderr.slice(-200));
+  const before0 = fails;
+  for (const mark of ["opt/genavpn-repo", "opt/remnanode", "opt/remnawave", "opt/genavpn-bot", "opt/caddy"]) {
+    fs.mkdirSync(path.join(FS, mark), { recursive: true });
+    g = guard("193.108.113.70");
+    if (!(g.status === 1 && /сервер VPN/.test(g.stderr))) bad(`/${mark} на машине — не остановил: ${g.status} ${g.stderr}`);
+    fs.rmSync(path.join(FS, mark), { recursive: true });
+  }
+  if (fails === before0) ok("следы VPN (/opt/genavpn-repo, remnanode, remnawave, genavpn-bot, caddy) — СТОП даже на верном адресе");
+  g = guard("1.2.3.4", { MAGNAT_IP: "1.2.3.4" });
+  g.status === 0 ? ok("новая машина под Магнат — MAGNAT_IP=<адрес> пускает") : bad("MAGNAT_IP не работает");
+  // Замок стоит ДО первого изменения: ничего выше него не трогает систему.
+  const inst = fs.readFileSync(path.join(ROOT, "server/install.sh"), "utf8");
+  const before = inst.slice(0, inst.indexOf("guard || exit 1"));
+  /\b(iptables|apt-get|ufw|systemctl|rm -rf|useradd|install -|fallocate)\b/.test(before.replace(/^\s*#.*$/gm, "").replace(/command -v \w+|pgrep[^\n]*|docker ps[^\n]*/g, ""))
+    ? bad("до замка есть команда, меняющая систему") : ok("до замка — ни одной команды, меняющей систему");
+
   // ---- 2. выкладка --------------------------------------------------------
   console.log("\n2. server/magnat.sh — выкладка");
   // Репозиторий-образец из ТЕКУЩЕГО рабочего дерева (с несохранёнными правками).
