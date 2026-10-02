@@ -6,3 +6,4 @@ exclude:
   - README.md
   - tests/
   - tools/
+  - server/

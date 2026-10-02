@@ -17,7 +17,9 @@ function chromePath(){
 
 const APP_DIR = path.join(__dirname, "..");
 const APP_FILE = path.join(APP_DIR, "index.html");
-const APP_URL = "file://" + APP_FILE;
+// MAGNAT_URL — тот же прогон на настоящем веб-сервере (06-server: Caddy с
+// заголовками безопасности, как на magnat-planer.ru). По умолчанию — файл.
+const APP_URL = process.env.MAGNAT_URL || "file://" + APP_FILE;
 const OUT_DIR = path.join(__dirname, "__snapshots");
 try { fs.mkdirSync(OUT_DIR, { recursive: true }); } catch (e) {}
 const launch = () => chromium.launch({ executablePath: chromePath() });

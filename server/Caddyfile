@@ -1,0 +1,67 @@
+# Магнат на своём сервере в России — веб-сервер Caddy.
+#
+# Этот файл — источник правды: сервер раз в минуту сверяет его с
+# /etc/caddy/Caddyfile и, если отличается, проверяет (`caddy validate`) и
+# применяет сам. Сломанный файл не применится — останется прежний.
+# Устройство целиком — server/README.md.
+#
+# Переменные {$…} нужны только проверке (tests/06-server.js поднимает тот же
+# файл на локальном порту). На сервере их нет — работают значения после «:».
+{
+	# Журнал запросов не ведём: адрес посетителя — персональные данные, а
+	# пользы от такого журнала нам нет. Ошибки самого Caddy — в journalctl.
+	admin {$MAGNAT_ADMIN:localhost:2019}
+}
+
+{$MAGNAT_SITE:magnat-planer.ru} {
+	root * {$MAGNAT_ROOT:/srv/magnat/current}
+
+	# Служебное не отдаём никогда, даже если попадёт в выкладку. Выкладка его
+	# и так вырезает (список — `exclude` в _config.yml), это второй замок.
+	@hidden {
+		path_regexp hidden (^|/)[._]|^/(server|tests|tools)(/|$)|^/CNAME$|\.md$
+		not path /.well-known/*
+	}
+	respond @hidden 404
+
+	encode zstd gzip
+
+	header {
+		# Только HTTPS, два года. Без preload: его отменить — месяцы.
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), browsing-topics=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		X-Frame-Options "DENY"
+		# 'unsafe-inline' у скриптов — потому что всё приложение один файл со
+		# встроенным кодом и onclick в разметке. Главное здесь — connect-src
+		# 'self': даже чужой код на странице не сможет отправить данные наружу.
+		# Добавится оплата или своё API — сюда же, явно.
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+		-Server
+	}
+
+	# Страница, service worker и манифест всегда сверяются с сервером (ответ
+	# 304 стоит копейки) — иначе клиент застрял бы на старой версии.
+	@fresh path / /index.html /app.html /sw.js /manifest.json *.html
+	header @fresh Cache-Control "no-cache"
+	# Шрифты меняются только с новым именем файла — их можно держать месяц.
+	@fonts path *.woff2
+	header @fonts Cache-Control "public, max-age=2592000"
+	@media path *.png *.jpg *.webp *.svg *.ico
+	header @media Cache-Control "public, max-age=86400"
+
+	file_server
+
+	# Нет такой страницы — ведём на главную, а не показываем пустой экран.
+	handle_errors {
+		@missing expression {err.status_code} == 404
+		redir @missing / 302
+		respond "{err.status_code} {err.status_text}"
+	}
+}
+
+{$MAGNAT_WWW:www.magnat-planer.ru} {
+	redir https://magnat-planer.ru{uri} permanent
+}
