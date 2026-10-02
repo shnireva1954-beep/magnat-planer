@@ -3,6 +3,7 @@
 <meta charset="utf-8">
 <title>Магнат</title>
 <meta name="robots" content="noindex">
+<meta name="description" content="Магнат — привычки, задачи, деньги и тело в одной игре: делаешь дела — получаешь монеты, растёт уровень, строится твоя империя.">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -16,7 +17,7 @@
     --bg:#080b11; --bg2:#0b0f17; --panel:#0f1520; --panel2:#131b28;
     --line:#1c2735; --line2:#26374b;
     --emerald:#2fe38f; --cyan:#35d0ff; --gold:#f5c451; --violet:#b06bff; --danger:#ff6b6b; --orange:#ff9f43;
-    --ink:#eef4fb; --mut:#93a6bd; --mut2:#68809b;
+    --ink:#eef4fb; --mut:#93a6bd; --mut2:#738ca7;   /* было #68809b: 4,48 на карточке при норме WCAG 4,5 (Lighthouse 02.10.2026); теперь ≥ 4,5 на всех фонах, и в окнах */
     --fd:Georgia,"Times New Roman",serif; --fb:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     color-scheme:dark;   /* тёмные выпадающие списки и поля: дизайн один, тёмный */
   }
@@ -755,6 +756,11 @@ function askConfirm(text,okLabel,danger){
   });
 }
 
+// Клавиатура: Enter и пробел нажимают элемент в фокусе — как у чипов в окнах дня и выбора.
+// До 02.10.2026 вкладки, фильтр календаря и галочки «Сегодня» были <div> без tabindex:
+// с клавиатуры до них не добраться вовсе (axe: scrollable-region-focusable)
+const onKeys=(e,fn)=>e.addEventListener("keydown",ev=>{ if(ev.key==="Enter"||ev.key===" "){ ev.preventDefault(); fn(); } });
+
 // плавный переход числа между перерисовками: рисуем кадры 450 мс, торможение в конце
 const TW={}; let lastBar="";
 function tween(key,to,draw){
@@ -786,7 +792,7 @@ function bars(cv,data,color,opts){
       c.beginPath(); c.rect(x,y,bw,bh); c.fill(); c.shadowBlur=0; }
     c.textAlign="center";
     if(o.values){ c.fillStyle=col; c.font="700 10.5px system-ui"; c.fillText(o.values[i],x+bw/2,Math.max(11,y-5)); }
-    if(o.labels){ c.fillStyle="#68809b"; c.font="10px system-ui"; c.fillText(o.labels[i],x+bw/2,h-3); }
+    if(o.labels){ c.fillStyle="#738ca7"; c.font="10px system-ui"; c.fillText(o.labels[i],x+bw/2,h-3); }
   });
 }
 // график веса: старт, текущее значение и пунктирная цель
@@ -803,7 +809,7 @@ function weightChart(cv,log,goal){
     const py=goal?36:h/2;
     c.beginPath(); c.arc(w/2,py,4.5,0,7); c.fillStyle=cy1; c.shadowColor=cy1; c.shadowBlur=10; c.fill(); c.shadowBlur=0;
     c.fillStyle=cy1; c.font="700 13px system-ui"; c.textAlign="center"; c.fillText(dcm(log[0].w)+" кг", w/2, py-12);
-    c.fillStyle="#68809b"; c.font="11px system-ui";
+    c.fillStyle="#738ca7"; c.font="11px system-ui";
     c.fillText("запиши вес ещё раз — появится линия", w/2, py+26);
     return;
   }
@@ -971,8 +977,9 @@ function vHome(root){
   const cw=root.querySelector("#todayChips");
   S.habits.forEach(h=>{
     const on=isDone(h.id,TODAY);
-    const chip=el(`<div class="tchip${on?" on":""}" data-pop="${h.id}|${TODAY}"><span class="d">${on?"✓":""}</span><span class="nm"></span></div>`);
+    const chip=el(`<div class="tchip${on?" on":""}" role="checkbox" tabindex="0" aria-checked="${on}" data-pop="${h.id}|${TODAY}"><span class="d">${on?"✓":""}</span><span class="nm"></span></div>`);
     chip.querySelector(".nm").textContent=withIco(h.ico,h.name);
+    onKeys(chip,()=>chip.click());
     chip.addEventListener("click",()=>{
       const arr=checksOf(TODAY).slice(),i=arr.indexOf(h.id),was=dayComplete(TODAY);
       if(i>=0)arr.splice(i,1);else{arr.push(h.id);flyCoinToWallet(chip);POP=`${h.id}|${TODAY}`;}
@@ -1029,8 +1036,8 @@ function vHabits(root){
       cells+=`<div class="cday ${cls}${p>=1?" full":p>0?" part":""}" role="button" tabindex="0" data-d="${ds}" style="--p:${p.toFixed(3)}" aria-label="${dayLabel(ds)}: отмечено ${n} из ${pool}"><span>${d}</span></div>`;
     }
   }
-  const chips=`<div class="fchip${one?"":" on"}" data-f="all">Все</div>`+
-    S.habits.map(h=>`<div class="fchip${one&&one.id===h.id?" on":""}" data-f="${h.id}"><span class="hn">${esc(withIco(h.ico,h.name))}</span></div>`).join("");
+  const chips=`<div class="fchip${one?"":" on"}" role="button" tabindex="0" aria-pressed="${!one}" data-f="all">Все</div>`+
+    S.habits.map(h=>`<div class="fchip${one&&one.id===h.id?" on":""}" role="button" tabindex="0" aria-pressed="${!!(one&&one.id===h.id)}" data-f="${h.id}"><span class="hn">${esc(withIco(h.ico,h.name))}</span></div>`).join("");
   const pc=eligN?Math.round(doneN/eligN*100):0;
   const foot=one
     ? `<div class="calfoot"><span>✓ <b>${doneN}</b> из ${eligN} ${pl(eligN,"дня","дней","дней")} · ${pc}%</span><span class="hedit2 hedit" data-edit="${one.id}">✏️ изменить</span></div>
@@ -1065,7 +1072,7 @@ function vHabits(root){
   if(onChip&&onChip.offsetLeft+onChip.offsetWidth>cf.clientWidth) cf.scrollLeft=onChip.offsetLeft-12;   // выбранная привычка видна
   const cfFade=()=>{ const x=cf.scrollLeft, max=cf.scrollWidth-cf.clientWidth; cf.classList.toggle("fl",x>4); cf.classList.toggle("fr",x<max-4); };
   cf.addEventListener("scroll",cfFade,{passive:true}); cfFade();
-  cf.querySelectorAll(".fchip").forEach(c=>c.addEventListener("click",()=>{ calH=c.dataset.f==="all"?"all":+c.dataset.f; render(); }));
+  cf.querySelectorAll(".fchip").forEach(c=>{ c.addEventListener("click",()=>{ calH=c.dataset.f==="all"?"all":+c.dataset.f; render(); }); onKeys(c,()=>c.click()); });
   const act=(c,fn)=>{ c.addEventListener("click",fn);
     c.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); fn(); } }); };
   root.querySelectorAll(".hcell").forEach(c=>act(c,()=>{
@@ -1196,7 +1203,7 @@ function vMoney(root){
       ${inc===0&&out>0?'<div class="nrm">доход за месяц ещё не внесён</div>':""}</div>
     ${hasData?`
     ${parts.length?`<div class="glass card" style="margin-top:13px"><h3>Расходы по категориям</h3><div class="donut-wrap"><canvas id="mPie"></canvas></div>
-        <div style="margin-top:10px">${parts.map(p=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;margin-bottom:4px"><span style="width:9px;height:9px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:var(--mut)">${p.cat}</span><b class="num">${nf(p.v)}</b></div>`).join("")}</div></div>`:""}
+        <div style="margin-top:10px">${parts.map(p=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;margin-bottom:4px"><span style="width:9px;height:9px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:var(--mut)">${esc(p.cat)}</span><b class="num">${nf(p.v)}</b></div>`).join("")}</div></div>`:""}
     <div class="sec-h">Операции месяца</div>
     <div class="glass card">${me.slice().sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:b.id-a.id).map(e=>`<div class="frow"><span class="cat">${esc(e.cat)}</span><span class="fdt">${fmtD(e.date)}</span><span class="amt ${e.type==='in'?'e':'dn'}">${e.type==='in'?'+':'−'}${nf(e.amount)} ₽</span><span class="del" data-id="${e.id}" title="удалить">✕</span></div>`).join("")}</div>
     `:`
@@ -1449,7 +1456,7 @@ function vShop(root){
     // хватает — на карточке кнопка «Купить»; нет — полоска и сколько привычек осталось.
     // До 30.09.2026 карточка просто тускнела, и было непонятно, что её вообще можно нажать
     const it=el(`<div class="si${lack<=0?" afford":""}" data-pop="rw${rw.id}"><span class="rm" title="изменить">✏️</span>
-      <div class="i">${rw.ico||"🎁"}</div><div class="n"></div>
+      <div class="i">${esc(rw.ico||"🎁")}</div><div class="n"></div>
       <div class="pr">🪙 ${nf(cost)}</div>
       <div class="cnt hintc">= ${rw.n} ${plH(rw.n)}</div>
       ${lack<=0?`<div class="buy">Купить</div>`
@@ -1609,7 +1616,7 @@ function skyline(c,x0,y0,w,h,L,frac,s){
         c.globalAlpha=1; }
     }else{   // стройка: пунктир и заливка снизу на сколько пройден уровень
       c.fillStyle="#2fe38f26"; c.fillRect(bx,gy-bh*Math.max(0,Math.min(1,frac)),bw,bh*Math.max(0,Math.min(1,frac)));
-      c.setLineDash([3*s,3*s]); c.strokeStyle="#68809b"; c.lineWidth=1.1*s;
+      c.setLineDash([3*s,3*s]); c.strokeStyle="#738ca7"; c.lineWidth=1.1*s;
       c.beginPath();c.rect(bx,by,bw,bh);c.stroke(); c.setLineDash([]);
     }
   }
@@ -1698,7 +1705,7 @@ function draw(){
   else if(L>S.lastLv){ const p=S.lastLv; S.lastLv=L; save(); celebrateLevel(L,p); }
   showWallet();
   document.getElementById("lvlChip").innerHTML=`Ур. ${L}<span class="rk"> · ${rankName(rankOf(L))}</span>`;
-  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===cur));
+  document.querySelectorAll(".tab").forEach(t=>{ const on=t.dataset.t===cur; t.classList.toggle("on",on); t.setAttribute("aria-current",on?"page":"false"); });
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
   const root=document.getElementById("v-"+cur); root.classList.add("on"); RENDER[cur](root);
   // новая вкладка въезжает снизу на 8 px за 220 мс; перерисовка той же вкладки — без движения
@@ -1797,7 +1804,7 @@ function restoreBackup(){
   setTimeout(()=>ta.focus(),50);
 }
 const tabsEl=document.getElementById("tabs");
-TABS.forEach(([id,label])=>{const b=el(`<div class="tab" data-t="${id}">${label}</div>`);b.addEventListener("click",()=>{cur=id;render();window.scrollTo(0,0);});tabsEl.appendChild(b);});
+TABS.forEach(([id,label])=>{const b=el(`<div class="tab" data-t="${id}" role="button" tabindex="0">${label}</div>`);b.addEventListener("click",()=>{cur=id;render();window.scrollTo(0,0);});onKeys(b,()=>b.click());tabsEl.appendChild(b);});
 // перерисовываем только при смене ШИРИНЫ: на телефоне resize стреляет от прячущейся
 // адресной строки при каждом скролле — раньше это дёргало экран и сбрасывало календарь
 tabsEl.addEventListener("scroll",tabFades,{passive:true});

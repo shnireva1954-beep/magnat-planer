@@ -377,6 +377,32 @@ async function walkTabs(p, label) {
     await ctx.close();
   }
 
+  // ---------- 1ж. клавиатура (02.10.2026) ----------
+  // вкладки, фильтр календаря и галочки «Сегодня» были <div> без tabindex — с клавиатуры не нажать
+  console.log('\n1ж) Клавиатура: Tab доходит до вкладок и галочек, Enter и пробел их нажимают');
+  {
+    const { ctx, p } = await newPage(b, { width: 1280, height: 900 });
+    await p.goto(URL); await p.waitForTimeout(400);
+    await startClean(p);
+    await p.focus('.tab[data-t="habits"]').catch(() => {});
+    const focusedTab = await p.evaluate(() => document.activeElement && document.activeElement.dataset.t);
+    await p.keyboard.press('Enter'); await p.waitForTimeout(300);
+    const onTab = await p.evaluate(() => ({ cur, aria: document.querySelector('.tab[data-t="habits"]').getAttribute('aria-current') }));
+    await p.focus('.fchip[data-f="1"]').catch(() => {});
+    await p.keyboard.press(' '); await p.waitForTimeout(300);
+    const fil = await p.evaluate(() => calH);
+    await p.evaluate(() => { cur = 'home'; render(); });
+    await p.focus('#todayChips .tchip').catch(() => {});
+    await p.keyboard.press(' '); await p.waitForTimeout(400);
+    const st = await p.evaluate(() => ({ n: (S.checks[TODAY] || []).length, aria: document.querySelector('#todayChips .tchip').getAttribute('aria-checked'), y: scrollY }));
+    (focusedTab === 'habits' && onTab.cur === 'habits' && onTab.aria === 'page')
+      ? ok('вкладка: фокус клавиатурой, Enter открыл «Привычки», отмечена для экранного чтеца') : bad('вкладка с клавиатуры: ' + JSON.stringify({ focusedTab, onTab }));
+    fil === 1 ? ok('фильтр календаря: пробел выбрал привычку') : bad('фильтр календаря с клавиатуры: calH=' + fil);
+    (st.n === 1 && st.aria === 'true' && st.y === 0) ? ok('галочка «Сегодня»: пробел отметил, страница не прыгнула') : bad('галочка с клавиатуры: ' + JSON.stringify(st));
+    errCheck(p, 'клавиатура');
+    await ctx.close();
+  }
+
   // ---------- 2. демо ----------
   console.log('\n2) Онбординг → «Посмотреть пример» (демо-данные)');
   {
@@ -536,6 +562,25 @@ async function walkTabs(p, label) {
     if (p.errs.length || rescued) bad(`${name}: ${rescued ? 'экран спасения' : ''} ${p.errs.join(' | ')}`);
     else ok(`${name}: приложение работает, кошелёк «${alive}»`);
     p.errs = [];
+    await ctx.close();
+  }
+
+  // 4б) чужая «копия данных» с HTML вместо текста не выполняет код (02.10.2026). До этого
+  // категория трат в легенде «Финансов» и значок награды вставлялись без esc(): копия,
+  // присланная кем-то «загрузи мои привычки», запускала скрипт на странице Магната
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 900 });
+    await p.goto(URL);
+    const evil = { habits: [{ id: 1, ico: '', name: 'Тест' }], checks: {}, rv: 2,
+      finance: { income: 0, entries: [{ id: 1, type: 'out', cat: '<img src=x onerror="window.__xss=1">', amount: 100, date: '2026-01-01' }] },
+      rewards: [{ id: 1, ico: '<img src=x onerror="window.__xss=2">', name: 'Награда', n: 5 }] };
+    await p.evaluate(d => { const t = new Date(), ds = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-01`;
+      d.finance.entries[0].date = ds; localStorage.setItem('magnat_app_v2', JSON.stringify(d)); }, evil);
+    await p.reload(); await p.waitForTimeout(400);
+    for (const t of ['money', 'shop']) { await p.click(`.tab[data-t="${t}"]`); await p.waitForTimeout(300); }
+    const r = await p.evaluate(() => ({ xss: window.__xss || 0, shown: [...document.querySelectorAll('#shopGrid .si .i')].map(e => e.textContent) }));
+    (!r.xss && r.shown.some(s => s.includes('<img'))) ? ok('чужая копия с HTML: код не выполнен, показан как текст')
+      : bad('чужая копия с HTML выполнила код: ' + JSON.stringify(r));
     await ctx.close();
   }
 
