@@ -1,8 +1,10 @@
 /* Магнат — офлайн-оболочка приложения.
    Стратегия «сначала сеть, кэш как запаска»: свежая версия приезжает сама,
    а без интернета приложение всё равно открывается. */
-const CACHE = "magnat-app-v2";
-const ASSETS = ["./", "./index.html", "./manifest.json", "./icon.png", "./icon-512.png"];
+const CACHE = "magnat-app-v3";
+// шрифт — в оболочке с 02.10.2026: без него первый запуск без сети рисовался бы системным
+const ASSETS = ["./", "./index.html", "./manifest.json", "./icon.png", "./icon-512.png",
+  "./fonts/manrope-cyrillic.woff2", "./fonts/manrope-latin.woff2", "./fonts/manrope-latin-ext.woff2"];
 
 self.addEventListener("install", e => {
   e.waitUntil(

@@ -1,340 +1,564 @@
 <!doctype html>
 <html lang="ru">
+<head>
 <meta charset="utf-8">
-<title>Магнат — жизнь как игра-тайкун</title>
-<meta name="description" content="Привычки, задачи, деньги и тело в одной игре: делаешь дела — получаешь монеты, растёт уровень, строится твоя империя. 7 дней бесплатно.">
+<title>Магнат — привычки, задачи и деньги как игра-тайкун</title>
+<meta name="description" content="Отмечай привычки — получай монеты, расти в уровнях и строй свою империю. Привычки, задачи, финансы и тело в одном приложении. 7 дней бесплатно, без карты.">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#080b11">
-<meta property="og:title" content="Магнат — жизнь как игра-тайкун">
-<meta property="og:description" content="Хватит начинать с понедельника. Делаешь дела — получаешь монеты, растёт уровень, строится твоя империя.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%8F%9B%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#07090d">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:site_name" content="Магнат">
+<meta property="og:title" content="Магнат — хватит начинать с понедельника">
+<meta property="og:description" content="Привычки, задачи, деньги и тело — в одной игре. Сделал дело — получил монеты, вырос в уровне, достроил империю.">
+<meta property="og:image" content="img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="img/mark.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="preload" href="fonts/manrope-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
 <!--
-  ЧЕРНОВИК продающей страницы (01.10.2026). Не опубликован: живёт в ветке.
+  Продающая страница «Магната». ЧЕРНОВИК: живёт в ветке, на сайт не подключена.
 
-  🔁 СТРАНИЦА СДЕЛАНА ПОД ПЕРЕДЕЛКУ — владелец: «делай так, чтобы переделать
+  🔁 СДЕЛАНА ПОД ПЕРЕДЕЛКУ — владелец 01.10.2026: «делай так, чтобы переделать
   можно было, сам Магнат ещё не полностью готов». Поэтому:
-  • цена, пробный срок, адрес приложения — ТОЛЬКО в блоке CFG в начале скрипта;
-    в разметке стоят те же числа как запаска, скрипт их переписывает;
-  • правила мини-игры (монеты, серия, уровни, звания) — копия правил index.html.
-    Разошлись — краснеет tests/05-landing.js, не молча;
-  • экраны приложения (img/*.jpg) переснимаются одной командой: node tools/shots.js
-  Оформление — токены самого приложения (:root ниже совпадает с index.html).
+  • цена, пробный срок, адрес приложения — ТОЛЬКО в CFG в начале скрипта;
+    в разметке те же числа стоят запаской, скрипт их переписывает;
+  • правила мини-игры — копия правил index.html, разойдутся — краснеет
+    tests/05-landing.js, а не тихо врёт;
+  • экраны приложения, картинка для соцсетей и знак — node tools/shots.js.
+
+  Оформление (переделка 02.10.2026 «до мирового уровня»): свой шрифт Manrope
+  (одинаково на iPhone, Android и компьютере), иконки — свои SVG, а не эмодзи;
+  цвета бренда приложения (изумруд, золото монет, ночной фон), но без неона:
+  свечение только у главной кнопки и у монет.
 -->
+<script>document.documentElement.classList.add("js");</script>
 <style>
+  @font-face{font-family:"Manrope"; font-style:normal; font-weight:400 800; font-display:swap;
+    src:url(fonts/manrope-cyrillic.woff2) format("woff2"); unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;}
+  @font-face{font-family:"Manrope"; font-style:normal; font-weight:400 800; font-display:swap;
+    src:url(fonts/manrope-latin-ext.woff2) format("woff2"); unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+  @font-face{font-family:"Manrope"; font-style:normal; font-weight:400 800; font-display:swap;
+    src:url(fonts/manrope-latin.woff2) format("woff2"); unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+
   :root{
-    --bg:#080b11; --bg2:#0b0f17; --panel:#0f1520; --panel2:#131b28;
-    --line:#1c2735; --line2:#26374b;
-    --emerald:#2fe38f; --cyan:#35d0ff; --gold:#f5c451; --danger:#ff6b6b;
-    --ink:#eef4fb; --mut:#93a6bd; --mut2:#68809b;
-    --fd:Georgia,"Times New Roman",serif; --fb:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --bg:#07090d; --bg-2:#0a0e14; --surface:#0e131b; --surface-2:#131a24;
+    --line:rgba(255,255,255,.075); --line-2:rgba(255,255,255,.13);
+    --ink:#f3f6f9; --ink-2:#cdd6e0; --mut:#98a5b4; --dim:#7a879a;
+    --accent:#2fe38f; --accent-2:#18b871; --accent-ink:#03150c; --accent-soft:rgba(47,227,143,.11); --accent-line:rgba(47,227,143,.32);
+    --gold:#f5c451; --gold-soft:rgba(245,196,81,.11); --gold-line:rgba(245,196,81,.3);
+    --r-xl:28px; --r-lg:22px; --r:16px; --r-sm:12px;
+    --font:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --pad:clamp(16px,5vw,32px);
+    --ease:cubic-bezier(.2,.75,.2,1);
     color-scheme:dark;
   }
-  *{box-sizing:border-box; margin:0; padding:0}
-  html{scroll-behavior:smooth; -webkit-text-size-adjust:100%;}
-  html,body{overflow-x:hidden;}
-  body{background:radial-gradient(1100px 620px at 82% -6%,#123044 0%,transparent 55%),radial-gradient(800px 560px at 6% 3%,#0f2a20 0%,transparent 55%),linear-gradient(180deg,var(--bg2),var(--bg));
-    color:var(--ink); font-family:var(--fb); line-height:1.5; -webkit-font-smoothing:antialiased; min-height:100vh;}
-  ::selection{background:#2fe38f3d;}
-  :focus-visible{outline:2px solid var(--emerald); outline-offset:3px; border-radius:6px;}
-  a{color:inherit;}
-  .wrap{max-width:1080px; margin:0 auto; padding-left:max(16px,env(safe-area-inset-left)); padding-right:max(16px,env(safe-area-inset-right));}
-  .glass{background:linear-gradient(168deg,rgba(20,28,42,.62),rgba(15,21,32,.62)); backdrop-filter:blur(11px) saturate(1.15); -webkit-backdrop-filter:blur(11px) saturate(1.15); border:1px solid var(--line2); border-radius:18px; box-shadow:inset 0 1px 0 #ffffff0e,0 8px 26px #00000038;}
-  em{font-style:normal; color:var(--emerald);}
+  *,*::before,*::after{box-sizing:border-box; margin:0; padding:0}
+  html{-webkit-text-size-adjust:100%; scroll-padding-top:76px;}
+  html,body{overflow-x:clip;}
+  body{background:var(--bg); color:var(--ink); font:500 16px/1.6 var(--font); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility; min-height:100vh;}
+  ::selection{background:rgba(47,227,143,.28);}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:8px;}
+  a{color:inherit; text-decoration:none;}
+  img,svg{display:block;}
+  button{font:inherit; color:inherit; background:none; border:none; cursor:pointer;}
+  .wrap{max-width:1180px; margin:0 auto; padding-left:max(var(--pad),env(safe-area-inset-left)); padding-right:max(var(--pad),env(safe-area-inset-right));}
+  .ico{width:20px; height:20px; flex:none; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
+  .skip{position:absolute; left:-9999px;} .skip:focus{left:16px; top:12px; z-index:100; background:var(--surface); padding:10px 14px; border-radius:10px;}
 
-  /* шапка */
-  .top{position:sticky; top:0; z-index:30; background:#080b11d9; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-bottom:1px solid var(--line); padding-top:env(safe-area-inset-top);}
-  .top .wrap{display:flex; align-items:center; justify-content:space-between; height:58px;}
-  .logo{display:flex; align-items:center; gap:10px; font-family:var(--fd); font-size:21px; font-weight:700; text-decoration:none;}
-  .logo i{font-style:normal; width:36px; height:36px; border-radius:11px; display:grid; place-items:center; background:#0e2f22; border:1px solid #1c7a54; font-size:18px;}
-  .btn-s{display:inline-flex; align-items:center; min-height:40px; padding:0 16px; border-radius:99px; border:1.5px solid #2fa872; color:var(--emerald); font-weight:700; font-size:14px; text-decoration:none; background:#0c1f18;}
+  /* ── типографика ───────────────────────────────────────── */
+  .eyebrow{display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; color:var(--accent); letter-spacing:.01em;}
+  .eyebrow::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor; box-shadow:0 0 0 4px var(--accent-soft);}
+  h1,h2,h3{font-weight:800; letter-spacing:-.025em; line-height:1.08; text-wrap:balance;}
+  h1{font-size:clamp(40px,11.2vw,72px); letter-spacing:-.04em; line-height:1.02;}
+  h2{font-size:clamp(31px,7.4vw,54px); letter-spacing:-.035em; margin-top:14px;}
+  h3{font-size:19px; letter-spacing:-.015em; line-height:1.25;}
+  .grad{background:linear-gradient(100deg,#3df2a1 0%,#2fe38f 45%,#a6f7cf 100%); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .lead{font-size:clamp(17px,2.3vw,19.5px); line-height:1.6; color:var(--mut); max-width:36em; text-wrap:pretty;}
+  .sub{font-size:17px; color:var(--mut); margin-top:14px; max-width:34em; text-wrap:pretty;}
+  .center{text-align:center;} .center .sub,.center .lead{margin-left:auto; margin-right:auto;}
+  section{padding-top:clamp(84px,12vw,140px);}
 
-  /* кнопка — та же, что «ok» в окнах приложения */
-  /* display:block, а не flex: у flex каждый кусок текста вокруг <span data-k> становится
-     отдельным столбиком — «Попробовать / 7 дней / бесплатно» разваливалось втрое (01.10) */
-  .btn{display:block; width:100%; min-height:56px; padding:17px 20px; border-radius:15px; border:none; cursor:pointer;
-    background:linear-gradient(180deg,var(--emerald),#17a768); color:#04120b; font:800 16.5px/22px var(--fb); text-decoration:none; text-align:center; box-shadow:0 0 22px #2fe38f44, 0 8px 22px #00000040; transition:transform .12s;}
-  .btn:active{transform:scale(.97);}
-  .under{font-size:13px; color:var(--mut); text-align:center; margin-top:10px;}
+  /* ── кнопки ────────────────────────────────────────────── */
+  .btn{position:relative; display:inline-flex; align-items:center; justify-content:center; gap:10px; min-height:56px; padding:0 26px; border-radius:var(--r);
+    font-weight:750; font-size:16.5px; letter-spacing:-.005em; white-space:nowrap; transition:transform .18s var(--ease), box-shadow .25s var(--ease), background-color .2s;}
+  .btn .ico{width:19px; height:19px; stroke-width:2.1; transition:transform .25s var(--ease);}
+  .btn-primary{background:linear-gradient(180deg,#43eea0,var(--accent) 40%,var(--accent-2)); color:var(--accent-ink);
+    box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 10px 30px -10px rgba(47,227,143,.55), 0 2px 6px rgba(0,0,0,.3);}
+  .btn-ghost{background:rgba(255,255,255,.035); color:var(--ink); box-shadow:inset 0 0 0 1px var(--line-2);}
+  .btn:active{transform:scale(.975);}
+  @media (hover:hover){
+    .btn-primary:hover{box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 16px 40px -12px rgba(47,227,143,.7), 0 2px 6px rgba(0,0,0,.3); transform:translateY(-1px);}
+    .btn-primary:hover .ico{transform:translateX(3px);}
+    .btn-ghost:hover{background:rgba(255,255,255,.06);}
+  }
+  .btn-block{width:100%;}
 
-  section{padding:64px 0 0;}
-  .tag{font-size:11.5px; color:var(--emerald); letter-spacing:1.5px; text-transform:uppercase; font-weight:700;}
-  h1,h2{font-family:var(--fd); font-weight:700; letter-spacing:-.01em; line-height:1.12;}
-  h1{font-size:clamp(36px,10.4vw,62px); margin-top:14px;}
-  h2{font-size:clamp(27px,7.2vw,40px); margin-top:10px;}
-  .lead{font-size:17px; color:var(--mut); margin-top:16px; max-width:560px;}
-  .lead b{color:var(--ink); font-weight:600;}
+  /* ── шапка ─────────────────────────────────────────────── */
+  .nav{position:sticky; top:0; z-index:50; padding-top:env(safe-area-inset-top); transition:background-color .3s, box-shadow .3s;}
+  .nav.scrolled{background:rgba(7,9,13,.78); -webkit-backdrop-filter:saturate(1.4) blur(14px); backdrop-filter:saturate(1.4) blur(14px); box-shadow:0 1px 0 var(--line);}
+  .nav .wrap{display:flex; align-items:center; gap:28px; height:66px;}
+  .brand{display:flex; align-items:center; gap:10px; font-size:19px; font-weight:800; letter-spacing:-.03em;}
+  .brand svg{width:32px; height:32px;}
+  .nav-links{display:none; gap:26px; margin-left:auto; font-size:15px; font-weight:600; color:var(--mut);}
+  .nav-links a{transition:color .2s;} .nav-links a:hover{color:var(--ink);}
+  .nav-cta{margin-left:auto; min-height:44px; padding:0 18px; font-size:15px; border-radius:12px;}
+  @media (max-width:899px){ .nav-cta{background:var(--accent-soft); color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent-line); font-weight:750;} }
+  @media (min-width:900px){ .nav-links{display:flex;} .nav-cta{margin-left:0;} }
 
-  /* первый экран */
-  .hero{padding-top:34px;}
-  .hero-grid{display:grid; gap:30px; align-items:center;}
-  .hero .cta{margin-top:24px; max-width:420px;}
-  @media (min-width:900px){ .hero{padding-top:64px;} .hero-grid{grid-template-columns:1.05fr .95fr; gap:56px;} }
+  /* ── первый экран ──────────────────────────────────────── */
+  .hero{position:relative; padding-top:clamp(28px,6vw,84px); isolation:isolate;}
+  .hero::before{content:""; position:absolute; inset:-120px 0 auto; height:900px; z-index:-1; pointer-events:none;
+    background:radial-gradient(600px 420px at 18% 18%,rgba(47,227,143,.13),transparent 70%),radial-gradient(700px 500px at 88% 8%,rgba(53,140,255,.08),transparent 70%);}
+  .hero::after{content:""; position:absolute; inset:-66px 0 auto; height:820px; z-index:-1; pointer-events:none; opacity:.55;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px); background-size:56px 56px;
+    -webkit-mask-image:radial-gradient(ellipse 70% 60% at 30% 25%,#000 20%,transparent 75%); mask-image:radial-gradient(ellipse 70% 60% at 30% 25%,#000 20%,transparent 75%);}
+  .hero-grid{display:grid; gap:44px; align-items:center;}
+  .pill{display:inline-flex; align-items:center; gap:8px; padding:7px 14px 7px 10px; border-radius:99px; background:rgba(255,255,255,.035); box-shadow:inset 0 0 0 1px var(--line-2); font-size:13.5px; font-weight:650; color:var(--ink-2);}
+  .pill i{width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px var(--accent-soft);}
+  .hero h1{margin-top:22px;}
+  .hero .lead{margin-top:20px;}
+  .hero-cta{display:flex; flex-wrap:wrap; gap:12px; margin-top:32px;}
+  .trust{display:flex; flex-wrap:wrap; gap:10px 20px; margin-top:22px; font-size:14.5px; font-weight:600; color:var(--mut);}
+  .trust>span{display:inline-flex; align-items:center; gap:7px;}
+  .trust .ico{width:17px; height:17px; color:var(--accent); stroke-width:2.2;}
+  @media (max-width:559px){ .hero-cta .btn{width:100%;} .hero-cta .btn-ghost{display:none;} }
+  @media (min-width:980px){ .hero-grid{grid-template-columns:minmax(0,1.22fr) minmax(0,.78fr); gap:56px;} }
 
-  /* мини-игра */
-  .demo{padding:16px;}
-  .dhead{display:flex; align-items:center; justify-content:space-between; gap:10px;}
-  .chip{display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:99px; font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap;}
-  .chip.coin{background:linear-gradient(180deg,#1d1707,#120d04); border:1px solid #6e5320; color:var(--gold);}
-  .chip.coin.pulse{animation:pulse .45s;}
-  @keyframes pulse{50%{transform:scale(1.12); box-shadow:0 0 18px #f5c45155;}}
-  .dsub{font-size:13px; color:var(--mut); margin-top:8px;}
-  .dgrid{display:grid; grid-template-columns:30px repeat(7,minmax(0,1fr)); gap:5px; margin-top:14px; align-items:center;}
-  .dgrid .dd{font-size:10.5px; color:var(--mut2); text-align:center; text-transform:uppercase; letter-spacing:.5px; font-weight:700;}
-  .dgrid .dd.we{color:#c9a24a;}
-  .dgrid .hi{font-size:18px; text-align:center;}
-  .cell{aspect-ratio:1; min-height:30px; border-radius:9px; border:1.5px solid var(--line2); background:#0a1119; cursor:pointer; display:grid; place-items:center; color:#04120b; font-weight:900; font-size:14px; transition:background .15s,border-color .15s,transform .12s; -webkit-tap-highlight-color:transparent;}
+  /* ── мини-игра ─────────────────────────────────────────── */
+  .demo{position:relative; padding:20px; border-radius:var(--r-xl); background:linear-gradient(180deg,var(--surface-2),var(--surface)); box-shadow:inset 0 0 0 1px var(--line-2), inset 0 1px 0 rgba(255,255,255,.06), 0 40px 90px -30px rgba(0,0,0,.75);}
+  .demo::before{content:""; position:absolute; inset:12% 8% auto; height:60%; z-index:-1; background:radial-gradient(closest-side,rgba(47,227,143,.18),transparent); filter:blur(30px);}
+  @media (max-width:359px){ .demo{padding:16px 14px;} }
+  @media (max-width:979px){ .demo{width:100%; max-width:520px; justify-self:center;} }   /* на планшете клетки не раздуваются до 90 px */
+  .d-top{display:flex; align-items:flex-start; justify-content:space-between; gap:12px;}
+  .d-kicker{font-size:12.5px; font-weight:700; color:var(--accent);}
+  .d-title{font-size:21px; font-weight:800; letter-spacing:-.02em; margin-top:2px;}
+  .wallet{display:inline-flex; align-items:center; gap:7px; height:38px; padding:0 13px 0 9px; border-radius:99px; background:var(--gold-soft); box-shadow:inset 0 0 0 1px var(--gold-line); color:var(--gold); font-weight:800; font-size:16px; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .wallet svg{width:20px; height:20px;}
+  .wallet.bump{animation:bump .5s var(--ease);}
+  @keyframes bump{40%{transform:scale(1.1);}}
+  .d-hint{font-size:13.5px; color:var(--mut); margin-top:8px; line-height:1.5;}
+  .d-days,.d-cells{display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px;}
+  .d-days{margin-top:16px;}
+  .d-days span{font-size:11px; font-weight:700; color:var(--dim); text-align:center; text-transform:uppercase; letter-spacing:.06em;}
+  .d-days span.we{color:#b99a52;}
+  .d-row{margin-top:12px;}
+  .d-name{font-size:13.5px; font-weight:650; color:var(--ink-2); margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .cell{position:relative; aspect-ratio:1; min-height:30px; border-radius:10px; background:rgba(255,255,255,.025); box-shadow:inset 0 0 0 1px var(--line-2);
+    display:grid; place-items:center; color:var(--accent-ink); transition:background-color .18s, box-shadow .18s, transform .14s var(--ease); -webkit-tap-highlight-color:transparent; touch-action:manipulation;}
+  .cell svg{width:58%; height:58%; stroke-width:2.8; opacity:0; transform:scale(.4); transition:opacity .18s, transform .3s var(--ease);}
+  .cell.on{background:linear-gradient(180deg,#45efa3,var(--accent-2)); box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 4px 14px -6px rgba(47,227,143,.7);}
+  .cell.on svg{opacity:1; transform:none;}
   .cell:active{transform:scale(.9);}
-  .cell.on{background:linear-gradient(180deg,var(--emerald),#17a768); border-color:var(--emerald); box-shadow:0 0 10px #2fe38f55;}
-  .cell.on::after{content:"✓";}
-  .dlegend{font-size:12px; color:var(--mut2); margin-top:9px; line-height:1.45;}
-  .dlvl{margin-top:16px; padding-top:14px; border-top:1px solid var(--line);}
-  .dlvl-row{display:flex; align-items:baseline; justify-content:space-between; gap:10px;}
-  .dlv{font-family:var(--fd); font-size:22px;}
-  .drank{font-size:13.5px; color:var(--mut);}
-  .dbar{height:10px; border-radius:99px; background:#0a1119; border:1px solid var(--line); overflow:hidden; margin-top:10px;}
-  .dbar span{display:block; height:100%; width:0; background:linear-gradient(90deg,#178a5a,var(--emerald)); box-shadow:0 0 13px #2fe38f88; transition:width .45s cubic-bezier(.2,.8,.2,1);}
-  .dnext{font-size:12px; color:var(--mut2); margin-top:7px;}
-  .dnext b{color:var(--gold); font-weight:600;}
-  .city{display:flex; align-items:flex-end; gap:6px; height:64px; margin-top:14px; padding:0 2px; border-bottom:1.5px solid #35d0ff88; box-shadow:0 1px 8px -2px #35d0ff55;}
-  .bld{flex:1; max-width:26px; border:1.5px solid var(--emerald); border-bottom:none; border-radius:3px 3px 0 0; background:#2fe38f1f; position:relative; transition:height .45s;}
-  .bld.gold{border-color:var(--gold);}
-  .bld.cur{background:#2fe38f40; box-shadow:0 0 14px #2fe38f66;}
-  .bld.next{border:1.3px dashed var(--mut2); border-bottom:none; background:linear-gradient(to top,#2fe38f30 var(--f,0%),transparent var(--f,0%));}
-  .bld.new{animation:rise .6s cubic-bezier(.2,.8,.2,1);}
-  @keyframes rise{from{transform:scaleY(.2); transform-origin:bottom;} to{transform:scaleY(1); transform-origin:bottom;}}
-  .dmsg{min-height:44px; margin-top:13px; font-size:13.5px; color:var(--mut); line-height:1.45;}
-  .dmsg b{color:var(--ink);}
-  .dmsg.hot{color:var(--ink);}
-  .dfin{display:none; margin-top:12px;}
-  .dfin.on{display:block;}
-  .fly{position:fixed; z-index:60; pointer-events:none; font-size:16px; font-weight:800; color:var(--gold); text-shadow:0 0 10px #f5c45188;}
+  @media (hover:hover){ .cell:not(.on):hover{box-shadow:inset 0 0 0 1px var(--accent-line); background:var(--accent-soft);} }
+  .cell.hint{box-shadow:inset 0 0 0 1.5px var(--accent-line); background:var(--accent-soft);}
+  .cell.hint::after{content:""; position:absolute; inset:-1px; border-radius:inherit; box-shadow:0 0 0 0 rgba(47,227,143,.55); animation:ring 1.8s var(--ease) infinite;}
+  @keyframes ring{0%{box-shadow:0 0 0 0 rgba(47,227,143,.55);} 70%,100%{box-shadow:0 0 0 9px rgba(47,227,143,0);}}
+  .d-level{margin-top:18px; padding-top:16px; border-top:1px solid var(--line);}
+  .d-lvrow{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .d-lv{font-size:18px; font-weight:800; letter-spacing:-.02em;}
+  .rank{font-size:13px; font-weight:700; color:var(--ink-2); padding:5px 11px; border-radius:99px; background:rgba(255,255,255,.04); box-shadow:inset 0 0 0 1px var(--line); white-space:nowrap;}
+  .bar{height:8px; border-radius:99px; background:rgba(255,255,255,.06); overflow:hidden; margin-top:12px;}
+  .bar span{display:block; height:100%; width:0; border-radius:inherit; background:linear-gradient(90deg,var(--accent-2),var(--accent)); transition:width .6s var(--ease);}
+  .d-next{font-size:12.5px; color:var(--dim); margin-top:8px; font-variant-numeric:tabular-nums;}
+  .d-next b{color:var(--gold); font-weight:700;}
+  .city{display:flex; align-items:flex-end; gap:5px; height:58px; margin-top:14px; padding:0 2px; border-bottom:1px solid rgba(255,255,255,.12);}
+  .bld{flex:1; max-width:24px; border-radius:4px 4px 0 0; position:relative; transform-origin:bottom; transition:height .5s var(--ease);
+    background:linear-gradient(180deg,rgba(47,227,143,.32),rgba(47,227,143,.12)); box-shadow:inset 0 0 0 1px rgba(47,227,143,.55);}
+  .bld::after{content:""; position:absolute; inset:5px 4px 4px; background-image:radial-gradient(circle,rgba(245,196,81,.85) .9px,transparent 1.3px); background-size:5px 6px; opacity:.7;}
+  .bld.gold{box-shadow:inset 0 0 0 1px rgba(245,196,81,.7); background:linear-gradient(180deg,rgba(245,196,81,.3),rgba(245,196,81,.08));}
+  .bld.cur{box-shadow:inset 0 0 0 1.5px var(--accent), 0 0 18px -4px rgba(47,227,143,.8);}
+  .bld.gold.cur{box-shadow:inset 0 0 0 1.5px var(--gold), 0 0 18px -4px rgba(245,196,81,.8);}
+  .bld.next{background:linear-gradient(to top,rgba(47,227,143,.2) var(--f,0%),transparent var(--f,0%)); box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);}
+  .bld.next::after,.bld.far::after{display:none;}
+  .bld.far{background:none; box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);}
+  .bld.new{animation:rise .7s var(--ease);}
+  @keyframes rise{from{transform:scaleY(.15); opacity:.3;}}
+  .d-msg{display:flex; gap:9px; align-items:flex-start; min-height:44px; margin-top:14px; font-size:14px; line-height:1.5; color:var(--mut);}
+  .d-msg b{color:var(--ink); font-weight:750;}
+  .d-msg.hot{color:var(--ink-2);}
+  .d-fin{display:none; margin-top:14px;}
+  .d-fin.on{display:block; animation:fadeup .5s var(--ease);}
+  @keyframes fadeup{from{opacity:0; transform:translateY(8px);}}
+  .fly{position:fixed; z-index:80; pointer-events:none; display:flex; align-items:center; gap:4px; font-weight:800; font-size:15px; color:var(--gold); text-shadow:0 2px 12px rgba(0,0,0,.6);}
+  .fly svg{width:16px; height:16px;}
 
-  /* как это работает */
-  .steps{display:grid; gap:12px; margin-top:24px;}
-  @media (min-width:760px){ .steps{grid-template-columns:repeat(2,minmax(0,1fr));} }
-  .step{display:flex; gap:14px; padding:18px;}
-  .step .ic{flex:none; width:44px; height:44px; border-radius:13px; display:grid; place-items:center; font-size:22px; background:#0e2f22; border:1px solid #1c7a54;}
-  .step h3{font-size:16.5px; line-height:1.3;}
-  .step p{font-size:14.5px; color:var(--mut); margin-top:4px;}
-  .step b{color:var(--gold); font-weight:700;}
+  /* ── как это работает ──────────────────────────────────── */
+  .steps{display:grid; gap:14px; margin-top:44px;}
+  @media (min-width:640px){ .steps{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media (min-width:1040px){ .steps{grid-template-columns:repeat(4,minmax(0,1fr));} }
+  .card{border-radius:var(--r-lg); background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015)); box-shadow:inset 0 0 0 1px var(--line);}
+  .step{padding:24px; display:flex; flex-direction:column; gap:12px;}
+  .step-top{display:flex; align-items:center; justify-content:space-between;}
+  .badge-ico{width:46px; height:46px; flex:none; border-radius:14px; display:grid; place-items:center; background:var(--accent-soft); box-shadow:inset 0 0 0 1px var(--accent-line); color:var(--accent);}
+  .badge-ico .ico{width:22px; height:22px;}
+  .badge-ico.gold{background:var(--gold-soft); box-shadow:inset 0 0 0 1px var(--gold-line); color:var(--gold);}
+  .num{font-size:13px; font-weight:800; color:var(--dim); font-variant-numeric:tabular-nums; letter-spacing:.04em;}
+  .step p{font-size:15.5px; color:var(--mut); line-height:1.6;}
+  .step p b{color:var(--ink); font-weight:700;}
+  @media (max-width:639px){
+    .step{display:grid; grid-template-columns:46px 1fr; column-gap:16px; row-gap:4px; padding:20px;}
+    .step .step-top{grid-row:span 2; align-self:start;} .step .num{display:none;} .step h3{align-self:end;}
+    .why .card{display:grid; grid-template-columns:46px 1fr; column-gap:16px; padding:20px;} .why .badge-ico{grid-row:span 2;} .why .card h3{margin-top:2px;} .why .card p{margin-top:4px;}   /* .card — чтобы перебить правила раздела ниже */
+  }
 
-  /* экраны */
-  .shots{display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory; margin:24px -16px 0; padding:4px 16px 14px; scrollbar-width:none;}
-  .shots::-webkit-scrollbar{display:none;}
-  .shot{flex:none; width:min(250px,70vw); scroll-snap-align:center;}
-  .phone{border-radius:30px; padding:7px; background:#05080d; border:1px solid var(--line2); box-shadow:0 16px 40px #000a, inset 0 1px 0 #ffffff12;}
-  .phone img{display:block; width:100%; height:auto; aspect-ratio:390/800; border-radius:24px; background:var(--panel);}
-  .shot figcaption{font-size:13.5px; color:var(--mut); margin-top:10px; text-align:center;}
-  .shot figcaption b{color:var(--ink); display:block; font-size:15px;}
-  .inside{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
-  .inside span{font-size:13.5px; padding:7px 12px; border-radius:99px; border:1px solid var(--line2); background:var(--panel); color:var(--mut);}
-  .inside span b{color:var(--ink); font-weight:600;}
-  .hint{font-size:12px; color:var(--mut2); margin-top:4px;}
+  /* ── что внутри ────────────────────────────────────────── */
+  .features{display:grid; gap:clamp(64px,9vw,110px); margin-top:clamp(48px,7vw,80px);}
+  .feature{display:grid; gap:34px; align-items:center;}
+  @media (min-width:900px){ .feature{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); gap:72px;} .feature.rev .f-media{order:2;} }
+  .f-media{position:relative; display:grid; place-items:center; isolation:isolate;}
+  .f-media::before{content:""; position:absolute; width:78%; aspect-ratio:1; border-radius:50%; z-index:-1; background:radial-gradient(closest-side,rgba(47,227,143,.16),transparent); filter:blur(10px);}
+  .phone{width:min(300px,78vw); border-radius:46px; padding:10px; background:linear-gradient(160deg,#1b222d,#0b0f15 40%,#151b25); box-shadow:inset 0 0 0 1px rgba(255,255,255,.14), 0 50px 100px -30px rgba(0,0,0,.85), 0 20px 40px -20px rgba(0,0,0,.6);}
+  .phone-screen{position:relative; border-radius:37px; overflow:hidden; background:var(--surface); aspect-ratio:390/800;}
+  .phone-screen img{width:100%; height:100%; object-fit:cover; object-position:top;}
+  .phone-screen::after{content:""; position:absolute; inset:0; border-radius:inherit; box-shadow:inset 0 0 0 1px rgba(255,255,255,.06); pointer-events:none;}
+  .f-text h3{font-size:clamp(26px,4.2vw,38px); letter-spacing:-.03em; margin-top:14px; line-height:1.1;}
+  .f-text p{font-size:17px; color:var(--mut); margin-top:14px; max-width:30em;}
+  .list{list-style:none; display:grid; gap:12px; margin-top:24px;}
+  .list li{display:flex; gap:12px; align-items:flex-start; font-size:16px; color:var(--ink-2); line-height:1.5;}
+  .list .ico{width:22px; height:22px; padding:3px; border-radius:50%; background:var(--accent-soft); color:var(--accent); stroke-width:2.6; margin-top:1px;}
+  .more{display:grid; gap:14px; margin-top:clamp(56px,8vw,96px);}
+  @media (min-width:760px){ .more{grid-template-columns:repeat(3,minmax(0,1fr));} }
+  .more .card{padding:24px; display:flex; gap:16px; align-items:flex-start;}
+  .more p{font-size:15px; color:var(--mut); margin-top:6px; line-height:1.55;}
 
-  /* почему работает */
-  .why{display:grid; gap:12px; margin-top:24px;}
-  @media (min-width:760px){ .why{grid-template-columns:repeat(3,minmax(0,1fr));} }
-  .why>div{padding:18px;}
-  .why h3{font-size:16.5px;}
-  .why p{font-size:14.5px; color:var(--mut); margin-top:6px;}
+  /* ── почему держит ─────────────────────────────────────── */
+  .why{display:grid; gap:14px; margin-top:44px;}
+  @media (min-width:860px){ .why{grid-template-columns:repeat(3,minmax(0,1fr));} }
+  .why .card{padding:28px 26px;}
+  .why h3{margin-top:18px;}
+  .why p{font-size:15.5px; color:var(--mut); margin-top:8px; line-height:1.6;}
 
-  /* тарифы */
-  .plans{display:grid; gap:14px; margin-top:24px;}
-  @media (min-width:760px){ .plans{grid-template-columns:repeat(2,minmax(0,1fr)); max-width:820px;} }
-  .plan{padding:22px 20px; position:relative;}
-  .plan.best{border:1.5px solid #2fa872; background:linear-gradient(168deg,#10291f,#0f1520); box-shadow:0 0 30px #2fe38f22, inset 0 1px 0 #ffffff0e;}
-  .badge{position:absolute; top:-12px; left:18px; padding:4px 11px; border-radius:99px; background:var(--gold); color:#1a1200; font-size:12px; font-weight:800;}
-  .plan h3{font-size:15px; color:var(--mut); font-weight:600;}
-  .price{font-family:var(--fd); font-size:44px; margin-top:6px; line-height:1;}
-  .price small{font-family:var(--fb); font-size:15px; color:var(--mut); font-weight:500;}
-  .perday{font-size:14px; color:var(--emerald); margin-top:8px; font-weight:600;}
-  .plan .old{font-size:13px; color:var(--mut2); margin-top:4px;}
-  .incl{list-style:none; display:grid; gap:9px; margin-top:22px; max-width:820px;}
-  .incl li{display:flex; gap:10px; font-size:15px; color:var(--mut);}
-  .incl li::before{content:"✓"; flex:none; width:22px; height:22px; border-radius:50%; display:grid; place-items:center; background:#0e2f22; border:1px solid #1c7a54; color:var(--emerald); font-size:12px; font-weight:900;}
-  .incl b{color:var(--ink); font-weight:600;}
-  .pcta{margin-top:24px; max-width:420px;}
-  .fine{font-size:12.5px; color:var(--mut2); margin-top:12px; max-width:560px; line-height:1.5;}
+  /* ── тарифы ────────────────────────────────────────────── */
+  .pricing{max-width:600px; margin:44px auto 0; padding:clamp(20px,4vw,32px); border-radius:var(--r-xl); background:linear-gradient(180deg,var(--surface-2),var(--surface)); box-shadow:inset 0 0 0 1px var(--line-2), 0 40px 90px -40px rgba(0,0,0,.8);}
+  .plans{display:grid; gap:10px;}
+  @media (min-width:340px){ .plans{grid-template-columns:1fr 1fr;} }
+  .plan{position:relative; text-align:left; padding:16px 16px 15px; border-radius:var(--r); background:rgba(255,255,255,.02); box-shadow:inset 0 0 0 1px var(--line-2); transition:box-shadow .2s, background-color .2s;}
+  .plan[aria-checked="true"]{background:var(--accent-soft); box-shadow:inset 0 0 0 1.5px var(--accent);}
+  .plan-top{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .plan-name{font-size:15px; font-weight:750; color:var(--ink-2);}
+  .radio{width:20px; height:20px; border-radius:50%; box-shadow:inset 0 0 0 1.5px var(--line-2); display:grid; place-items:center; flex:none;}
+  .plan[aria-checked="true"] .radio{box-shadow:inset 0 0 0 1.5px var(--accent);}
+  .plan[aria-checked="true"] .radio::after{content:""; width:10px; height:10px; border-radius:50%; background:var(--accent);}
+  .plan-price{display:block; font-size:clamp(25px,7vw,32px); font-weight:800; letter-spacing:-.035em; margin-top:12px; font-variant-numeric:tabular-nums; white-space:nowrap; line-height:1.1;}
+  .plan-day{display:block; font-size:13.5px; font-weight:650; color:var(--mut); margin-top:2px;}
+  .save{position:absolute; top:-11px; right:12px; padding:3px 9px; border-radius:99px; background:var(--gold); color:#1f1500; font-size:12px; font-weight:800;}
+  .incl{list-style:none; display:grid; gap:12px; margin:24px 0 26px; padding-top:22px; border-top:1px solid var(--line);}
+  .incl li{display:flex; gap:12px; align-items:flex-start; font-size:15.5px; color:var(--ink-2);}
+  .incl .ico{width:21px; height:21px; color:var(--accent); stroke-width:2.4; margin-top:1px;}
+  .p-note{font-size:13.5px; color:var(--mut); text-align:center; margin-top:14px; line-height:1.5;}
+  .p-note b{color:var(--ink-2); font-weight:700;}
+  .assure{display:flex; flex-wrap:wrap; justify-content:center; gap:10px 22px; margin-top:22px; font-size:13.5px; font-weight:600; color:var(--dim);}
+  .assure>span{display:inline-flex; align-items:center; gap:7px;}
+  .assure .ico{width:16px; height:16px;}
 
-  /* вопросы */
-  .faq{margin-top:22px; display:grid; gap:10px; max-width:760px;}
-  .faq details{padding:0 18px;}
-  .faq summary{list-style:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:58px; font-weight:650; font-size:15.5px;}
+  /* ── вопросы ───────────────────────────────────────────── */
+  .faq{max-width:780px; margin:40px auto 0; border-top:1px solid var(--line);}
+  .faq details{border-bottom:1px solid var(--line);}
+  .faq summary{list-style:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:18px; padding:22px 2px; font-size:17px; font-weight:700; letter-spacing:-.01em;}
   .faq summary::-webkit-details-marker{display:none;}
-  .faq summary::after{content:"+"; flex:none; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; border:1px solid var(--line2); color:var(--emerald); font-size:18px; transition:transform .2s;}
-  .faq details[open] summary::after{transform:rotate(45deg);}
-  .faq details p{font-size:14.5px; color:var(--mut); padding-bottom:18px;}
+  .faq summary .pm{flex:none; width:30px; height:30px; border-radius:50%; display:grid; place-items:center; box-shadow:inset 0 0 0 1px var(--line-2); color:var(--mut); transition:transform .3s var(--ease), color .2s, box-shadow .2s;}
+  .faq summary .pm .ico{width:16px; height:16px; stroke-width:2.2;}
+  .faq details[open] summary .pm{transform:rotate(45deg); color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent-line);}
+  @media (hover:hover){ .faq summary:hover .pm{color:var(--ink);} }
+  .faq details p{font-size:16px; color:var(--mut); padding:0 48px 24px 2px; line-height:1.65; max-width:46em;}
+  .faq details[open] p{animation:fadeup .35s var(--ease);}
 
-  /* финал и подвал */
-  .final{text-align:center; padding-top:72px;}
-  .final .lead{margin-left:auto; margin-right:auto;}
-  .final .btn{max-width:420px; margin:26px auto 0;}
-  footer{margin-top:72px; border-top:1px solid var(--line); padding:26px 0 calc(110px + env(safe-area-inset-bottom)); font-size:13px; color:var(--mut2);}
-  footer nav{display:flex; flex-wrap:wrap; gap:6px 18px; margin-bottom:12px;}
-  footer nav a{color:var(--mut); text-decoration:none; padding:6px 0;}
-  footer p{line-height:1.6;}
+  /* ── финал и подвал ────────────────────────────────────── */
+  .final{position:relative; overflow:hidden; padding:clamp(48px,8vw,88px) var(--pad); border-radius:var(--r-xl); text-align:center; isolation:isolate;
+    background:linear-gradient(180deg,#0f1a17,#0c1218); box-shadow:inset 0 0 0 1px var(--accent-line);}
+  .final::before{content:""; position:absolute; inset:-40% -10% auto; height:120%; z-index:-1; background:radial-gradient(closest-side,rgba(47,227,143,.22),transparent);}
+  .final h2{margin-top:0;} .final .sub{margin-left:auto; margin-right:auto;}
+  .final .btn{margin-top:30px;}
+  .final .trust{justify-content:center;}
+  footer{margin-top:clamp(84px,12vw,130px); border-top:1px solid var(--line); padding:44px 0 calc(36px + env(safe-area-inset-bottom)); font-size:14.5px; color:var(--mut);}
+  footer .brand{color:var(--ink);}
+  .f-grid{display:grid; gap:32px;}
+  @media (min-width:760px){ .f-grid{grid-template-columns:1.4fr 1fr 1fr 1fr;} }
+  .f-grid h4{font-size:13px; font-weight:750; color:var(--ink-2); margin-bottom:12px;}
+  .f-grid ul{list-style:none; display:grid; gap:8px;}
+  .f-grid a{transition:color .2s;} .f-grid a:hover{color:var(--ink);}
+  .f-about p{margin-top:12px; max-width:26em; line-height:1.6;}
+  .f-legal{margin-top:36px; padding-top:22px; border-top:1px solid var(--line); font-size:13px; color:var(--dim); display:flex; flex-wrap:wrap; gap:8px 24px; justify-content:space-between;}
 
-  /* липкая кнопка на телефоне */
-  .sticky{position:fixed; left:0; right:0; bottom:0; z-index:40; padding:10px max(16px,env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)); background:#080b11e6; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-top:1px solid var(--line); transform:translateY(110%); transition:transform .25s;}
+  /* ── липкая кнопка (телефон) ───────────────────────────── */
+  .sticky{position:fixed; left:0; right:0; bottom:0; z-index:60; padding:10px max(var(--pad),env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom));
+    background:rgba(7,9,13,.82); -webkit-backdrop-filter:saturate(1.4) blur(14px); backdrop-filter:saturate(1.4) blur(14px); box-shadow:0 -1px 0 var(--line);
+    transform:translateY(110%); transition:transform .35s var(--ease);}
   .sticky.on{transform:none;}
-  .sticky .btn{min-height:52px; padding-top:15px; padding-bottom:15px; max-width:480px; margin:0 auto;}
-  @media (min-width:900px){ .sticky{display:none;} footer{padding-bottom:40px;} }
+  .sticky .btn{width:100%; max-width:520px; min-height:52px; margin:0 auto; display:flex;}
+  @media (min-width:900px){ .sticky{display:none;} }
+
+  /* ── появление при прокрутке ───────────────────────────── */
+  .js [data-reveal]{opacity:0; transform:translateY(18px); transition:opacity .7s var(--ease), transform .7s var(--ease); transition-delay:var(--d,0s);}
+  .js [data-reveal].in{opacity:1; transform:none;}
 
   @media (prefers-reduced-motion:reduce){
-    *,*::before,*::after{animation:none!important; transition:none!important;}
-    html{scroll-behavior:auto;}
+    *,*::before,*::after{animation:none!important; transition:none!important; scroll-behavior:auto!important;}
+    .js [data-reveal]{opacity:1; transform:none;}
   }
 </style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="gMark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4af3a7"/><stop offset="1" stop-color="#13a865"/></linearGradient>
+    <radialGradient id="gCoin" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffe7a1"/><stop offset=".55" stop-color="#f5c451"/><stop offset="1" stop-color="#c8901f"/></radialGradient>
+  </defs>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.3 4.3L19 7.2"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-tap" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><path d="M8 12.3l2.8 2.8 5.3-5.6"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3.2c.5 3 5 4.8 5 9.6a5 5 0 0 1-10 0c0-2.4 1.2-4 2.5-4.9.1 1.8 1 2.9 2.1 3.2-.6-2.5-.3-5.3.4-7.9Z"/></symbol>
+  <symbol id="i-city" viewBox="0 0 24 24"><path d="M3.5 20.5h17M5.5 20.5v-8h4v8M10 20.5V5.5h4.5v15M15 20.5v-11h3.5v11"/><path d="M12 9h.5M12 12h.5M12 15h.5"/></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24"><rect x="4" y="9.5" width="16" height="10.5" rx="2"/><path d="M3.5 9.5h17M12 9.5V20M12 9.5C10.7 6 6.8 5.4 6.8 7.6 6.8 9.3 10 9.5 12 9.5Zm0 0c1.3-3.5 5.2-4.1 5.2-1.9 0 1.7-3.2 1.9-5.2 1.9Z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12h.01"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3.5" y="6" width="17" height="13.5" rx="3.5"/><path d="M3.5 10.5h17M15.5 15h2"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12.5h4.2l2.2-4.5 3.3 8.5 2.2-4h6.1"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5.5 13.5H12L11 21l7.5-10.5H12L13 3Z"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.8 12S6.2 5.5 12 5.5 21.2 12 21.2 12 17.8 18.5 12 18.5 2.8 12 2.8 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.3l7 2.8v5.6c0 4.3-3 7.5-7 8.8-4-1.3-7-4.5-7-8.8V6.1l7-2.8Z"/><path d="M9 12.2l2.1 2.1 4-4.1"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24"><path d="M19.5 9.5A8 8 0 0 0 5.6 7.4L4 9M4 4.5V9h4.5M4.5 14.5a8 8 0 0 0 13.9 2.1L20 15M20 19.5V15h-4.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"/></symbol>
+  <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="url(#gCoin)" stroke="none"/><circle cx="12" cy="12" r="6.6" fill="none" stroke="#a87412" stroke-width="1.4" opacity=".75"/><path d="M12 8.2v7.6" stroke="#8a5c08" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-mark" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="url(#gMark)"/><path d="M16 7.6 7.6 12.2h16.8L16 7.6ZM9.6 14h12.8M10.8 15.4v6.4M16 15.4v6.4M21.2 15.4v6.4M8.4 23.6h15.2" fill="none" stroke="#03150c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
 
-<header class="top">
+<a class="skip" href="#main">К содержимому</a>
+
+<header class="nav" id="nav">
   <div class="wrap">
-    <a class="logo" href="#"><i>🏛</i>Магнат</a>
-    <a class="btn-s" data-app href="./app/">Попробовать</a>
+    <a class="brand" href="#top" aria-label="Магнат — наверх"><svg aria-hidden="true"><use href="#i-mark"/></svg>Магнат</a>
+    <nav class="nav-links" aria-label="Разделы">
+      <a href="#how">Как это работает</a><a href="#inside">Внутри</a><a href="#price">Тарифы</a><a href="#faq">Вопросы</a>
+    </nav>
+    <a class="btn btn-primary nav-cta" data-app href="./app/">Попробовать</a>
   </div>
 </header>
 
-<main>
-  <section class="hero">
+<main id="main">
+  <section class="hero" id="top">
     <div class="wrap hero-grid">
       <div>
-        <div class="tag">Привычки · задачи · деньги · тело</div>
-        <h1>Хватит начинать с&nbsp;<em>понедельника</em></h1>
-        <p class="lead">Магнат превращает жизнь в игру-тайкун. Сделал дело — получил <b>монеты</b>, растёт <b>уровень</b>, а каждый уровень — новое здание в твоей империи.</p>
-        <div class="cta" id="heroCta">
-          <a class="btn" data-app href="./app/">🚀 Попробовать бесплатно</a>
-          <p class="under"><span data-k="trial">7 дней</span> без карты и регистрации</p>
+        <span class="pill" data-reveal><i></i>Привычки · задачи · деньги · тело</span>
+        <h1 data-reveal style="--d:.05s">Хватит начинать с&nbsp;<span class="grad">понедельника</span></h1>
+        <p class="lead" data-reveal style="--d:.1s">Магнат превращает дисциплину в игру-тайкун. Сделал дело — получил монеты, вырос в уровне, достроил свою империю.</p>
+        <div class="hero-cta" id="heroCta" data-reveal style="--d:.15s">
+          <a class="btn btn-primary" data-app href="./app/">Попробовать бесплатно<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+          <a class="btn btn-ghost" href="#how">Как это работает</a>
+        </div>
+        <div class="trust" data-reveal style="--d:.2s">
+          <span><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span><span data-k="trial">7 дней</span> бесплатно</span></span>
+          <span><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Без карты</span>
+          <span><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Работает без интернета</span>
         </div>
       </div>
 
-      <div class="demo glass" id="demo">
-        <div class="dhead">
-          <span class="tag">◆ Попробуй прямо тут</span>
-          <span class="chip coin" id="dCoins">🪙 0</span>
+      <div class="demo" id="demo" data-reveal style="--d:.15s">
+        <div class="d-top">
+          <div><div class="d-kicker">Попробуй прямо здесь</div><div class="d-title">Твоя неделя</div></div>
+          <div class="wallet" id="dWallet" aria-label="Монеты"><svg aria-hidden="true"><use href="#i-coin"/></svg><span id="dCoins">0</span></div>
         </div>
-        <p class="dsub">Отметь неделю — монеты и уровни считаются по правилам приложения.</p>
-        <div class="dgrid" id="dGrid"></div>
-        <p class="dlegend" id="dLegend"></p>
-        <div class="dlvl">
-          <div class="dlvl-row"><span class="dlv" id="dLv">Уровень 1</span><span class="drank" id="dRank">🐣 Новичок</span></div>
-          <div class="dbar"><span id="dBar"></span></div>
-          <div class="dnext" id="dNext">до 2-го уровня — 100 ⭐</div>
+        <p class="d-hint">Отмечай дни — монеты и уровни считаются по правилам приложения.</p>
+        <div class="d-days" aria-hidden="true"><span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span class="we">сб</span><span class="we">вс</span></div>
+        <div id="dGrid"></div>
+        <div class="d-level">
+          <div class="d-lvrow"><span class="d-lv" id="dLv">Уровень 1</span><span class="rank" id="dRank">🐣 Новичок</span></div>
+          <div class="bar"><span id="dBar"></span></div>
+          <div class="d-next" id="dNext">до 2-го уровня — ещё <b>100</b> опыта</div>
           <div class="city" id="dCity" aria-hidden="true"></div>
         </div>
-        <p class="dmsg" id="dMsg" aria-live="polite">Нажми на клетку — за каждую привычку +20 🪙.</p>
-        <div class="dfin" id="dFin"><a class="btn" data-app href="./app/">Начать по-настоящему</a></div>
+        <p class="d-msg" id="dMsg" aria-live="polite">Нажми на любой день — за каждую привычку +20 монет.</p>
+        <div class="d-fin" id="dFin"><a class="btn btn-primary btn-block" data-app href="./app/">Начать по-настоящему<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
       </div>
     </div>
   </section>
 
   <section id="how">
     <div class="wrap">
-      <div class="tag">Как это работает</div>
-      <h2>Дисциплина, которая <em>платит</em></h2>
+      <span class="eyebrow" data-reveal>Как это работает</span>
+      <h2 data-reveal>Дисциплина, которая платит</h2>
+      <p class="sub" data-reveal>Четыре правила — и обычный день превращается в игру, где выигрываешь ты.</p>
       <div class="steps">
-        <div class="step glass"><div class="ic">✅</div><div><h3>Отмечаешь привычки и задачи</h3><p>За каждую — <b>+20 🪙</b> сразу. Не через полгода в зеркале, а прямо сейчас.</p></div></div>
-        <div class="step glass"><div class="ic">🔥</div><div><h3>Дни подряд — серия</h3><p>Монеты за привычку растут до <b>×2</b>. Бросить становится жалко.</p></div></div>
-        <div class="step glass"><div class="ic">🏛</div><div><h3>Растёт твоя империя</h3><p>Каждый уровень — новое здание в городе и <b>+50 🪙</b>. Звания — от 🐣 Новичка до 👑 Магната.</p></div></div>
-        <div class="step glass"><div class="ic">🎁</div><div><h3>Монеты — на настоящие награды</h3><p>TikTok, игры, читмил, кино. Без чувства вины: ты их заработал.</p></div></div>
+        <article class="card step" data-reveal><div class="step-top"><span class="badge-ico"><svg class="ico" aria-hidden="true"><use href="#i-tap"/></svg></span><span class="num">01</span></div>
+          <h3>Отмечай</h3><p>Привычки и задачи. За каждую отметку — <b>+20 монет</b>, сразу.</p></article>
+        <article class="card step" data-reveal style="--d:.06s"><div class="step-top"><span class="badge-ico"><svg class="ico" aria-hidden="true"><use href="#i-flame"/></svg></span><span class="num">02</span></div>
+          <h3>Держи серию</h3><p>Три отметки за день — день в серии. Монеты за привычки растут до <b>×2</b>.</p></article>
+        <article class="card step" data-reveal style="--d:.12s"><div class="step-top"><span class="badge-ico"><svg class="ico" aria-hidden="true"><use href="#i-city"/></svg></span><span class="num">03</span></div>
+          <h3>Расти</h3><p>Опыт поднимает уровень: новое здание в городе и <b>+50 монет</b>. От Новичка до Магната.</p></article>
+        <article class="card step" data-reveal style="--d:.18s"><div class="step-top"><span class="badge-ico gold"><svg class="ico" aria-hidden="true"><use href="#i-gift"/></svg></span><span class="num">04</span></div>
+          <h3>Награждай себя</h3><p>Трать монеты на то, что любишь: TikTok, игры, читмил. Честно заработано.</p></article>
       </div>
     </div>
   </section>
 
   <section id="inside">
     <div class="wrap">
-      <div class="tag">Что внутри</div>
-      <h2>Вся жизнь — в <em>одной</em> игре</h2>
-      <div class="inside">
-        <span>🏛 <b>Обзор</b> дня</span><span>✅ <b>Привычки</b> и календарь</span><span>🎯 <b>Задачи</b> со сроками</span>
-        <span>💰 <b>Финансы</b> за месяц</span><span>💪 <b>Тело</b>: вес и нормы</span><span>🛒 <b>Награды</b></span>
+      <div class="center">
+        <span class="eyebrow" data-reveal>Внутри</span>
+        <h2 data-reveal>Вся жизнь — в одной игре</h2>
+        <p class="sub" data-reveal>Шесть разделов и одна система монет. Ничего лишнего.</p>
       </div>
-      <div class="shots" id="shots">
-        <figure class="shot"><div class="phone"><img src="img/obzor.jpg" alt="Экран «Обзор»: галочки дня, уровень империи" loading="lazy" width="390" height="800"></div><figcaption><b>Обзор</b>галочки дня и твой уровень</figcaption></figure>
-        <figure class="shot"><div class="phone"><img src="img/privychki.jpg" alt="Экран «Привычки»: календарь месяца" loading="lazy" width="390" height="800"></div><figcaption><b>Привычки</b>месяц как на ладони</figcaption></figure>
-        <figure class="shot"><div class="phone"><img src="img/nagrady.jpg" alt="Экран «Награды»: кошелёк и награды" loading="lazy" width="390" height="800"></div><figcaption><b>Награды</b>трать заработанное</figcaption></figure>
+      <div class="features">
+        <div class="feature">
+          <div class="f-media" data-reveal><div class="phone"><div class="phone-screen"><img src="img/obzor.webp" alt="Экран «Обзор»: галочки дня, уровень и серия" width="390" height="800" loading="lazy" decoding="async"></div></div></div>
+          <div class="f-text" data-reveal>
+            <span class="eyebrow">Обзор</span>
+            <h3>День на одном экране</h3>
+            <p>Открыл — и сразу видно, что сделать сегодня и сколько осталось до нового уровня.</p>
+            <ul class="list">
+              <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Галочки дня — первым делом, в один тап</li>
+              <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Уровень, серия и монеты — перед глазами</li>
+              <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Инсайт недели — только из твоих данных</li>
+            </ul>
+          </div>
+        </div>
+        <div class="feature rev">
+          <div class="f-media" data-reveal><div class="phone"><div class="phone-screen"><img src="img/privychki.webp" alt="Экран «Привычки»: календарь месяца с отмеченными днями" width="390" height="800" loading="lazy" decoding="async"></div></div></div>
+          <div class="f-text" data-reveal>
+            <span class="eyebrow">Привычки</span>
+            <h3>Месяц как на ладони</h3>
+            <p>Календарь показывает, где ты держишь темп, а где проседаешь, — без таблиц и отчётов.</p>
+            <ul class="list">
+              <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Календарь месяца: каждый день виден сразу</li>
+              <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Сила по неделям и топ привычек</li>
+              <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Забыл отметить вчера — отметишь задним числом</li>
+            </ul>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="f-media" data-reveal><div class="phone"><div class="phone-screen"><img src="img/nagrady.webp" alt="Экран «Награды»: кошелёк и награды за монеты" width="390" height="800" loading="lazy" decoding="async"></div></div></div>
+          <div class="f-text" data-reveal>
+            <span class="eyebrow">Награды</span>
+            <h3>Трать заработанное</h3>
+            <p>Отдых без чувства вины: ты его заработал, и кошелёк это помнит.</p>
+            <ul class="list">
+              <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Свои награды — любые, какие захочешь</li>
+              <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Цена в привычках: «читмил = 5 привычек»</li>
+              <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Видно, откуда пришла каждая монета</li>
+            </ul>
+          </div>
+        </div>
       </div>
-      <p class="hint">Экраны — настоящие, на примере данных.</p>
+      <div class="more">
+        <div class="card" data-reveal><span class="badge-ico"><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg></span><div><h3>Задачи</h3><p>Приоритеты и сроки. Выполнил — +20 монет, как за привычку.</p></div></div>
+        <div class="card" data-reveal style="--d:.06s"><span class="badge-ico gold"><svg class="ico" aria-hidden="true"><use href="#i-wallet"/></svg></span><div><h3>Финансы</h3><p>Доходы и расходы месяца, траты по категориям — без таблиц.</p></div></div>
+        <div class="card" data-reveal style="--d:.12s"><span class="badge-ico"><svg class="ico" aria-hidden="true"><use href="#i-pulse"/></svg></span><div><h3>Тело</h3><p>Вес и цель. Нормы калорий и воды считаются сами.</p></div></div>
+      </div>
     </div>
   </section>
 
   <section id="why">
     <div class="wrap">
-      <div class="tag">Почему это держит</div>
-      <h2>Сила воли кончается. <em>Игра</em> — нет</h2>
+      <div class="center">
+        <span class="eyebrow" data-reveal>Почему это держит</span>
+        <h2 data-reveal>Сила воли кончается.<br>Игра — нет</h2>
+      </div>
       <div class="why">
-        <div class="glass"><h3>Награда сразу</h3><p>Обычная привычка платит через месяцы. Здесь галочка даёт монету в ту же секунду.</p></div>
-        <div class="glass"><h3>Серию жалко терять</h3><p>Множитель копится днями подряд. Пропустить — значит потерять заработанный бонус.</p></div>
-        <div class="glass"><h3>Видно, что ты строишь</h3><p>Город растёт с каждым уровнем. Прогресс не в голове, а перед глазами.</p></div>
+        <div class="card" data-reveal><span class="badge-ico"><svg class="ico" aria-hidden="true"><use href="#i-bolt"/></svg></span><h3>Награда — сразу</h3><p>Обычная привычка окупается через месяцы. Здесь галочка приносит монету в ту же секунду.</p></div>
+        <div class="card" data-reveal style="--d:.06s"><span class="badge-ico"><svg class="ico" aria-hidden="true"><use href="#i-flame"/></svg></span><h3>Серию жалко терять</h3><p>Множитель копится днями подряд. Пропустить день — значит отдать заработанный бонус.</p></div>
+        <div class="card" data-reveal style="--d:.12s"><span class="badge-ico"><svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg></span><h3>Прогресс видно</h3><p>Город растёт с каждым уровнем. Результат не в голове, а перед глазами.</p></div>
       </div>
     </div>
   </section>
 
   <section id="price">
     <div class="wrap">
-      <div class="tag">Тарифы</div>
-      <h2>Сначала <em data-k="trial">7 дней</em> бесплатно</h2>
-      <p class="lead">Попробуй без карты. Понравится — выбери тариф.</p>
-      <div class="plans">
-        <div class="plan glass best">
-          <span class="badge">Выгоднее всего</span>
-          <h3>Год</h3>
-          <div class="price"><span data-k="year">1 490</span> ₽ <small>/ год</small></div>
-          <div class="perday">≈ <span data-k="yearDay">4</span> ₽ в день</div>
-          <div class="old">на <span data-k="save">58</span>% дешевле, чем помесячно</div>
-        </div>
-        <div class="plan glass">
-          <h3>Месяц</h3>
-          <div class="price"><span data-k="month">299</span> ₽ <small>/ месяц</small></div>
-          <div class="perday">≈ <span data-k="monthDay">10</span> ₽ в день</div>
-        </div>
+      <div class="center">
+        <span class="eyebrow" data-reveal>Тарифы</span>
+        <h2 data-reveal>Сначала <span data-k="trial">7 дней</span> бесплатно</h2>
+        <p class="sub" data-reveal>Без карты. Понравится — выберешь тариф.</p>
       </div>
-      <ul class="incl">
-        <li><span>Все шесть разделов <b>без ограничений</b></span></li>
-        <li><span>Прогресс <b>не пропадёт</b>: вход по почте с любого телефона</span></li>
-        <li><span>Работает <b>без интернета</b>, ставится значком на экран</span></li>
-        <li><span>Обновления — <b>бесплатно</b></span></li>
-        <li><span>Отмена — <b>в один клик</b> прямо в приложении</span></li>
-      </ul>
-      <div class="pcta"><a class="btn" data-app href="./app/">🚀 Начать бесплатно</a></div>
-      <p class="fine">Карту на пробный период не просим. Подписка оформляется только с твоего согласия и продлевается автоматически, пока ты её не отменишь. Оплата через СБП в приложении твоего банка.</p>
+      <div class="pricing" data-reveal>
+        <div class="plans" role="radiogroup" aria-label="Тариф">
+          <button class="plan" role="radio" aria-checked="true" data-plan="year">
+            <span class="save">−<span data-k="save">58</span>%</span>
+            <span class="plan-top"><span class="plan-name">Год</span><span class="radio" aria-hidden="true"></span></span>
+            <span class="plan-price"><span data-k="year">1 490</span> ₽</span>
+            <span class="plan-day">в год<br>≈&nbsp;<span data-k="yearDay">4</span>&nbsp;₽ в&nbsp;день</span>
+          </button>
+          <button class="plan" role="radio" aria-checked="false" data-plan="month">
+            <span class="plan-top"><span class="plan-name">Месяц</span><span class="radio" aria-hidden="true"></span></span>
+            <span class="plan-price"><span data-k="month">299</span> ₽</span>
+            <span class="plan-day">в месяц<br>≈&nbsp;<span data-k="monthDay">10</span>&nbsp;₽ в&nbsp;день</span>
+          </button>
+        </div>
+        <ul class="incl">
+          <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Все шесть разделов — без ограничений</li>
+          <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Прогресс не пропадёт: вход по почте с любого телефона</li>
+          <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Работает без интернета, ставится значком на экран</li>
+          <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Все обновления — бесплатно</li>
+        </ul>
+        <a class="btn btn-primary btn-block" data-app href="./app/">Начать бесплатно<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <p class="p-note" id="pNote"><b><span data-k="trial">7 дней</span> бесплатно</b>, затем <span data-k="planPrice">1 490 ₽ в год</span>. Списание — только с твоего согласия.</p>
+      </div>
+      <div class="assure" data-reveal>
+        <span><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>Оплата через СБП</span>
+        <span><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg>Отмена в один клик</span>
+        <span><svg class="ico" aria-hidden="true"><use href="#i-sync"/></svg>Доступ до конца оплаченного срока</span>
+      </div>
     </div>
   </section>
 
   <section id="faq">
     <div class="wrap">
-      <div class="tag">Вопросы</div>
-      <h2>Коротко о главном</h2>
-      <div class="faq">
-        <details class="glass"><summary>Что будет после пробных дней?</summary><p>Магнат предложит выбрать тариф. Карту на пробный период мы не просим, поэтому без твоего согласия ничего не спишется.</p></details>
-        <details class="glass"><summary>Как отменить подписку?</summary><p>В приложении — кнопка «Отменить подписку». Списания прекращаются, доступ остаётся до конца оплаченного срока. Ссылка на отмену приходит и в письме об оплате.</p></details>
-        <details class="glass"><summary>Сменю телефон — прогресс пропадёт?</summary><p>Нет. С подпиской прогресс хранится в аккаунте: войди по почте на новом телефоне — монеты, уровень и история на месте.</p></details>
-        <details class="glass"><summary>Нужно что-то скачивать?</summary><p>Нет. Магнат открывается в браузере и ставится значком на экран «Домой» — как обычное приложение. Работает и без интернета.</p></details>
-        <details class="glass"><summary>Это для меня?</summary><p>Если хочешь больше тренироваться, меньше залипать в телефоне и двигаться к деньгам, но бросаешь через неделю — Магнат сделан ровно под это.</p></details>
+      <div class="center">
+        <span class="eyebrow" data-reveal>Вопросы</span>
+        <h2 data-reveal>Коротко о главном</h2>
+      </div>
+      <div class="faq" data-reveal>
+        <details><summary>Чем это отличается от обычного трекера привычек?<span class="pm"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg></span></summary>
+          <p>В обычном трекере галочка — просто галочка. В Магнате она приносит монеты, растит уровень и строит город, а монеты можно потратить на награды. Привычки, задачи, деньги и тело связаны одной системой.</p></details>
+        <details><summary>Что будет после пробных дней?<span class="pm"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg></span></summary>
+          <p>Магнат предложит выбрать тариф. Карту на пробный период мы не просим, поэтому без твоего согласия ничего не спишется.</p></details>
+        <details><summary>Как отменить подписку?<span class="pm"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg></span></summary>
+          <p>В приложении — кнопка «Отменить подписку». Списания прекращаются, а доступ остаётся до конца оплаченного срока. Ссылка на отмену приходит и в письме об оплате.</p></details>
+        <details><summary>Сменю телефон — прогресс пропадёт?<span class="pm"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg></span></summary>
+          <p>Нет. С подпиской прогресс хранится в аккаунте: войди по почте на новом телефоне — монеты, уровень и вся история на месте.</p></details>
+        <details><summary>Нужно что-то скачивать?<span class="pm"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg></span></summary>
+          <p>Нет. Магнат открывается в браузере и ставится значком на экран «Домой» — как обычное приложение. Работает и без интернета.</p></details>
+        <details><summary>Кому подойдёт Магнат?<span class="pm"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg></span></summary>
+          <p>Тем, кто хочет больше тренироваться, меньше залипать в телефоне и двигаться к деньгам — но каждый раз бросает через неделю. Магнат сделан ровно под это.</p></details>
       </div>
     </div>
   </section>
 
-  <section class="final" id="final">
+  <section id="final">
     <div class="wrap">
-      <h2>Начни строить <em>империю</em> сегодня</h2>
-      <p class="lead">Не с понедельника. Первая монета — через минуту.</p>
-      <a class="btn" data-app href="./app/">🚀 Попробовать бесплатно</a>
+      <div class="final" data-reveal>
+        <h2>Начни строить империю сегодня</h2>
+        <p class="sub">Не с понедельника. Первая монета — через минуту.</p>
+        <a class="btn btn-primary" data-app href="./app/">Попробовать бесплатно<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <div class="trust">
+          <span><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span><span data-k="trial">7 дней</span> бесплатно</span></span>
+          <span><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Без карты</span>
+        </div>
+      </div>
     </div>
   </section>
 </main>
 
 <footer id="foot">
   <div class="wrap">
-    <nav><a href="#" data-todo="оферта">Публичная оферта</a><a href="#" data-todo="политика">Политика конфиденциальности</a><a href="#" data-todo="поддержка">Поддержка</a></nav>
-    <p>«Магнат» — жизнь как игра-тайкун.<br><span data-todo="реквизиты">Реквизиты продавца — при запуске</span></p>
+    <div class="f-grid">
+      <div class="f-about"><a class="brand" href="#top"><svg aria-hidden="true"><use href="#i-mark"/></svg>Магнат</a><p>Жизнь как игра-тайкун: привычки, задачи, деньги и тело в одной системе монет.</p></div>
+      <div><h4>Продукт</h4><ul><li><a href="#how">Как это работает</a></li><li><a href="#inside">Внутри</a></li><li><a href="#price">Тарифы</a></li></ul></div>
+      <div><h4>Помощь</h4><ul><li><a href="#faq">Вопросы</a></li><li><a href="#" data-todo="поддержка">Поддержка</a></li></ul></div>
+      <div><h4>Документы</h4><ul><li><a href="#" data-todo="оферта">Публичная оферта</a></li><li><a href="#" data-todo="политика">Политика конфиденциальности</a></li></ul></div>
+    </div>
+    <div class="f-legal"><span>© 2026 Магнат</span><span data-todo="реквизиты">Реквизиты продавца — при запуске</span></div>
   </div>
 </footer>
 
-<div class="sticky" id="sticky"><a class="btn" data-app href="./app/">🚀 Попробовать бесплатно</a></div>
+<div class="sticky" id="sticky"><a class="btn btn-primary" data-app href="./app/">Попробовать бесплатно<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
 
 <script>
 // ═══ ВСЁ, ЧТО МЕНЯЕТСЯ ЧАЩЕ ВСЕГО, — ЗДЕСЬ ═════════════════════════════════
 // Цена — решение владельца. Поменял число — страница пересчитает «в день»,
-// скидку и все упоминания сама. В разметке те же числа стоят как запаска.
+// скидку и все упоминания сама. В разметке те же числа стоят запаской.
 const CFG = {
   trialDays: 7,
   month: 299,          // ₽ в месяц
@@ -360,17 +584,27 @@ const $ = id => document.getElementById(id);
 const nf = n => Math.round(n).toLocaleString("ru-RU").replace(/ /g, " ");
 const dcm = x => String(Math.round(x * 10) / 10).replace(".", ",");
 const pl = (n, a, b, c) => { const m = n % 100, d = n % 10; return m > 10 && m < 20 ? c : d === 1 ? a : d >= 2 && d <= 4 ? b : c; };
+const ICON = id => `<svg class="ico" aria-hidden="true"><use href="#${id}"/></svg>`;
 
 // ── цены и сроки из CFG во все места страницы ───────────────────────────────
+let plan = "year";
 function fillPrices() {
   const save = Math.round((1 - CFG.year / (CFG.month * 12)) * 100);
   const v = {
-    trial: `${CFG.trialDays} ${pl(CFG.trialDays, "день", "дня", "дней")}`,
+    trial: `${CFG.trialDays}\u00a0${pl(CFG.trialDays, "день", "дня", "дней")}`,   // число и слово — неразрывно
     month: nf(CFG.month), year: nf(CFG.year),
     monthDay: nf(CFG.month / 30), yearDay: nf(CFG.year / 365), save,
+    planPrice: plan === "year" ? `${nf(CFG.year)}\u00a0₽ в год` : `${nf(CFG.month)}\u00a0₽ в месяц`,
   };
   document.querySelectorAll("[data-k]").forEach(el => { if (el.dataset.k in v) el.textContent = v[el.dataset.k]; });
   document.querySelectorAll("[data-app]").forEach(a => a.href = CFG.appUrl);
+}
+function choosePlan() {
+  document.querySelectorAll("[data-plan]").forEach(b => b.addEventListener("click", () => {
+    plan = b.dataset.plan;
+    document.querySelectorAll("[data-plan]").forEach(x => x.setAttribute("aria-checked", String(x === b)));
+    fillPrices();
+  }));
 }
 
 // ── мини-игра: неделя × три привычки, счёт как в stats() приложения ─────────
@@ -390,15 +624,15 @@ function calc() {
   return { xp, L, coins: xp + (L - 1) * RULES.LVLBONUS, streakAt, total: on.flat().filter(Boolean).length };
 }
 
-const HEIGHTS = [44, 58, 50, 70, 62, 82, 74, 90, 68, 96, 80, 100];   // город растёт ввысь
+const HEIGHTS = [42, 56, 48, 68, 60, 80, 72, 88, 66, 94, 78, 100];   // город растёт ввысь
 function drawCity(st, fresh) {
-  const L = st.L, n = Math.max(L + 1, 6), frac = (st.xp - RULES.xpForLevel(L)) / (RULES.xpForLevel(L + 1) - RULES.xpForLevel(L));
+  const L = st.L, n = Math.max(L + 1, 7), a = RULES.xpForLevel(L), frac = (st.xp - a) / (RULES.xpForLevel(L + 1) - a);
   const rankAt = new Set(RULES.RANKS.map(x => x[2]));
   $("dCity").innerHTML = Array.from({ length: n }, (_, i) => {
     const lv = i + 1, h = HEIGHTS[i % HEIGHTS.length];
     if (lv <= L) return `<div class="bld${rankAt.has(lv) && lv > 1 ? " gold" : ""}${lv === L ? " cur" : ""}${fresh && lv === L ? " new" : ""}" style="height:${h}%"></div>`;
     if (lv === L + 1) return `<div class="bld next" style="height:${h}%;--f:${Math.round(frac * 100)}%"></div>`;
-    return `<div class="bld next" style="height:${h}%;opacity:.35"></div>`;
+    return `<div class="bld far" style="height:${h}%"></div>`;
   }).join("");
 }
 
@@ -408,58 +642,60 @@ function render(st, fresh) {
   $("dLv").textContent = `Уровень ${L}`;
   $("dRank").textContent = RULES.RANKS[rankOf(L)].slice(0, 2).join(" ");
   $("dBar").style.width = `${Math.max(0, Math.min(100, (st.xp - a) / (b - a) * 100))}%`;
-  $("dNext").innerHTML = `до ${L + 1}-го уровня — ещё <b>${nf(b - st.xp)} ⭐</b>`;
+  $("dNext").innerHTML = `до ${L + 1}-го уровня — ещё <b>${nf(b - st.xp)}</b> опыта`;
   drawCity(st, fresh);
 }
 function setCoins(v, roll) {
-  const chip = $("dCoins");
-  if (RM || !roll) { coinsShown = v; chip.textContent = `🪙 ${nf(v)}`; return; }
+  const out = $("dCoins");
+  if (RM || !roll) { coinsShown = v; out.textContent = nf(v); return; }
   const from = coinsShown, t0 = performance.now(); coinsShown = v;
-  const step = t => { const k = Math.min(1, (t - t0) / 450), e = 1 - Math.pow(1 - k, 3);
-    chip.textContent = `🪙 ${nf(from + (v - from) * e)}`; if (k < 1) requestAnimationFrame(step); };
+  const step = t => { const k = Math.min(1, (t - t0) / 500), e = 1 - Math.pow(1 - k, 3);
+    out.textContent = nf(from + (v - from) * e); if (k < 1) requestAnimationFrame(step); };
   requestAnimationFrame(step);
-  chip.classList.remove("pulse"); void chip.offsetWidth; chip.classList.add("pulse");
+  const w = $("dWallet"); w.classList.remove("bump"); void w.offsetWidth; w.classList.add("bump");
 }
 function flyCoin(fromEl, amount, done) {
   if (RM) { done(); return; }
-  const a = fromEl.getBoundingClientRect(), b = $("dCoins").getBoundingClientRect();
-  const f = document.createElement("div"); f.className = "fly"; f.textContent = `+${amount}`;
-  f.style.left = `${a.left + a.width / 2 - 14}px`; f.style.top = `${a.top}px`; document.body.appendChild(f);
+  const a = fromEl.getBoundingClientRect(), b = $("dWallet").getBoundingClientRect();
+  const f = document.createElement("div"); f.className = "fly";
+  f.innerHTML = `+${amount}<svg aria-hidden="true"><use href="#i-coin"/></svg>`;
+  f.style.left = `${a.left + a.width / 2 - 18}px`; f.style.top = `${a.top - 4}px`; document.body.appendChild(f);
   let ended = false; const end = () => { if (ended) return; ended = true; f.remove(); done(); };
-  f.animate([{ transform: "translate(0,0)", opacity: 1 }, { transform: `translate(${b.left - a.left}px,${b.top - a.top}px) scale(.7)`, opacity: .2 }],
-    { duration: 520, easing: "cubic-bezier(.5,0,.5,1)" }).onfinish = end;
-  setTimeout(end, 900);                                   // свёрнутая вкладка может не прислать onfinish
+  f.animate([{ transform: "translate(0,0) scale(1)", opacity: 1 },
+             { transform: `translate(0,-18px) scale(1.05)`, opacity: 1, offset: .3 },
+             { transform: `translate(${b.left - a.left + 10}px,${b.top - a.top}px) scale(.75)`, opacity: .15 }],
+    { duration: 640, easing: "cubic-bezier(.45,0,.35,1)" }).onfinish = end;
+  setTimeout(end, 1000);                                  // свёрнутая вкладка может не прислать onfinish
 }
 function message(st, d, wasOn) {
-  const m = $("dMsg");
-  m.classList.remove("hot");
-  if (st.L > prev.L) {
-    const newRank = rankOf(st.L) > rankOf(prev.L);
-    m.innerHTML = newRank ? `<b>${RULES.RANKS[rankOf(st.L)][0]} Новое звание — ${RULES.RANKS[rankOf(st.L)][1]}!</b> Уровень ${st.L}, в городе новое здание, +${RULES.LVLBONUS} 🪙.`
-                          : `<b>🏛 Уровень ${st.L}!</b> В городе новое здание и +${RULES.LVLBONUS} 🪙 в кошелёк.`;
+  const m = $("dMsg"); m.classList.remove("hot");
+  const R = RULES.RANKS[rankOf(st.L)];
+  if (st.total === 21) {
+    m.innerHTML = `<span><b>Неделя закрыта:</b> ${nf(st.coins)} монет и уровень ${st.L} — ${R[0]} ${R[1]}. Это всего одна неделя.</span>`;
+    m.classList.add("hot");
+  } else if (st.L > prev.L) {
+    m.innerHTML = rankOf(st.L) > rankOf(prev.L)
+      ? `<span><b>${R[0]} Новое звание — ${R[1]}!</b> Уровень ${st.L}: новое здание и +${RULES.LVLBONUS} монет.</span>`
+      : `<span><b>Уровень ${st.L}!</b> В городе новое здание и +${RULES.LVLBONUS} монет в кошелёк.</span>`;
     m.classList.add("hot");
   } else if (!wasOn && st.streakAt[d] > 0 && prev.streakAt[d] === 0) {
-    m.innerHTML = `<b>🔥 День в серии: ${st.streakAt[d]}</b> · завтра монеты ×${dcm(RULES.mult(st.streakAt[d]))}`;
+    m.innerHTML = `<span><b>🔥 День в серии: ${st.streakAt[d]}.</b> Завтра монеты ×${dcm(RULES.mult(st.streakAt[d]))}.</span>`;
   } else if (!wasOn) {
-    m.innerHTML = `+${RULES.COIN} 🪙 за привычку. Три за день — и день пойдёт в серию 🔥`;
+    m.innerHTML = `<span>+${RULES.COIN} монет за привычку. Три за день — и день пойдёт в серию.</span>`;
   } else {
-    m.textContent = "Галочку сняли — монеты за неё ушли из кошелька.";
-  }
-  if (st.total === 21) {
-    m.innerHTML = `<b>Неделя закрыта:</b> ${nf(st.coins)} 🪙 и уровень ${st.L} — ${RULES.RANKS[rankOf(st.L)].slice(0, 2).join(" ")}. Это одна неделя. Дальше уровни растут до 👑 Магната.`;
-    m.classList.add("hot");
+    m.innerHTML = `<span>Галочку сняли — монеты за неё ушли из кошелька.</span>`;
   }
   $("dFin").classList.toggle("on", st.total >= 7);
 }
 
 function buildDemo() {
   const g = $("dGrid");
-  g.innerHTML = `<span></span>` + DAYS.map((d, i) => `<span class="dd${i > 4 ? " we" : ""}">${d}</span>`).join("") +
-    HABITS.map((h, r) => `<span class="hi" title="${h[1]}">${h[0]}</span>` +
-      DAYS.map((d, c) => `<button class="cell" data-r="${r}" data-c="${c}" aria-pressed="false" aria-label="${h[1]}, ${d}"></button>`).join("")).join("");
-  $("dLegend").textContent = HABITS.map(h => h.join(" ")).join(" · ");
+  g.innerHTML = HABITS.map((h, r) => `<div class="d-row"><div class="d-name">${h[0]} ${h[1]}</div><div class="d-cells">` +
+    DAYS.map((d, c) => `<button class="cell${r === 0 && c === 0 ? " hint" : ""}" data-r="${r}" data-c="${c}" aria-pressed="false" aria-label="${h[1]}, ${d}">${ICON("i-check")}</button>`).join("") +
+    `</div></div>`).join("");
   g.addEventListener("click", e => {
     const cell = e.target.closest(".cell"); if (!cell) return;
+    g.querySelector(".hint")?.classList.remove("hint");
     const r = +cell.dataset.r, c = +cell.dataset.c, wasOn = on[r][c];
     on[r][c] = !wasOn; cell.classList.toggle("on", !wasOn); cell.setAttribute("aria-pressed", String(!wasOn));
     const st = calc(), fresh = st.L > prev.L;
@@ -471,10 +707,21 @@ function buildDemo() {
   render(prev, false); setCoins(prev.coins, false);
 }
 
-// ── липкая кнопка: видна, когда первая кнопка ушла с экрана; прячется там, где
-//    своя кнопка уже на экране (тарифы, финал, подвал) — две одинаковые рядом не нужны
+// ── появление при прокрутке, шапка, липкая кнопка ───────────────────────────
+function reveal() {
+  const els = document.querySelectorAll("[data-reveal]");
+  if (RM || !("IntersectionObserver" in window)) { els.forEach(e => e.classList.add("in")); return; }
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }),
+    { rootMargin: "0px 0px -8% 0px", threshold: .08 });
+  els.forEach(e => io.observe(e));
+}
+function navState() {
+  const n = $("nav"), upd = () => n.classList.toggle("scrolled", scrollY > 8);
+  addEventListener("scroll", upd, { passive: true }); upd();
+}
+// липкая кнопка видна, когда первая ушла с экрана; молчит там, где своя кнопка рядом
 function sticky() {
-  const s = $("sticky"), zones = ["heroCta", "price", "final", "foot"], seen = { heroCta: true };
+  const s = $("sticky"), zones = ["heroCta", "dFin", "price", "final", "foot"], seen = { heroCta: true };   // dFin — кнопка после мини-игры
   const io = new IntersectionObserver(es => {
     es.forEach(e => { seen[e.target.id] = e.isIntersecting; });
     s.classList.toggle("on", !zones.some(z => seen[z]));
@@ -482,6 +729,7 @@ function sticky() {
   zones.forEach(z => io.observe($(z)));
 }
 
-fillPrices(); buildDemo(); sticky();
+fillPrices(); choosePlan(); buildDemo(); reveal(); navState(); sticky();
 </script>
+</body>
 </html>

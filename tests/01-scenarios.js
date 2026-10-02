@@ -381,6 +381,23 @@ async function walkTabs(p, label) {
 
     await ctx.close();
   }
+  // 2б) пример 1-го числа: до 02.10.2026 он кончался вчерашним днём, и 1-го числа
+  // любого месяца календарь и «Топ привычек» были пустыми — новичок видел мёртвый пример.
+  // Часы ставим на 1-е число явно, иначе проверка краснеет раз в месяц и молчит остальные дни.
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 900 });
+    await ctx.clock.install({ time: new Date(2026, 10, 1, 12, 0) });   // 1 ноября, полдень
+    await p.goto(URL); await p.waitForTimeout(400);
+    await p.click('#obDemo'); await p.waitForTimeout(400);
+    const today = await p.evaluate(() => ({ t: TODAY, n: (S.checks[TODAY] || []).length }));
+    await p.click('.tab[data-t="habits"]'); await p.waitForTimeout(400);
+    const marks = await p.$$eval('.cday.full, .cday.part', els => els.length);
+    const fill = await p.$$eval('.pfill', els => els.filter(e => e.getBoundingClientRect().width >= 1).length);
+    (today.t.endsWith('-01') && today.n > 0 && marks > 0 && fill > 0)
+      ? ok(`пример 1-го числа (${today.t}) живой: сегодня ${today.n} отметки, в календаре ${marks}, полосок «Топ» ${fill}`)
+      : bad('пример 1-го числа пустой: ' + JSON.stringify({ ...today, marks, fill }));
+    await ctx.close();
+  }
 
   // ---------- 3. взаимодействия ----------
   console.log('\n3) Реальные действия пользователя');
