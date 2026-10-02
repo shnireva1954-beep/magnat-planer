@@ -92,9 +92,40 @@ async function waitPort(port, ms = 8000) {
   g.status === 0 ? ok("новая машина под Магнат — MAGNAT_IP=<адрес> пускает") : bad("MAGNAT_IP не работает");
   // Замок стоит ДО первого изменения: ничего выше него не трогает систему.
   const inst = fs.readFileSync(path.join(ROOT, "server/install.sh"), "utf8");
-  const before = inst.slice(0, inst.indexOf("guard || exit 1"));
-  /\b(iptables|apt-get|ufw|systemctl|rm -rf|useradd|install -|fallocate)\b/.test(before.replace(/^\s*#.*$/gm, "").replace(/command -v \w+|pgrep[^\n]*|docker ps[^\n]*/g, ""))
+  // Описания функций (name() { … }) не выполняются — их тела не считаем, только верхний уровень.
+  const before = inst.slice(0, inst.indexOf("guard || exit 1")).replace(/^[a-z_]+\(\) \{\n[\s\S]*?^\}$/gm, "");
+  /\b(iptables|apt-get|ufw|systemctl|rm -rf|useradd|install -|fallocate|sysctl|mv|remove_relay)\b/.test(before.replace(/^\s*#.*$/gm, "").replace(/command -v \w+/g, ""))
     ? bad("до замка есть команда, меняющая систему") : ok("до замка — ни одной команды, меняющей систему");
+
+  // ---- 1в. старая пересылка VPN ---------------------------------------------
+  console.log("\n1в. server/install.sh — снятие старой пересылки VPN");
+  // Точный вывод iptables-save с сервера 193.108.113.70 (02.10.2026, 15:07):
+  // правила без метки genavpn-relay — их установка сначала не увидела.
+  const IPT = [
+    "*filter", ":FORWARD DROP [0:0]", ":ufw-before-forward - [0:0]",
+    "-A FORWARD -d 45.94.37.94/32 -j ACCEPT",
+    "-A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT",
+    "-A FORWARD -j ufw-before-logging-forward", "-A FORWARD -j ufw-before-forward",
+    "-A ufw-before-forward -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT",
+    "-A ufw-user-input -p tcp -m tcp --dport 443 -m comment --comment \"'dapp_HTTPS'\" -j ACCEPT", "COMMIT",
+    "*nat",
+    "-A PREROUTING -p tcp -m tcp --dport 443 -j DNAT --to-destination 45.94.37.94:443",
+    "-A PREROUTING -p udp -m udp --dport 20443 -j DNAT --to-destination 45.94.37.94:20443",
+    "-A POSTROUTING -d 45.94.37.94/32 -j MASQUERADE", "COMMIT",
+    "*mangle", "-A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -m comment --comment genavpn-relay -j TCPMSS --clamp-mss-to-pmtu", "COMMIT", ""].join("\n");
+  const pr = spawnSync("bash", [path.join(ROOT, "server/install.sh")], { input: IPT, encoding: "utf8", env: { ...process.env, MAGNAT_RELAY_PARSE: "1" } });
+  const picked = pr.stdout.trim().split("\n").map(l => l.replace("\t", " | "));
+  const want = ["filter | FORWARD -d 45.94.37.94/32 -j ACCEPT", "filter | FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT",
+    "nat | PREROUTING -p tcp -m tcp --dport 443 -j DNAT --to-destination 45.94.37.94:443",
+    "nat | PREROUTING -p udp -m udp --dport 20443 -j DNAT --to-destination 45.94.37.94:20443",
+    "nat | POSTROUTING -d 45.94.37.94/32 -j MASQUERADE",
+    "mangle | FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -m comment --comment genavpn-relay -j TCPMSS --clamp-mss-to-pmtu"];
+  JSON.stringify(picked) === JSON.stringify(want) ? ok("разбор: выбраны ровно правила пересылки (5 без метки + подрезка с меткой), ufw не задет")
+    : bad("разбор выбрал не то:\n    " + picked.join("\n    "));
+  const nn = spawnSync("bash", [path.join(__dirname, "relay-netns.sh")], { encoding: "utf8", timeout: 120000 });
+  const nout = (nn.stdout || "") + (nn.stderr || "");
+  if (/^SKIP/.test(nout)) console.log("  ⚠ пропуск проверки на настоящем iptables: " + nout.trim().slice(5) + " (разбор выше — проверен)");
+  else { process.stdout.write(nout.split("\n").filter(l => /✓|✗/.test(l)).join("\n") + "\n"); if (nn.status !== 0) bad("снятие пересылки на настоящем iptables (relay-netns.sh)"); }
 
   // ---- 2. выкладка --------------------------------------------------------
   console.log("\n2. server/magnat.sh — выкладка");
@@ -122,6 +153,16 @@ async function waitPort(port, ms = 8000) {
   const leaked = ["CLAUDE.md", "README.md", "tests", "server", "_config.yml", "CNAME", ".gitignore"].filter(live);
   leaked.length ? bad("в выкладку попало служебное: " + leaked.join(", ")) : ok("служебного в выкладке нет (CLAUDE.md, tests/, server/, _config.yml, CNAME, .gitignore)");
   fs.readFileSync(path.join(STATE, "fetch-how"), "utf8").includes("открыт") ? ok("ключа нет — взял открыто, как и должен до закрытия репозитория") : bad("fetch-how: " + fs.readFileSync(path.join(STATE, "fetch-how"), "utf8"));
+
+  // magnat status считает ВСЕ правила пересылки, а не помеченные (02.10 по метке было «0»).
+  fs.writeFileSync(path.join(bin, "iptables-save"), `#!/bin/sh\ncat "${T}/ipt.txt"\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(T, "ipt.txt"), IPT);
+  let st = deploy("status");
+  /Пересылка VPN:\s+3 правил/.test(st.stdout) ? ok("magnat status: три правила пересылки без метки — видит «3»") : bad("magnat status не видит пересылку без метки: " + (st.stdout.match(/Пересылка VPN:.*/) || [""])[0]);
+  fs.writeFileSync(path.join(T, "ipt.txt"), "*nat\nCOMMIT\n");
+  st = deploy("status");
+  /Пересылка VPN:\s+0 правил/.test(st.stdout) ? ok("magnat status: пересылки нет — «0»") : bad("magnat status без пересылки: " + (st.stdout.match(/Пересылка VPN:.*/) || [""])[0]);
+  fs.unlinkSync(path.join(bin, "iptables-save"));
 
   // Новая папка в exclude — тоже не выкладывается (список берётся из _config.yml).
   fs.mkdirSync(path.join(REPO, "drafts")); fs.writeFileSync(path.join(REPO, "drafts/x.html"), "секрет");

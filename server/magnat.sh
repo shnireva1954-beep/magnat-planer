@@ -214,7 +214,9 @@ do_status() {
     echo "DNS:            $DOMAIN -> ${dns:-нет ответа} (ещё не сюда)"
   fi
   if https_ok; then echo "HTTPS:          работает ✅"; else echo "HTTPS:          нет (до смены DNS — так и должно быть)"; fi
-  echo "Пересылка VPN:  $(iptables-save 2>/dev/null | grep -c -- '--comment genavpn-relay' || true) правил (должно быть 0)"
+  # Считаем ВСЕ правила пересылки в nat, а не по метке: 02.10 строка по метке
+  # показала «0», а три правила без метки уводили порт 443 в Амстердам.
+  echo "Пересылка VPN:  $(iptables-save -t nat 2>/dev/null | grep -cE -- '-j (DNAT|MASQUERADE)' || true) правил (должно быть 0)"
   echo "Файрвол:        $(ufw status 2>/dev/null | head -1 | sed 's/Status: //')"
   echo "fail2ban:       $(systemctl is-active fail2ban 2>/dev/null)"
   if [ -s "$KEY.pub" ]; then

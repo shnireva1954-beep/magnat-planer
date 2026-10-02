@@ -72,9 +72,82 @@ guard() {
   return 0
 }
 
+# Правила старой пересылки VPN. 🔴 Урок 02.10.2026: искали только по метке
+# genavpn-relay, а на этой машине 22.09 пересылку включили руками, без метки —
+# установка сказала «убрано: 0», а порт 443 по-прежнему уходил в Амстердам.
+# Теперь выбор по смыслу: на машине без docker (это гарантирует замок выше)
+# никакой законной пересылки нет, значит любое DNAT/MASQUERADE, любое
+# ACCEPT прямо в цепочке FORWARD и подрезка MSS — от неё. Цепочки ufw
+# (ufw-*) и переходы в них не трогаются: там цель не ACCEPT, а сама цепочка.
+# Вход — вывод iptables-save, выход — «таблица<TAB>правило без -A».
+relay_rules() {
+  awk '
+    /^\*/ { t = substr($0, 2); next }
+    /^-A / {
+      r = substr($0, 4)
+      if (t == "nat" && $2 ~ /^(PREROUTING|POSTROUTING|OUTPUT)$/ && r ~ / -j (DNAT|MASQUERADE)( |$)/) print t "\t" r
+      else if (t == "filter" && $2 == "FORWARD" && r ~ / -j ACCEPT( |$)/) print t "\t" r
+      else if (t == "mangle" && $2 == "FORWARD" && r ~ / -j TCPMSS( |$)/) print t "\t" r
+      else if (r ~ /--comment "?genavpn-relay"?( |$)/) print t "\t" r
+    }'
+}
+# Сколько пакетов прошло через пересылку с загрузки (сумма счётчиков DNAT).
+dnat_packets() {
+  iptables -t nat -L PREROUTING -n -v -x 2>/dev/null | awk '$3 == "DNAT" { s += $1 } END { print s + 0 }'
+}
+
+# Снять пересылку. Хост «Обход глушилок» выключен у клиентов 29.09, но если
+# через пересылку прямо сейчас идут живые соединения — значит, кто-то ещё
+# ходит, и резать вслепую нельзя (просьба Артёма «VPN не сломай»).
+# 🔴 Счётчик DNAT считает НОВЫЕ СОЕДИНЕНИЯ, а не пакеты: таблица nat видит
+# только первый пакет каждого. Сканеры и проверки — единицы в минуту, живой
+# клиент VPN — десятки. Порог — 30 за минуту.
+RELAY_WINDOW="${MAGNAT_RELAY_WINDOW:-60}"
+RELAY_MAX="${MAGNAT_RELAY_MAX:-30}"
+remove_relay() {
+  local relay n=0 p1 p2 t rule f left svc
+  relay="$(iptables-save 2>/dev/null | relay_rules || true)"
+  if [ -n "$relay" ]; then
+    echo "Нашёл правила пересылки:"
+    while IFS= read -r line; do echo "        $line"; done <<<"$relay"
+    if [ -z "${MAGNAT_FORCE_RELAY_OFF:-}" ] && iptables-save -t nat 2>/dev/null | grep -q -- '-j DNAT'; then
+      echo "Считаю ${RELAY_WINDOW} с, идут ли через пересылку живые соединения..."
+      p1="$(dnat_packets)"; sleep "$RELAY_WINDOW"; p2="$(dnat_packets)"
+      echo "        новых соединений через пересылку: $((p2 - p1))"
+      if [ $((p2 - p1)) -gt "$RELAY_MAX" ]; then
+        fail "Через пересылку сейчас ходят живые соединения. Ничего не тронуто. Пришли вывод мне."
+      fi
+    fi
+    while IFS=$'\t' read -r t rule; do
+      [ -n "$rule" ] || continue
+      # shellcheck disable=SC2086
+      iptables -t "$t" -D $rule 2>/dev/null && n=$((n + 1)) || true
+    done <<<"$relay"
+    sysctl -qw net.ipv4.ip_forward=0 2>/dev/null || true
+  fi
+  left="$(iptables-save 2>/dev/null | relay_rules || true)"
+  [ -z "$left" ] || fail "Не все правила пересылки снялись: $left"
+  # Сохранённая копия правил — чтобы пересылка не вернулась, если кто-то
+  # поставит загрузчик правил. Не удаляем, а откладываем: откат — переименовать.
+  for f in "$ROOTFS/etc/iptables/rules.v4" "$ROOTFS/etc/iptables/rules.v6"; do
+    if [ -f "$f" ] && grep -qE 'DNAT|MASQUERADE|genavpn-relay' "$f"; then mv -f "$f" "$f.relay-old"; fi
+  done
+  [ -n "${MAGNAT_RELAY_ONLY:-}" ] && { ok "Пересылка снята (правил убрано: $n)."; return 0; }
+  for svc in gp genavpn-relay-check; do
+    systemctl disable --now "$svc" >/dev/null 2>&1 || true
+    rm -f "/etc/systemd/system/$svc.service"
+  done
+  rm -rf /opt/gp /opt/genavpn-relay /etc/sysctl.d/99-genavpn-relay.conf
+  systemctl daemon-reload
+  if command -v netfilter-persistent >/dev/null 2>&1; then netfilter-persistent save >/dev/null 2>&1 || true; fi
+  ok "Пересылка снята (правил убрано: $n), проверочная страница снята."
+}
+
 if [ -n "${MAGNAT_GUARD_ONLY:-}" ]; then guard; exit $?; fi   # только проверка, без установки
+if [ -n "${MAGNAT_RELAY_PARSE:-}" ]; then relay_rules; exit 0; fi  # только разбор (для проверки)
 [ "$(id -u)" -eq 0 ] || fail "Запускать от root."
 guard || exit 1
+if [ -n "${MAGNAT_RELAY_ONLY:-}" ]; then remove_relay; exit $?; fi  # только снять пересылку
 command -v apt-get >/dev/null || fail "Нужна Ubuntu или Debian."
 export DEBIAN_FRONTEND=noninteractive
 
@@ -87,22 +160,7 @@ echo "=============================================="
 # Пересылка (install-relay.sh из репозитория GenaVPN) держала порт 443 — пока
 # она стоит, сайту его не получить. Снимаем только своё, по метке.
 echo; echo "--- 1/7 Снимаю старую пересылку VPN ---"
-n_relay=0
-for t in nat filter mangle; do
-  while read -r rule; do
-    [ -n "$rule" ] || continue
-    # shellcheck disable=SC2086
-    iptables -t "$t" -D $rule 2>/dev/null && n_relay=$((n_relay + 1)) || true
-  done < <(iptables-save -t "$t" 2>/dev/null | grep -- '--comment genavpn-relay' | sed 's/^-A //' || true)
-done
-for svc in gp genavpn-relay-check; do
-  systemctl disable --now "$svc" >/dev/null 2>&1 || true
-  rm -f "/etc/systemd/system/$svc.service"
-done
-rm -rf /opt/gp /opt/genavpn-relay /etc/sysctl.d/99-genavpn-relay.conf
-systemctl daemon-reload
-if command -v netfilter-persistent >/dev/null 2>&1; then netfilter-persistent save >/dev/null 2>&1 || true; fi
-ok "Пересылка снята (правил убрано: $n_relay), проверочная страница снята."
+remove_relay
 
 # --- 2. Пакеты ------------------------------------------------------------------
 echo; echo "--- 2/7 Пакеты: Caddy, git, файрвол, защита SSH, автообновления ---"
