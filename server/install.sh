@@ -64,7 +64,8 @@ guard() {
     mine="$mine $(ip -4 -o addr show scope global 2>/dev/null | awk '{split($4,a,"/"); print a[1]}' | tr '\n' ' ' || true)"
   fi
   if ! grep -qwF -- "$EXPECTED_IP" <<<"$mine"; then
-    echo "${C_ERR}[СТОП]${C_OFF} Не тот сервер: у этой машины адрес ${mine// /, }, а нужен $EXPECTED_IP." >&2
+    mine="$(xargs <<<"$mine" | sed 's/ /, /g')"
+    echo "${C_ERR}[СТОП]${C_OFF} Не тот сервер: у этой машины адрес ${mine:-не узнать}, а нужен $EXPECTED_IP." >&2
     echo "        Ничего не тронуто. Зайди в Termius именно на $EXPECTED_IP." >&2
     return 1
   fi
