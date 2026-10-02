@@ -1,0 +1,8 @@
+# GitHub Pages собирает сайт Jekyll'ом. Эти файлы — для разработки, клиенту их видеть незачем:
+# до 02.10.2026 по адресу magnat-planer.ru/CLAUDE.md любой читал внутренние заметки проекта.
+# Проверка после выкладки: curl -sI https://magnat-planer.ru/CLAUDE.md → 404.
+exclude:
+  - CLAUDE.md
+  - README.md
+  - tests/
+  - tools/

@@ -128,6 +128,30 @@ async function walkTabs(p, label) {
     r = await probe(null, false);
     (!r.hint && r.persist === 0) ? ok('компьютер: ни подсказки, ни просьбы хранить (Firefox спросил бы окном)') : bad(`компьютер: подсказка ${r.hint}, persist ${r.persist}`);
     await r.ctx.close();
+
+    // 1в-2. встроенный браузер соцсети (02.10.2026): хранилище отдельно от Safari/Chrome, «На экран
+    // Домой» там нет — зовём открыть в браузере, а не к кнопке, которой нет
+    const IG_IOS = IPHONE.replace('Safari/604.1', 'Instagram 390.0.0.28.85 (iPhone15,3; iOS 17_5; ru_RU; ru-RU; scale=3.00; 1290x2796; 0)');
+    const IG_AND = 'Mozilla/5.0 (Linux; Android 14; SM-S918B Build/UP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/126.0 Mobile Safari/537.36 Instagram 390.0.0.28.85 Android';
+    const TT = 'Mozilla/5.0 (Linux; Android 14; Pixel 8; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/126.0 Mobile Safari/537.36 BytedanceWebview/d8a21c6 musical_ly_2023';
+    const inapp = async ua => { const q = await probe(ua, false);
+      const t = await q.p.evaluate(() => (document.querySelector('#inapp') || {}).textContent || '');
+      return { q, t, a2hs: q.hint }; };
+    let ia = await inapp(IG_IOS);
+    (ia.t.includes('Открой Магнат в браузере') && ia.t.includes('«⋯»') && ia.t.includes('Instagram') && !ia.a2hs)
+      ? ok('Instagram на айфоне: «открой в браузере» через ⋯, подсказки про «На экран Домой» нет') : bad('Instagram на айфоне: ' + JSON.stringify({ t: ia.t, a2hs: ia.a2hs }));
+    await ia.q.p.click('#inappOk'); await ia.q.p.waitForTimeout(200); await ia.q.p.reload(); await ia.q.p.waitForTimeout(400);
+    !(await ia.q.p.$('#inapp')) ? ok('«Понятно» прячет её, и после перезагрузки её нет') : bad('подсказка вернулась после «Понятно»');
+    errCheck(ia.q.p, 'Instagram на айфоне'); await ia.q.ctx.close();
+    ia = await inapp(IG_AND);
+    (ia.t.includes('«⋮»') && ia.t.includes('Instagram')) ? ok('Instagram на Android: меню «⋮»') : bad('Instagram на Android: ' + ia.t);
+    await ia.q.ctx.close();
+    ia = await inapp(TT);
+    ia.t.includes('TikTok') ? ok('TikTok: та же подсказка, с его названием') : bad('TikTok: ' + ia.t);
+    await ia.q.ctx.close();
+    ia = await inapp(IPHONE);
+    (!ia.t && ia.a2hs) ? ok('обычный Safari: «открой в браузере» не показана, «На экран Домой» на месте') : bad('Safari: ' + JSON.stringify({ t: ia.t, a2hs: ia.a2hs }));
+    await ia.q.ctx.close();
   }
 
   // ---------- 1г. дизайн 29.09.2026: календарь, кнопки «Добавить», анимации ----------

@@ -721,8 +721,19 @@ const FRAMED=(()=>{ try{ return window.self!==window.top; }catch(e){ return true
 const IOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 const STANDALONE=navigator.standalone===true||matchMedia("(display-mode: standalone)").matches;
 const A2HS_KEY="magnat_a2hs_hide";   // до какого времени подсказку не показывать
+// Встроенный браузер соцсети (Instagram, Facebook, TikTok) — первое, куда попадает человек из
+// ролика. У него своё хранилище, отдельное от Safari и Chrome, и нет «На экран Домой»: отметил
+// день здесь, открыл потом в Safari — пусто, а подсказка про «Поделиться → На экран Домой»
+// звала к кнопке, которой тут нет. Здесь зовём открыть Магнат в браузере (02.10.2026)
+const INAPP=(()=>{ const u=navigator.userAgent;
+  return /Instagram/i.test(u)?"Instagram":/FBAN|FBAV|FB_IAB/.test(u)?"Facebook":/BytedanceWebview|musical_ly|TikTok/i.test(u)?"TikTok":""; })();
+const INAPP_KEY="magnat_inapp_hide";
+function inappHint(){
+  if(!INAPP||FRAMED) return false;
+  try{ return !(Date.now()<+localStorage.getItem(INAPP_KEY)); }catch(e){ return true; }
+}
 function a2hsHint(){
-  if(!IOS||STANDALONE||FRAMED) return false;
+  if(!IOS||STANDALONE||FRAMED||INAPP) return false;
   try{ return !(Date.now()<+localStorage.getItem(A2HS_KEY)); }catch(e){ return true; }
 }
 function askConfirm(text,okLabel,danger){
@@ -891,6 +902,7 @@ function vHome(root){
   const w=body_curW();
   const ins=homeInsight();
   root.innerHTML=`
+   ${inappHint()?`<div class="glass demonote" id="inapp"><span>🌐 <b style="color:var(--ink)">Открой Магнат в браузере</b>: нажми ${IOS?"«⋯»":"«⋮»"} в углу экрана → «Открыть в браузере». Внутри ${INAPP} прогресс хранится отдельно и может потеряться.</span><button class="ok2" id="inappOk">Понятно</button></div>`:""}
    ${a2hsHint()?`<div class="glass demonote" id="a2hs"><span>📲 <b style="color:var(--ink)">Поставь на экран «Домой»</b>: «Поделиться» → «На экран Домой». Во вкладке Safari прогресс может стереться, если не открывать Магнат 7&nbsp;дней.</span><button class="ok2" id="a2hsOk">Понятно</button></div>`:""}
    ${S.demoData?`<div class="glass demonote"><span>👀 Внутри — пример с демо-данными, чтобы всё пощупать.</span><button class="ok2" id="startOwn">🚀 Начать своё</button></div>`:""}
    <div class="glass card today">
@@ -981,6 +993,8 @@ function vHome(root){
   // «Понятно» прячет подсказку на неделю: осталось во вкладке — через неделю напомним снова
   const ah=root.querySelector("#a2hsOk");
   if(ah) ah.addEventListener("click",()=>{ try{ localStorage.setItem(A2HS_KEY,String(Date.now()+7*864e5)); }catch(e){} render(); });
+  const ia=root.querySelector("#inappOk");
+  if(ia) ia.addEventListener("click",()=>{ try{ localStorage.setItem(INAPP_KEY,String(Date.now()+7*864e5)); }catch(e){} render(); });
   const so=root.querySelector("#startOwn");
   if(so) so.addEventListener("click",async()=>{
     if(await askConfirm("Стереть демо-данные и начать своё с чистого листа?","Начать своё")) await startFresh();
