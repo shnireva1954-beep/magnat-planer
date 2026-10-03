@@ -234,9 +234,10 @@ async function walkTabs(p, label) {
     // Было: карточка уровня сверху и кольцо 150 px — галочки начинались на 631 px из 664
     await p.click('.tab[data-t="home"]'); await p.waitForTimeout(300);
     await p.setViewportSize({ width: 390, height: 664 }); await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(200);
+    // с 03.10.2026 вкладки внизу и закрывают низ экрана — видимая высота без них
     const fold = await p.evaluate(() => { const ch = document.querySelector('#todayChips').getBoundingClientRect(),
-      t = document.querySelector('.today'), h = document.querySelector('.hero');
-      return { bottom: Math.round(ch.bottom), vh: innerHeight, first: !!t && !!h && (t.compareDocumentPosition(h) & Node.DOCUMENT_POSITION_FOLLOWING) > 0,
+      t = document.querySelector('.today'), h = document.querySelector('.hero'), nav = document.querySelector('nav.tabs');
+      return { bottom: Math.round(ch.bottom), vh: Math.round(nav ? nav.getBoundingClientRect().top : innerHeight), first: !!t && !!h && (t.compareDocumentPosition(h) & Node.DOCUMENT_POSITION_FOLLOWING) > 0,
         seria: document.querySelector('.tds').textContent }; });
     (fold.first && fold.bottom <= fold.vh) ? ok(`«Сегодня» первым, галочки видны без прокрутки (низ ${fold.bottom} из ${fold.vh})`)
                                            : bad('Обзор: ' + JSON.stringify(fold));
@@ -403,6 +404,71 @@ async function walkTabs(p, label) {
     await ctx.close();
   }
 
+  // ---------- 1з. дизайн и удобство 03.10.2026 ----------
+  // Владелец: «дизайн, удобство… ты лучше можешь сделать». Найдено по снимкам 390 px: видно
+  // 3 вкладки из 6, Georgia вперемешку с системным, рваные пилюли «Сегодня», неон.
+  console.log('\n1з) Вкладки внизу все шесть, свой шрифт, ровный список дня, без неона');
+  {
+    const pictRe = /\p{Extended_Pictographic}/u;
+    for (const w of [320, 390]) {
+      const { ctx, p } = await newPage(b, { width: w, height: 640 });
+      await p.goto(URL); await p.waitForTimeout(400);
+      await p.click('#obDemo'); await p.waitForTimeout(400);
+      const nav = await p.evaluate(() => {
+        const n = document.querySelector('nav.tabs'), tabs = [...document.querySelectorAll('.tab')];
+        return { nav: !!n, atBottom: !!n && Math.abs(n.getBoundingClientRect().bottom - innerHeight) < 1 && getComputedStyle(n).position === 'fixed',
+          tabs: tabs.map(t => { const r = t.getBoundingClientRect(), l = t.querySelector('.tl');
+            return { t: t.textContent.trim(), in: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight,
+              w: Math.round(r.width), h: Math.round(r.height), cut: !l || l.scrollWidth > l.clientWidth + 1, svg: !!t.querySelector('svg') }; }) };
+      });
+      const badTabs = nav.tabs.filter(t => !t.in || t.cut || t.w < 44 || t.h < 44 || !t.svg || pictRe.test(t.t));
+      (nav.nav && nav.atBottom && nav.tabs.length === 6 && !badTabs.length)
+        ? ok(`${w}px: внизу все 6 вкладок, подписи целиком, цель ≥ 44 px, значки — SVG (${nav.tabs.map(t => t.t).join(', ')})`)
+        : bad(`${w}px вкладки: ` + JSON.stringify({ nav: nav.nav, atBottom: nav.atBottom, n: nav.tabs.length, badTabs }));
+      // последний элемент страницы не прячется под панелью
+      const last = await p.evaluate(() => { window.scrollTo(0, 1e6); const n = document.querySelector('nav.tabs');
+        const r = document.querySelector('#resetBtn').getBoundingClientRect(); return { b: Math.round(r.bottom), top: Math.round(n ? n.getBoundingClientRect().top : innerHeight) }; });
+      last.b <= last.top ? ok(`${w}px: низ Обзора не уходит под панель (${last.b} ≤ ${last.top})`) : bad(`${w}px: низ страницы под панелью: ` + JSON.stringify(last));
+      await ctx.close();
+    }
+    const { ctx, p } = await newPage(b, { width: 390, height: 844 });
+    await p.goto(URL); await p.waitForTimeout(400);
+    await p.click('#obDemo'); await p.waitForTimeout(500);
+    const f = await p.evaluate(() => {
+      const fam = s => { const e = document.querySelector(s); return e ? getComputedStyle(e).fontFamily : '—'; };
+      return { body: fam('body'), big: ['.brand b', '.lvl-name', '.tdt b', '.chip.lvl'].map(fam),
+        loaded: document.fonts.check('800 20px Manrope') && document.fonts.check('400 14px Manrope'),
+        mark: !!document.querySelector('header svg.mk'), hdrEmoji: /\p{Extended_Pictographic}/u.test(document.querySelector('.brand').textContent),
+        fav: (document.querySelector('link[rel=icon]') || {}).href || '' };
+    });
+    (/^"?Manrope/.test(f.body) && f.big.every(x => /^"?Manrope/.test(x) && !/Georgia/.test(x)) && f.loaded)
+      ? ok('шрифт один — Manrope, встроен и загружен; Georgia нигде нет') : bad('шрифт: ' + JSON.stringify(f));
+    (f.mark && !f.hdrEmoji && /svg/.test(f.fav) && !/%F0%9F/.test(f.fav)) ? ok('в шапке и на вкладке браузера — знак-SVG, как значок телефона, а не 🏛')
+      : bad('знак: ' + JSON.stringify({ mark: f.mark, hdrEmoji: f.hdrEmoji, fav: f.fav.slice(0, 60) }));
+    // «Сегодня» — ровный список: одинаковые левый край и ширина, строка ≥ 48, флажок ≥ 24
+    const rows = await p.$$eval('#todayChips .tchip', els => els.map(e => { const r = e.getBoundingClientRect(), d = e.querySelector('.d').getBoundingClientRect();
+      return { l: Math.round(r.left), w: Math.round(r.width), h: Math.round(r.height), d: Math.round(d.width) }; }));
+    (rows.length === 8 && new Set(rows.map(r => r.l)).size === 1 && new Set(rows.map(r => r.w)).size === 1 && rows.every(r => r.h >= 48 && r.d >= 24))
+      ? ok(`«Сегодня» ровным списком: ${rows.length} строк по ${rows[0].w}×${rows[0].h}, флажок ${rows[0].d} px`) : bad('список дня: ' + JSON.stringify(rows));
+    const demoToday = await p.$$eval('#todayChips .tchip.on', e => e.length);
+    demoToday === 3 ? ok('пример живой: сегодня уже 3 отметки из 8') : bad('отметок сегодня в примере: ' + demoToday);
+    // без неона: ни одного свечения (тень без смещения) у кнопок, полос и выбранного
+    const glow = await p.evaluate(() => [...document.styleSheets[0].cssRules].map(r => r.cssText).filter(t => /box-shadow:\s*rgba?\([^)]*\)\s+0px\s+0px\s+[1-9]|box-shadow:\s*0px\s+0px\s+[1-9]/.test(t)).map(t => t.slice(0, 60)));
+    !glow.length ? ok('неоновых свечений в стилях нет') : bad('свечения: ' + glow.join(' | '));
+    const home = await p.evaluate(() => ({ money: !!document.querySelector('#hMoney'), shareBg: getComputedStyle(document.querySelector('#shareBtn')).backgroundImage }));
+    (!home.money && home.shareBg === 'none') ? ok('на Обзоре нет столбиков-повтора «доход/расход», «Поделиться» — второстепенной кнопкой')
+      : bad('Обзор: ' + JSON.stringify(home));
+    await p.click('.tab[data-t="tasks"]'); await p.waitForTimeout(300);
+    const meta = await p.$$eval('#v-tasks .meta', els => els.map(e => e.textContent));
+    (meta.some(t => /сегодня/.test(t)) && meta.some(t => /завтра/.test(t)) && !meta.some(t => new RegExp(new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }).replace('.', '\\.')).test(t)))
+      ? ok('сроки задач словами: «сегодня», «завтра»') : bad('сроки задач: ' + meta.join(' | '));
+    // флажок один и тот же везде: у задачи такой же круг, как у привычки «Сегодня»
+    const box = await p.$eval('#v-tasks .q .box', e => { const r = e.getBoundingClientRect(); return { w: Math.round(r.width), br: getComputedStyle(e).borderRadius }; });
+    (box.w === 26 && box.br === '50%') ? ok('флажок задачи — тот же круг 26 px, что у привычек') : bad('флажок задачи: ' + JSON.stringify(box));
+    errCheck(p, 'дизайн 03.10');
+    await ctx.close();
+  }
+
   // ---------- 2. демо ----------
   console.log('\n2) Онбординг → «Посмотреть пример» (демо-данные)');
   {
@@ -429,6 +495,24 @@ async function walkTabs(p, label) {
     const onCells = await p.$$eval('.cday.full, .cday.part', els => els.length);
     onCells > 0 ? ok('в календаре ' + onCells + ' дней с отметками') : bad('в календаре нет отметок');
 
+    await ctx.close();
+  }
+
+  // 2б) пример 1-го числа: до 02.10.2026 он кончался вчерашним днём, и 1-го числа
+  // любого месяца календарь и «Топ привычек» были пустыми — новичок видел мёртвый пример.
+  // Часы ставим на 1-е число явно, иначе проверка краснеет раз в месяц и молчит остальные дни.
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 900 });
+    await ctx.clock.install({ time: new Date(2026, 10, 1, 12, 0) });   // 1 ноября, полдень
+    await p.goto(URL); await p.waitForTimeout(400);
+    await p.click('#obDemo'); await p.waitForTimeout(400);
+    const today = await p.evaluate(() => ({ t: TODAY, n: (S.checks[TODAY] || []).length }));
+    await p.click('.tab[data-t="habits"]'); await p.waitForTimeout(400);
+    const marks = await p.$$eval('.cday.full, .cday.part', els => els.length);
+    const fill = await p.$$eval('.pfill', els => els.filter(e => e.getBoundingClientRect().width >= 1).length);
+    (today.t.endsWith('-01') && today.n > 0 && marks > 0 && fill > 0)
+      ? ok(`пример 1-го числа (${today.t}) живой: сегодня ${today.n} отметки, в календаре ${marks}, полосок «Топ» ${fill}`)
+      : bad('пример 1-го числа пустой: ' + JSON.stringify({ ...today, marks, fill }));
     await ctx.close();
   }
 
