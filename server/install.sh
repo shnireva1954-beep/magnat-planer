@@ -25,6 +25,27 @@ ok()   { echo "${C_OK}[ОК]${C_OFF}   $*"; }
 warn() { echo "${C_WARN}[!]${C_OFF}    $*"; }
 fail() { echo "${C_ERR}[ОШИБКА]${C_OFF} $*" >&2; exit 1; }
 
+# apt, который ждёт, пока освободится. На свежей машине автообновления держат
+# apt минутами: 02.10 второй запуск упал на шаге 2 — «Could not get lock
+# /var/lib/dpkg/lock-frontend». Опции DPkg::Lock::Timeout мало: её ждёт только
+# замок dpkg, а `apt-get update` берёт замок списков и с ней падает сразу
+# (проверено на apt 2.8, Ubuntu 24.04). Поэтому повтор, пока занято, — до
+# 10 минут; любая другая ошибка apt — сразу наружу, как была.
+apt_get() {
+  local err rc deadline=$((SECONDS + ${MAGNAT_APT_WAIT:-600})) told=""
+  err="$(mktemp)"
+  while :; do
+    rc=0; apt-get -o DPkg::Lock::Timeout=60 "$@" 2>"$err" || rc=$?
+    if [ "$rc" -eq 0 ]; then rm -f "$err"; return 0; fi
+    if ! grep -q 'Could not get lock\|Unable to lock\|Unable to acquire the dpkg' "$err" ||
+       [ "$SECONDS" -ge "$deadline" ]; then
+      cat "$err" >&2; rm -f "$err"; return "$rc"
+    fi
+    [ -n "$told" ] || { warn "apt занят (идут автообновления системы) — жду, до 10 минут…" >&2; told=1; }
+    sleep "${MAGNAT_APT_PAUSE:-5}"
+  done
+}
+
 # --- 0. Замок «не тот сервер» — ДО любого изменения ------------------------------
 # Просьба Артёма 02.10: «Впн там не наделай фигни. Не перепутай. Не сломай».
 # Команду вставляют руками в Termius, где рядом лежит сервер VPN. Вставленная
@@ -145,6 +166,7 @@ remove_relay() {
 
 if [ -n "${MAGNAT_GUARD_ONLY:-}" ]; then guard; exit $?; fi   # только проверка, без установки
 if [ -n "${MAGNAT_RELAY_PARSE:-}" ]; then relay_rules; exit 0; fi  # только разбор (для проверки)
+if [ -n "${MAGNAT_APT_TRY:-}" ]; then apt_get $MAGNAT_APT_TRY; exit $?; fi  # только apt с ожиданием (для проверки)
 [ "$(id -u)" -eq 0 ] || fail "Запускать от root."
 guard || exit 1
 if [ -n "${MAGNAT_RELAY_ONLY:-}" ]; then remove_relay; exit $?; fi  # только снять пересылку
@@ -174,8 +196,8 @@ if ! swapon --show=NAME --noheadings | grep -q .; then
     rm -f /swapfile; warn "Подкачку включить не вышло (так бывает на контейнерных VPS) — не страшно."
   fi
 fi
-apt-get update -qq
-apt-get install -y -qq ca-certificates curl gnupg git openssh-client ufw fail2ban python3-systemd unattended-upgrades >/dev/null
+apt_get update -qq
+apt_get install -y -qq ca-certificates curl gnupg git openssh-client ufw fail2ban python3-systemd unattended-upgrades >/dev/null
 
 # Caddy — из официального репозитория (свежий, сам обновляется). Не вышло —
 # из репозитория Ubuntu: старее, но рабочий.
@@ -186,9 +208,9 @@ fi
 if [ -s /usr/share/keyrings/caddy-stable-archive-keyring.gpg ]; then
   curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt \
     -o /etc/apt/sources.list.d/caddy-stable.list 2>/dev/null || true
-  apt-get update -qq || true
+  apt_get update -qq || true
 fi
-apt-get install -y -qq caddy >/dev/null || fail "Caddy не поставился. Пришли вывод мне."
+apt_get install -y -qq caddy >/dev/null || fail "Caddy не поставился. Пришли вывод мне."
 ok "Caddy $(caddy version | awk '{print $1}'), git, ufw, fail2ban на месте."
 
 # --- 3. Пользователь, папки, ключ выкладки --------------------------------------------

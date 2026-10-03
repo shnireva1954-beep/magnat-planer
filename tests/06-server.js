@@ -127,6 +127,42 @@ async function waitPort(port, ms = 8000) {
   if (/^SKIP/.test(nout)) console.log("  ⚠ пропуск проверки на настоящем iptables: " + nout.trim().slice(5) + " (разбор выше — проверен)");
   else { process.stdout.write(nout.split("\n").filter(l => /✓|✗/.test(l)).join("\n") + "\n"); if (nn.status !== 0) bad("снятие пересылки на настоящем iptables (relay-netns.sh)"); }
 
+  // ---- 1г. apt занят автообновлениями ----------------------------------------
+  // 02.10 второй запуск упал на шаге 2: «Could not get lock …/lock-frontend».
+  // Поддельный apt-get отвечает «занято» N раз, потом пускает; MAGNAT_MY_IP
+  // чужой — если ручки проверки нет, замок остановит установку до изменений.
+  console.log("\n1г. server/install.sh — apt занят автообновлениями");
+  const FAKE = path.join(T, "fake-apt"); fs.mkdirSync(FAKE, { recursive: true });
+  fs.writeFileSync(path.join(FAKE, "apt-get"), `#!/bin/bash
+n=$(( $(cat "$APT_CNT" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$APT_CNT"; echo "$*" >> "$APT_CNT.log"
+if [ "$n" -le "$APT_LOCKED" ]; then echo "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 812 (unattended-upgr)" >&2; exit 100; fi
+[ -z "$APT_OTHER" ] || { echo "E: Unable to locate package caddy" >&2; exit 100; }
+exit 0
+`, { mode: 0o755 });
+  const apt = (locked, extra = {}) => {
+    const cnt = path.join(T, "apt-cnt-" + Math.random().toString(36).slice(2));
+    const r = spawnSync("bash", [path.join(ROOT, "server/install.sh")], { encoding: "utf8", timeout: 30000, env: { ...process.env,
+      PATH: FAKE + ":" + process.env.PATH, MAGNAT_APT_TRY: "update -qq", MAGNAT_APT_PAUSE: "0", MAGNAT_MY_IP: "0.0.0.1",
+      APT_CNT: cnt, APT_LOCKED: String(locked), APT_OTHER: "", ...extra } });
+    const calls = fs.existsSync(cnt) ? fs.readFileSync(cnt + ".log", "utf8").trim().split("\n") : [];
+    return { status: r.status, out: (r.stdout || "") + (r.stderr || ""), calls };
+  };
+  let a = apt(3);
+  a.status === 0 && a.calls.length === 4 && /жду/.test(a.out) ? ok("занято трижды — ждёт и ставит (4 попытки, говорит «жду»)")
+    : bad(`занятый apt: код ${a.status}, попыток ${a.calls.length}\n    ${a.out.trim().slice(-300)}`);
+  a.calls.length && a.calls.every(c => /DPkg::Lock::Timeout=\d+/.test(c)) ? ok("каждый вызов ещё и с DPkg::Lock::Timeout (замок dpkg ждёт сам apt)")
+    : bad("вызов apt без DPkg::Lock::Timeout: " + a.calls[0]);
+  a = apt(0, { APT_OTHER: "1" });
+  a.status === 100 && a.calls.length === 1 && /Unable to locate package/.test(a.out) ? ok("другая ошибка apt — сразу наружу, с текстом и кодом apt")
+    : bad(`другая ошибка: код ${a.status}, попыток ${a.calls.length}`);
+  a = apt(1000, { MAGNAT_APT_WAIT: "1", MAGNAT_APT_PAUSE: "0.2" });
+  a.status === 100 && /Could not get lock/.test(a.out) ? ok("занято дольше срока — сдаётся с ошибкой apt, а не висит")
+    : bad(`бесконечно занятый apt: код ${a.status}`);
+  // Ни одного вызова apt-get мимо ожидания (кроме строки запуска в шапке и проверки «есть ли apt»).
+  const bare = inst.replace(/^apt_get\(\) \{\n[\s\S]*?^\}$/m, "").replace(/^\s*#.*$/gm, "").replace(/command -v apt-get/g, "")
+    .split("\n").filter(l => /\bapt-get\b/.test(l));
+  bare.length === 0 ? ok("все вызовы apt в установке — через ожидание") : bad("apt-get мимо ожидания:\n    " + bare.join("\n    "));
+
   // ---- 2. выкладка --------------------------------------------------------
   console.log("\n2. server/magnat.sh — выкладка");
   // Репозиторий-образец из ТЕКУЩЕГО рабочего дерева (с несохранёнными правками).
