@@ -340,7 +340,7 @@
   .stg-s{flex:none; font-size:11px; font-weight:700; padding:4px 10px; border-radius:99px; white-space:nowrap; border:1px solid var(--line2); color:var(--mut2);}
   .stg-s.now{background:#0e2f22; border-color:#1c7a54; color:var(--emerald);} .stg-s.done{background:#1d1707; border-color:#6e5320; color:var(--gold);}
   .stg.lock .stg-i, .stg.lock .stg-t{opacity:.55;}
-  .stg-more{margin-top:11px; font-size:12px; color:var(--mut2); line-height:1.55;} .stg-bk{margin-top:7px; color:var(--gold);}
+  .stg-more{margin-top:11px; font-size:12px; color:var(--mut2); line-height:1.55;} .stg-bk{color:var(--gold);}
   .les{display:flex; align-items:center; gap:11px; padding:11px 0; border-top:1px solid var(--line); cursor:pointer;}
   .stg-h+.les{margin-top:11px;}
   .les .n{width:30px; height:30px; flex:none; border-radius:50%; display:grid; place-items:center; border:2px solid #2fa872; color:var(--emerald); font-size:12.5px; font-weight:800; font-variant-numeric:tabular-nums;}
@@ -494,6 +494,8 @@ const LESSONS=[
   p:"Напиши три строки: каким ты хочешь, чтобы тебя запомнили"}];
 const LESIDS=new Set(LESSONS.map(l=>l.id));
 const lesDone=n=>S.les.includes(LESSONS[n-1].id);   // n — место урока на пути
+// «48 законов власти», «7 навыков…»: число не отрывается от слова при переносе — где бы название ни стояло
+const bkName=b=>b.replace(/(\d) /g,"$1\u00a0");
 const GOLBL={habits:"Привычки ›",money:"Финансы ›",tasks:"Задачи ›"};
 const DEFHABITS=[["🏋️","Тренировка"],["📚","Час на дело / обучение"],["💰","Шаг к деньгам"],["📵","День без залипания"],["🧊","Холодный душ"],["💧","Вода 2 л"],["🚶","10 000 шагов"],["✍️","Разбор дня"]];
 // С чего начать — выбирает сам владелец; отмечены три (решение Артёма 29.09.2026).
@@ -886,7 +888,7 @@ function celebrateLevel(L,prev,intro){
     <h4 style="font-size:27px;margin-top:2px">Уровень ${L}</h4>
     <div style="color:var(--mut);font-size:14px">${rankName(r)}</div>
     <p style="color:var(--mut);font-size:13.5px;margin:10px 0 0;line-height:1.55">${text}</p>
-    ${les?`<div class="lesnew"><small>Открыт урок ${L}</small><b>${les.t}</b><span>«${les.b}» — ${les.a}</span></div>`:""}
+    ${les?`<div class="lesnew"><small>Открыт урок ${L}</small><b>${les.t}</b><span>«${bkName(les.b)}» — ${les.a}</span></div>`:""}
     <div class="btns">${les?'<button class="no" id="celLes">📖 Урок</button>':""}<button class="ok">Строим дальше 🚀</button></div></div></div>`);
   document.body.appendChild(ovl);
   confettiBurst(innerWidth/2, innerHeight*0.32, 64, ["#2fe38f","#f5c451","#35d0ff","#b06bff"]);
@@ -1935,9 +1937,10 @@ function vPath(root){
     const state=i<r?"done":i===r?"now":"lock";
     const badge=state==="done"?"пройдена":state==="now"?"ты здесь":`с ${R[2]}-го уровня`;
     const body=state==="lock"
-      ? `<div class="stg-more">${ns.map(n=>LESSONS[n-1].t).join(" · ")}</div><div class="stg-more stg-bk">Из книг: ${[...new Set(ns.map(n=>`«${LESSONS[n-1].b}»`))].join(", ")}</div>`
+      // закрытая ступень — сколько уроков и из каких книг: книги узнают, а названия уроков без книги — загадка
+      ? `<div class="stg-more">${ns.length} ${pl(ns.length,"урок","урока","уроков")} из книг: <span class="stg-bk">${[...new Set(ns.map(n=>`«${bkName(LESSONS[n-1].b)}»`))].join(", ")}</span></div>`
       : ns.map(n=>{ const o=lesOpen(n,L), d=lesDone(n), Ls=LESSONS[n-1];
-          return `<div class="les${d?" done":o?"":" lock"}"${o?` data-les="${n}" role="button" tabindex="0"`:""}><span class="n">${n}</span><span class="lt"><b>${Ls.t}</b><small>${o?`«${Ls.b}» · ${Ls.a}`:`откроется на ${n}-м уровне`}</small></span>${o?'<span class="go">›</span>':""}</div>`; }).join("");
+          return `<div class="les${d?" done":o?"":" lock"}"${o?` data-les="${n}" role="button" tabindex="0"`:""}><span class="n">${n}</span><span class="lt"><b>${Ls.t}</b><small>${o?`«${bkName(Ls.b)}» · ${Ls.a}`:`откроется на ${n}-м уровне`}</small></span>${o?'<span class="go">›</span>':""}</div>`; }).join("");
     stg+=`<div class="glass card stg ${state}" style="margin-top:13px"><div class="stg-h"><span class="stg-i">${R[0]}</span><span class="stg-t"><b>${R[1]}</b><small>Ступень «${STAGES[i]}»</small></span><span class="stg-s ${state}">${badge}</span></div>${body}</div>`;
   });
   root.innerHTML=`
@@ -1974,10 +1977,10 @@ function openLesson(n,first){
   const ovl=el(`<div class="ovl"><div class="modal lesm" role="dialog" aria-label="Урок ${n}">
     <div class="lvl-tag">Урок ${n} · ${rankName(rankOf(n))}</div>
     <h4>${Ls.t}</h4>
-    <div class="lbook">«${Ls.b}» — ${Ls.a}</div>
+    <div class="lbook">«${bkName(Ls.b)}» — ${Ls.a}</div>
     <p class="mtxt">${Ls.i}</p>
     <div class="q ltask" role="checkbox" tabindex="0" data-pop="les${n}"><span class="box"></span><div class="nm"><small>Задание</small>${Ls.p}</div><span class="cn">+${TASKCOIN} 🪙</span></div>
-    ${first?`<p class="nrm lfirst">Новый урок — на каждом уровне. Все уроки — в «Пути»: нажми на уровень вверху экрана.</p>`:""}
+    ${first?`<p class="nrm lfirst">Новый урок — на каждом уровне. Все уроки — в «Пути магната»: нажми на карточку уровня на Обзоре.</p>`:""}
     <div class="btns">${Ls.go?`<button class="no" id="lesGo">${GOLBL[Ls.go]}</button>`:""}<button class="ok">Готово</button></div>
   </div></div>`);
   const box=ovl.querySelector(".ltask");
@@ -2208,7 +2211,7 @@ function showOnboarding(){
     <div class="how">
       <div><span>✅</span><span>Отмечаешь привычки и задачи — за каждую <b class="g">+${COIN} 🪙</b>, дни подряд — до ×2</span></div>
       <div><span>🏛</span><span>Растёт <b class="e">уровень</b>: от 🐣 Новичка до 👑 Магната — и строится твоя империя</span></div>
-      <div><span>📖</span><span>Каждый уровень открывает <b class="e">урок</b> из книг — от Гоггинса и «Вавилона» до «48 законов власти» — и задание на день</span></div>
+      <div><span>📖</span><span>Каждый уровень открывает <b class="e">урок</b> из книг&nbsp;— от Гоггинса и «Вавилона» до «48&nbsp;законов власти»&nbsp;— и задание на день</span></div>
       <div><span>🎁</span><span>Монеты тратишь на реальные награды: TikTok, игры, читмил</span></div>
     </div>
     <p style="color:var(--mut2);font-size:12.5px;margin:12px 0 2px">Сейчас внутри — пример для наглядности. С чего начнём?</p>

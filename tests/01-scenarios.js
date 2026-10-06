@@ -483,14 +483,15 @@ async function walkTabs(p, label) {
     const how = await p.$$eval('.how > div', e => e.map(x => x.textContent).join(' | '));
     /урок/.test(how) ? ok('приветствие говорит про уроки за уровни') : bad('приветствие: ' + how);
     await startClean(p);
-    // содержимое: 24 урока, у каждого книга, автор, мысль и задание; ступеней столько же, сколько званий
+    // содержимое: 40 уроков (06.10.2026: книги владельца и психология), у каждого книга, автор, мысль и задание;
+    // ступеней столько же, сколько званий
     const meta = await p.evaluate(() => ({ n: LESSONS.length, st: STAGES.length, rk: RANKS.length,
       bad: LESSONS.filter(l => !(l.t && l.b && l.a && l.i && l.p) || (l.go && !GOLBL[l.go])).map(l => l.t),
       // честность: урок пересказывает книгу, а не обещает результат
       promise: LESSONS.filter(l => /100\s*%|гарант/i.test(l.i + l.p)).map(l => l.t),
       lastStage: RANKS[RANKS.length - 1][2] <= LESSONS.length }));
-    (meta.n === 24 && meta.st === meta.rk && !meta.bad.length && !meta.promise.length && meta.lastStage)
-      ? ok(`24 урока по ${meta.st} ступеням, у каждого книга, автор, мысль и задание, обещаний «100%» нет`) : bad('уроки: ' + JSON.stringify(meta));
+    (meta.n === 40 && meta.st === meta.rk && !meta.bad.length && !meta.promise.length && meta.lastStage)
+      ? ok(`${meta.n} уроков по ${meta.st} ступеням, у каждого книга, автор, мысль и задание, обещаний «100%» нет`) : bad('уроки: ' + JSON.stringify(meta));
     // новичок: на Обзоре урок 1, в пути урок 1 открыт, урок 2 закрыт; вместо «+0%» — само правило
     const row = await p.$eval('#lesRow', e => ({ n: e.dataset.n, t: e.textContent }));
     (row.n === '1' && /Правило 1%/.test(row.t)) ? ok('на Обзоре новичка — урок 1 «Правило 1%»') : bad('строка урока: ' + JSON.stringify(row));
@@ -520,10 +521,10 @@ async function walkTabs(p, label) {
     await p.evaluate(() => { S.checks[TODAY] = S.habits.slice(0, 3).map(h => h.id); S.tasks.push({ id: uid(), name: 'т', prio: 'md', due: TODAY, done: true }); save(); render(); });
     await p.waitForTimeout(300);
     const cel = await p.evaluate(() => ({ L: levelOf(totalXP()), t: (document.querySelector('.ovl .modal') || {}).textContent || '', les: !!document.querySelector('#celLes') }));
-    (cel.L === 2 && /Открыт урок 2/.test(cel.t) && /Голос за себя/.test(cel.t) && cel.les) ? ok('праздник 2-го уровня называет урок 2 «Голос за себя»') : bad('праздник: ' + JSON.stringify(cel));
+    (cel.L === 2 && /Открыт урок 2/.test(cel.t) && /Зеркало ответственности/.test(cel.t) && cel.les) ? ok('праздник 2-го уровня называет урок 2 «Зеркало ответственности»') : bad('праздник: ' + JSON.stringify(cel));
     await p.click('#celLes'); await p.waitForTimeout(300);
     const l2 = await p.evaluate(() => ({ h: (document.querySelector('.lesm h4') || {}).textContent, ovl: document.querySelectorAll('.ovl').length }));
-    (l2.h === 'Голос за себя' && l2.ovl === 1) ? ok('«📖 Урок» из праздника открывает урок 2') : bad('урок из праздника: ' + JSON.stringify(l2));
+    (l2.h === 'Зеркало ответственности' && l2.ovl === 1) ? ok('«📖 Урок» из праздника открывает урок 2') : bad('урок из праздника: ' + JSON.stringify(l2));
     await p.click('.lesm .ok'); await p.waitForTimeout(200);
     // срок в своём темпе и дисциплина неделя к неделе — из истории; без неё их нет (проверено выше)
     await p.evaluate(() => { const ids = S.habits.map(h => h.id); S.habits.forEach(h => { h.since = addDays(TODAY, -20); });
@@ -568,14 +569,14 @@ async function walkTabs(p, label) {
     const { ctx, p } = await newPage(b, { width: 390, height: 844 });
     await p.goto(URL); await p.waitForTimeout(400);
     const how = await p.$$eval('.how > div', e => e.map(x => x.textContent).join(' | '));
-    (/Гоггинс/.test(how) && /Вавилон/.test(how) && /48 законов власти/.test(how)) ? ok('приветствие называет книги: Гоггинс, «Вавилон», «48 законов власти»') : bad('приветствие: ' + how);
+    (/Гоггинс/.test(how) && /Вавилон/.test(how) && /48\u00a0законов власти/.test(how)) ? ok('приветствие называет книги: Гоггинс, «Вавилон», «48 законов власти»') : bad('приветствие: ' + how);
     await p.click('#obFresh'); await p.waitForSelector('#hpGo', { timeout: 3000 });
     await p.click('#hpGo'); await p.waitForTimeout(500);
     const f = await p.evaluate(() => { const m = document.querySelector('.lesm'); return m && { h: m.querySelector('h4').textContent,
       hint: (m.querySelector('.lfirst') || {}).textContent || '', ovl: document.querySelectorAll('.ovl').length,
       fits: m.getBoundingClientRect().bottom <= innerHeight, habits: S.habits.length }; });
     (f && f.h === 'Правило 1%' && f.ovl === 1 && f.habits === 3) ? ok('после «Начать» сразу урок 1 «Правило 1%», привычки уже созданы') : bad('после «Начать»: ' + JSON.stringify(f));
-    (f && /на каждом уровне/.test(f.hint) && /нажми на уровень/.test(f.hint)) ? ok('подсказка: урок на каждом уровне, все — в «Пути» через уровень вверху') : bad('подсказка: ' + JSON.stringify(f && f.hint));
+    (f && /на каждом уровне/.test(f.hint) && /карточку уровня на Обзоре/.test(f.hint)) ? ok('подсказка: урок на каждом уровне, все — в «Пути» через карточку уровня (она есть и на 320, значок в шапке там скрыт)') : bad('подсказка: ' + JSON.stringify(f && f.hint));
     (f && f.fits) ? ok('окно первого урока целиком на экране 390×844') : bad('окно первого урока не влезает');
     await p.click('.lesm .ok'); await p.waitForTimeout(300);
     // тот же урок из пути — уже без подсказки новичка
@@ -594,16 +595,19 @@ async function walkTabs(p, label) {
         ids: LESSONS.map(l => l.id), map: Object.fromEntries(LESSONS.map(l => [l.id, l.t])),
         // мысль книги своими словами, а не простыня; задание — на один день; тире настоящие
         style: LESSONS.filter(l => l.t.length > 24 || l.i.length < 150 || l.i.length > 240 || l.p.length > 80 || / - /.test(l.t + l.i + l.p) || /\.$/.test(l.p)).map(l => l.t),
-        banned: LESSONS.filter(l => /Маркарян/i.test(l.a + l.b + l.i + l.p)).map(l => l.t) };
+        banned: LESSONS.filter(l => /Маркарян/i.test(l.a + l.b + l.i + l.p)).map(l => l.t),
+        // одна книга — одно название: у Гоггинса было «Меня не сломить» рядом с «Меня не сломать»
+        twoNames: Object.entries(LESSONS.reduce((m, l) => ((m[l.a] = m[l.a] || new Set()).add(l.b), m), {})).filter(([, v]) => v.size > 1).map(([a, v]) => a + ': ' + [...v].join(' / ')) };
     });
     (c.gog >= 5 && c.gogEarly >= 3) ? ok(`Гоггинс — акцент: ${c.gog} уроков, ${c.gogEarly} из них в первых 14`) : bad('Гоггинс: ' + JSON.stringify({ gog: c.gog, early: c.gogEarly }));
     (c.zel >= 2 && c.gr >= 3 && c.bab >= 5 && c.pocket >= 1) ? ok(`книги владельца: «Трансерфинг» ${c.zel}, «48 законов власти» ${c.gr}, «Вавилон» ${c.bab}, «Счастливый карман» ${c.pocket}`)
       : bad('книги: ' + JSON.stringify({ zel: c.zel, gr: c.gr, bab: c.bab, pocket: c.pocket }));
     // пробные 7 дней — это уроки 1–4: в них Гоггинс, «Вавилон» и «Трансерфинг»
-    (c.trial.some(b => /Меня не сломить/.test(b)) && c.trial.some(b => /Вавилон/.test(b)) && c.trial.some(b => /Трансерфинг/.test(b)))
+    (c.trial.some(b => /Меня не сломать/.test(b)) && c.trial.some(b => /Вавилон/.test(b)) && c.trial.some(b => /Трансерфинг/.test(b)))
       ? ok('первые 4 урока (неделя новичка): Гоггинс, «Вавилон», «Трансерфинг»') : bad('первые 4 урока: ' + c.trial.join(' | '));
     !c.style.length ? ok(`все ${c.n} уроков по мерке: название ≤ 24, мысль 150–240 знаков, задание ≤ 80, тире «—»`) : bad('не по мерке: ' + c.style.join(', '));
     !c.banned.length ? ok('авторов с уголовными делами нет') : bad('нельзя: ' + c.banned.join(', '));
+    !c.twoNames.length ? ok('у каждого автора одна книга под одним названием') : bad('книга под двумя названиями: ' + c.twoNames.join('; '));
     // паспорта: уникальные целые; 1–24 — ровно те уроки, что были 06.10 (иначе у людей сменилось бы пройденное)
     const FROZEN = { 1: 'Правило 1%', 2: 'Голос за себя', 3: 'Заплати сначала себе', 4: 'Знай, куда уходят деньги', 5: 'Актив или пассив',
       6: 'Точная цель', 7: 'Круг влияния', 8: 'Пока не умею', 9: 'Дневник успехов', 10: 'Петля привычки', 11: 'Съешь лягушку',
@@ -623,11 +627,11 @@ async function walkTabs(p, label) {
       ? ok(`пройденное по паспорту: «Голос за себя» (теперь урок ${mv.at}) отмечен, на его старом месте — нет, опыт +20`) : bad('перенос пройденного: ' + JSON.stringify(mv));
     // закрытая ступень говорит, из каких книг её уроки; конец пути — сколько книг
     await p.evaluate(() => goPath()); await p.waitForTimeout(300);
-    const pt = await p.evaluate(() => ({ bk: [...document.querySelectorAll('#v-path .stg-bk')].map(e => e.textContent),
+    const pt = await p.evaluate(() => ({ bk: [...document.querySelectorAll('#v-path .stg-bk')].map(e => e.parentElement.textContent),
       end: document.querySelector('#v-path .pend').textContent, nb: new Set(LESSONS.map(l => l.b)).size,
       sw: document.documentElement.scrollWidth, w: innerWidth }));
-    (pt.bk.length === 4 && pt.bk.every(t => /^Из книг: «/.test(t)) && pt.bk.join().includes('«48 законов власти»'))
-      ? ok('у закрытых ступеней — «Из книг: …», среди них «48 законов власти»') : bad('книги ступеней: ' + JSON.stringify(pt.bk));
+    (pt.bk.length === 4 && pt.bk.every(t => /^\d+ урок(а|ов)? из книг: «/.test(t)) && pt.bk.join().includes('«48\u00a0законов власти»'))
+      ? ok('у закрытых ступеней — «N уроков из книг: …», среди них «48 законов власти»') : bad('книги ступеней: ' + JSON.stringify(pt.bk));
     (pt.end.includes(`${c.n} уроков из ${pt.nb} книг`)) ? ok(`конец пути: «${c.n} уроков из ${pt.nb} книг»`) : bad('конец пути: ' + pt.end);
     pt.sw <= pt.w ? ok('путь без прокрутки вбок') : bad(`путь шире экрана: ${pt.sw}`);
     errCheck(p, 'книги и паспорта уроков');
