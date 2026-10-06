@@ -469,6 +469,92 @@ async function walkTabs(p, label) {
     await ctx.close();
   }
 
+  // ---------- 1и. Путь Магната 06.10.2026: урок за уровень, рост, срок в своём темпе ----------
+  // Владелец: «акцент на саморазвитие — человек должен знать, что станет лучше». Каждый уровень
+  // открывает урок из книги и задание (+20 🪙); экран «Путь» — с уровня в шапке и с карточки уровня
+  console.log('\n1и) Путь Магната: уроки по уровням, задание даёт монеты, срок в своём темпе');
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 844 });
+    await p.goto(URL); await p.waitForTimeout(400);
+    const how = await p.$$eval('.how > div', e => e.map(x => x.textContent).join(' | '));
+    /урок/.test(how) ? ok('приветствие говорит про уроки за уровни') : bad('приветствие: ' + how);
+    await startClean(p);
+    // содержимое: 24 урока, у каждого книга, автор, мысль и задание; ступеней столько же, сколько званий
+    const meta = await p.evaluate(() => ({ n: LESSONS.length, st: STAGES.length, rk: RANKS.length,
+      bad: LESSONS.filter(l => !(l.t && l.b && l.a && l.i && l.p) || (l.go && !GOLBL[l.go])).map(l => l.t),
+      // честность: урок пересказывает книгу, а не обещает результат
+      promise: LESSONS.filter(l => /100\s*%|гарант/i.test(l.i + l.p)).map(l => l.t),
+      lastStage: RANKS[RANKS.length - 1][2] <= LESSONS.length }));
+    (meta.n === 24 && meta.st === meta.rk && !meta.bad.length && !meta.promise.length && meta.lastStage)
+      ? ok(`24 урока по ${meta.st} ступеням, у каждого книга, автор, мысль и задание, обещаний «100%» нет`) : bad('уроки: ' + JSON.stringify(meta));
+    // новичок: на Обзоре урок 1, в пути урок 1 открыт, урок 2 закрыт; вместо «+0%» — само правило
+    const row = await p.$eval('#lesRow', e => ({ n: e.dataset.n, t: e.textContent }));
+    (row.n === '1' && /Правило 1%/.test(row.t)) ? ok('на Обзоре новичка — урок 1 «Правило 1%»') : bad('строка урока: ' + JSON.stringify(row));
+    await p.click('#lvlChip'); await p.waitForTimeout(300);
+    const path = await p.evaluate(() => ({ cur, tab: document.querySelector('.tab.on').dataset.t,
+      stg: document.querySelectorAll('#v-path .stg').length, open: [...document.querySelectorAll('#v-path [data-les]')].map(e => e.dataset.les),
+      big: document.querySelector('#v-path .pgrow .big').textContent, fc: document.querySelectorAll('#v-path .fcr').length,
+      t: document.querySelector('#v-path').textContent, sw: document.documentElement.scrollWidth, w: innerWidth }));
+    (path.cur === 'path' && path.tab === 'home' && path.stg === 5) ? ok('уровень в шапке открывает путь: 5 ступеней, подсвечен «Обзор»') : bad('путь: ' + JSON.stringify({ cur: path.cur, tab: path.tab, stg: path.stg }));
+    (path.open.join() === '1' && /откроется на 2-м уровне/.test(path.t)) ? ok('урок 1 открыт, урок 2 ждёт 2-го уровня') : bad('открытые уроки: ' + path.open.join());
+    (path.big === '1%' && !path.fc && /три дня/.test(path.t)) ? ok('у новичка «1%» вместо «+0%», срока без данных нет — сказано словами')
+      : bad('новичок в пути: ' + JSON.stringify({ big: path.big, fc: path.fc }));
+    path.sw <= path.w ? ok('путь без прокрутки вбок на 390') : bad(`путь шире экрана: ${path.sw} > ${path.w}`);
+    // окно урока: книга и автор, задание даёт +20 и столько же опыта; снятое — отнимает (не ферма)
+    await p.click('#v-path [data-les="1"]'); await p.waitForTimeout(300);
+    const m = await p.evaluate(() => ({ t: document.querySelector('.lesm').textContent, role: document.querySelector('.lesm .ltask').getAttribute('role') }));
+    (/Атомные привычки/.test(m.t) && /Джеймс Клир/.test(m.t) && /Задание/.test(m.t) && m.role === 'checkbox') ? ok('окно урока: книга, автор, задание флажком') : bad('окно урока: ' + m.t.slice(0, 120));
+    await p.click('.lesm .ltask'); await p.waitForTimeout(1300);
+    const on = await p.evaluate(() => ({ les: S.les.join(), xp: totalXP(), w: wallet(), head: document.querySelector('#wallet').textContent, aria: document.querySelector('.lesm .ltask').getAttribute('aria-checked') }));
+    (on.les === '1' && on.xp === 20 && on.w === 20 && on.head === '20' && on.aria === 'true') ? ok('задание урока: +20 🪙 и +20 ⭐, кошелёк в шапке 20') : bad('после задания: ' + JSON.stringify(on));
+    await p.click('.lesm .ltask'); await p.waitForTimeout(300);
+    const off = await p.evaluate(() => ({ les: S.les.length, xp: totalXP() }));
+    (off.les === 0 && off.xp === 0) ? ok('снятое задание монеты отнимает — фермы нет') : bad('после снятия: ' + JSON.stringify(off));
+    await p.click('.lesm .ltask'); await p.waitForTimeout(300);
+    await p.click('.lesm .ok'); await p.waitForTimeout(200);
+    // новый уровень называет открытый урок и ведёт в него; «Строим дальше» закрывает как раньше
+    await p.evaluate(() => { S.checks[TODAY] = S.habits.slice(0, 3).map(h => h.id); S.tasks.push({ id: uid(), name: 'т', prio: 'md', due: TODAY, done: true }); save(); render(); });
+    await p.waitForTimeout(300);
+    const cel = await p.evaluate(() => ({ L: levelOf(totalXP()), t: (document.querySelector('.ovl .modal') || {}).textContent || '', les: !!document.querySelector('#celLes') }));
+    (cel.L === 2 && /Открыт урок 2/.test(cel.t) && /Голос за себя/.test(cel.t) && cel.les) ? ok('праздник 2-го уровня называет урок 2 «Голос за себя»') : bad('праздник: ' + JSON.stringify(cel));
+    await p.click('#celLes'); await p.waitForTimeout(300);
+    const l2 = await p.evaluate(() => ({ h: (document.querySelector('.lesm h4') || {}).textContent, ovl: document.querySelectorAll('.ovl').length }));
+    (l2.h === 'Голос за себя' && l2.ovl === 1) ? ok('«📖 Урок» из праздника открывает урок 2') : bad('урок из праздника: ' + JSON.stringify(l2));
+    await p.click('.lesm .ok'); await p.waitForTimeout(200);
+    // срок в своём темпе и дисциплина неделя к неделе — из истории; без неё их нет (проверено выше)
+    await p.evaluate(() => { const ids = S.habits.map(h => h.id); S.habits.forEach(h => { h.since = addDays(TODAY, -20); });
+      for (let k = 20; k >= 1; k--) S.checks[addDays(TODAY, -k)] = k > 13 ? ids.slice(0, 1) : ids; save(); goPath(); });
+    await p.waitForTimeout(300);
+    const fc = await p.evaluate(() => ({ rows: [...document.querySelectorAll('#v-path .fcr')].map(e => e.textContent.replace(/\s+/g, ' ').trim()),
+      cmp: (document.querySelector('#v-path .pcmp') || {}).textContent || '', pace: Math.round(pace()), big: document.querySelector('#v-path .pgrow .big').textContent, closed: stats().closed,
+      next: RANKS[rankOf(levelOf(totalXP())) + 1][1] }));
+    (fc.pace > 0 && fc.rows.length === 2 && fc.rows[0].includes(fc.next) && /Магнат/.test(fc.rows[1]) && fc.rows.every(r => /≈ \d+ д/.test(r)))
+      ? ok(`срок в темпе ${fc.pace} ⭐/день: ${fc.rows.join(' · ')}`) : bad('срок: ' + JSON.stringify(fc));
+    (/первая неделя 33% → последние 7 дней 100%/.test(fc.cmp)) ? ok('дисциплина: первая неделя 33% → последние 7 дней 100%') : bad('сравнение недель: ' + fc.cmp);
+    (fc.closed >= 14 && fc.big === `+${Math.round((Math.pow(1.01, fc.closed) - 1) * 100)}%`) ? ok(`рост по правилу 1%: ${fc.closed} закрытых дней → ${fc.big}`) : bad('рост: ' + JSON.stringify({ c: fc.closed, big: fc.big }));
+    errCheck(p, 'путь магната');
+    await ctx.close();
+  }
+  // данные: S.les переживает копию, мусор отсеивается, у старых данных поля нет — пустой список
+  {
+    const { ctx, p } = await newPage(b, { width: 320, height: 640 });
+    await p.goto(URL); await p.waitForTimeout(300);
+    await startClean(p);
+    const d = await p.evaluate(() => {
+      const junk = normalize({ ...JSON.parse(JSON.stringify(S)), les: ['x', 0, 99, 3, 3, 2.5, '5'] }).les.join();
+      const old = { ...JSON.parse(JSON.stringify(S)) }; delete old.les;
+      S.les = [4, 1]; const a = JSON.stringify(S), back = JSON.stringify(normalize(JSON.parse(a)));
+      return { junk, old: JSON.stringify(normalize(old).les), round: a === back, last: Object.keys(normalize(old)).slice(-1)[0] };
+    });
+    (d.junk === '3,5' && d.old === '[]' && d.round) ? ok('уроки в данных: мусор отсеян (3,5), старые данные — [], копия проходит круг байт в байт')
+      : bad('данные уроков: ' + JSON.stringify(d));
+    await p.evaluate(() => { S.les = [1]; save(); goPath(); }); await p.waitForTimeout(300);
+    const w = await p.evaluate(() => ({ sw: document.documentElement.scrollWidth, w: innerWidth }));
+    w.sw <= w.w ? ok('путь без прокрутки вбок на 320') : bad(`путь на 320 шире экрана: ${w.sw}`);
+    errCheck(p, 'данные пути');
+    await ctx.close();
+  }
+
   // ---------- 2. демо ----------
   console.log('\n2) Онбординг → «Посмотреть пример» (демо-данные)');
   {
