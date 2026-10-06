@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <title>Магнат</title>
 <meta name="robots" content="noindex">
-<meta name="description" content="Магнат — привычки, задачи, деньги и тело в одной игре: делаешь дела — получаешь монеты, растёт уровень, строится твоя империя.">
+<meta name="description" content="Магнат — игра, в которой прокачиваешь себя: привычки, задачи, деньги и тело. Каждый уровень открывает урок из книг о дисциплине и деньгах.">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -315,6 +315,46 @@
   .ovl{animation:ovlIn .18s ease-out;}
   .ovl>.modal{animation:modalIn .24s cubic-bezier(.16,1,.3,1);}
   @media(prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+  /* Путь Магната (06.10.2026): урок уровня на Обзоре, экран «Путь», окно урока */
+  .hero-row.pgo{cursor:pointer;} .hero .lvl-tag .go{color:var(--mut2); letter-spacing:0;}
+  .lesrow{display:flex; align-items:center; gap:11px; margin-top:12px; padding:11px 12px; border-radius:12px; background:var(--panel); border:1px solid var(--line2); cursor:pointer;}
+  .lesrow .li{flex:none; font-size:19px; line-height:1;}
+  .lesrow .lt, .les .lt{flex:1; min-width:0;}
+  .lesrow small, .ltask small{display:block; font-size:10.5px; color:var(--mut2); text-transform:uppercase; letter-spacing:.6px;}
+  .lesrow b{display:block; font-size:14px; color:var(--ink); margin-top:2px; overflow-wrap:anywhere;}
+  .lesrow .go, .les .go{flex:none; color:var(--mut2); font-size:20px; line-height:1;}
+  .pback{display:inline-flex; align-items:center; min-height:40px; margin:-4px 0 6px; padding:0 2px; background:none; border:none; color:var(--emerald); font:inherit; font-size:14px; font-weight:700; cursor:pointer;}
+  .pgrow{display:flex; align-items:center; gap:14px; margin-top:15px;}
+  .pgrow .big{flex:none; font-size:38px; font-weight:800; letter-spacing:-.02em; color:var(--gold); line-height:1;}
+  .pgrow p{font-size:12.5px; color:var(--mut); line-height:1.5; min-width:0;} .pgrow p b{color:var(--ink);}
+  .tile .of{font-size:12px; color:var(--mut2); font-weight:600;}
+  .pcmp{margin-top:12px; font-size:12.5px; color:var(--mut); line-height:1.5;} .pcmp b{color:var(--ink);}
+  .ptxt{font-size:13.5px; color:var(--mut); line-height:1.55;} .ptxt b{color:var(--ink);}
+  .fcr{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); font-size:14px;}
+  .fcr:first-of-type{margin-top:6px;} .fcr>span{min-width:0;} .fcr>span:last-child{flex:none; text-align:right; color:var(--emerald); font-weight:700;}
+  .fcr small{display:block; font-size:11.5px; color:var(--mut2); font-weight:500; margin-top:2px;}
+  .pnote{font-size:11.5px; color:var(--mut2); line-height:1.5; margin-top:11px;}
+  .stg-h{display:flex; align-items:center; gap:11px;}
+  .stg-i{flex:none; font-size:26px; line-height:1;}
+  .stg-t{flex:1; min-width:0;} .stg-t b{display:block; font-size:16px; font-weight:800; letter-spacing:-.01em;} .stg-t small{display:block; font-size:12px; color:var(--mut); margin-top:1px;}
+  .stg-s{flex:none; font-size:11px; font-weight:700; padding:4px 10px; border-radius:99px; white-space:nowrap; border:1px solid var(--line2); color:var(--mut2);}
+  .stg-s.now{background:#0e2f22; border-color:#1c7a54; color:var(--emerald);} .stg-s.done{background:#1d1707; border-color:#6e5320; color:var(--gold);}
+  .stg.lock .stg-i, .stg.lock .stg-t{opacity:.55;}
+  .stg-more{margin-top:11px; font-size:12px; color:var(--mut2); line-height:1.55;}
+  .les{display:flex; align-items:center; gap:11px; padding:11px 0; border-top:1px solid var(--line); cursor:pointer;}
+  .stg-h+.les{margin-top:11px;}
+  .les .n{width:30px; height:30px; flex:none; border-radius:50%; display:grid; place-items:center; border:2px solid #2fa872; color:var(--emerald); font-size:12.5px; font-weight:800; font-variant-numeric:tabular-nums;}
+  .les.done .n{background:var(--emerald) var(--chk) center/16px no-repeat; border-color:var(--emerald); font-size:0;}
+  .les.lock{cursor:default;} .les.lock .n{border:2px dashed var(--line2); color:var(--mut2);}
+  .les .lt b{display:block; font-size:14px; font-weight:700; color:var(--ink); overflow-wrap:anywhere;} .les.lock .lt b{color:var(--mut);}
+  .les .lt small{display:block; font-size:11.5px; color:var(--mut2); margin-top:2px; line-height:1.4;}
+  .pend{text-align:center; font-size:12.5px; color:var(--mut2); line-height:1.55; margin-top:16px;}
+  .lesm .lvl-tag{margin-bottom:6px;} .lesm .lbook{font-size:12.5px; color:var(--gold); line-height:1.45;}
+  .lesm .mtxt{margin-top:12px; font-size:14px;}
+  .lesm .q{margin:16px 0 0; cursor:pointer;} .lesm .q .nm{font-size:14px; line-height:1.4;} .ltask small{margin-bottom:3px;}
+  .lesnew{margin-top:14px; padding:12px 13px; border-radius:12px; background:var(--panel); border:1px solid var(--line2); text-align:left;}
+  .lesnew small{display:block; font-size:10.5px; color:var(--emerald); text-transform:uppercase; letter-spacing:.8px;}
+  .lesnew b{display:block; font-size:15px; margin-top:3px;} .lesnew span{display:block; font-size:12px; color:var(--mut2); margin-top:2px;}
   /* В КОНЦЕ намеренно — иначе свойства выше перебьют. Крупные цифры и заголовки: Manrope
      держит их весом 800 и плотной разрядкой; у Georgia крупность давала сама засечка */
   .brand b,.chip.lvl,.lvl-name,.stat .v,.donut-c .p,.calt,.modal h4,.amt-in,.tdp,.tdt b,.big{font-weight:800; letter-spacing:-.02em;}
@@ -335,6 +375,7 @@
   <div class="view" id="v-money"></div>
   <div class="view" id="v-body"></div>
   <div class="view" id="v-shop"></div>
+  <div class="view" id="v-path"></div>
 </main>
 <nav class="tabs" aria-label="Разделы"><div class="tabs-in" id="tabs"></div></nav>
 <div class="toast" id="toast"></div>
@@ -365,6 +406,92 @@ const rankName=r=>RANKS[r][0]+" "+RANKS[r][1];
 const COIN=20;
 const TASKCOIN=20;    // выполненная задача — как отмеченная привычка
 const LVLBONUS=50;    // подарок в кошелёк за каждый новый уровень (опыта не добавляет)
+// ---- Путь Магната (06.10.2026) ----
+// Владелец: «акцент на саморазвитие — человек должен пользоваться Магнатом и знать, что станет
+// лучше». Каждый уровень открывает урок: мысль из известной книги СВОИМИ словами (не цитата)
+// и задание на день, +20 🪙. Звание — ступень пути со своей темой.
+// Уверенность даёт не обещание «100% успех» (это ложь покупателю и недостоверная реклама),
+// а расчёт по его же данным: закрытые дни, дисциплина неделя к неделе, срок в его темпе.
+// Арсена Маркаряна здесь нет намеренно: 05.03.2026 осуждён на 4,5 года — не для платного продукта.
+const STAGES=["Дисциплина","Деньги","Мышление","Фокус и воля","Капитал"];   // тема ступени = звание RANKS[i]
+const STAGEME=["держит слово перед собой","знает, куда идёт каждый рубль","сам отвечает за свою жизнь",
+  "делает главное, а не срочное","заставляет деньги и время работать на себя"];
+// урок N открывается на N-м уровне. t — название, b — книга, a — автор, i — мысль, p — задание,
+// go — вкладка, где задание делается
+const LESSONS=[
+ {t:"Правило 1%",b:"Атомные привычки",a:"Джеймс Клир",
+  i:"Стать лучше на 1% за день — незаметно. Но 1% каждый день за год складывается в рост в 37 раз: так работает сложный процент. Поэтому не жди рывка — результат собирается из маленьких дней, а не из одного подвига.",
+  p:"Сделай сегодня каждую свою привычку — хотя бы по минуте",go:"habits"},
+ {t:"Голос за себя",b:"Атомные привычки",a:"Джеймс Клир",
+  i:"Каждое действие — голос за того, кем ты становишься. Одна тренировка не делает спортсменом, но это голос «я спортсмен». Меняй не цель, а себя: не «хочу бегать», а «я тот, кто бегает».",
+  p:"Допиши «Я человек, который…» — и сделай одно дело в подтверждение"},
+ {t:"Заплати сначала себе",b:"Самый богатый человек в Вавилоне",a:"Джордж Клейсон",
+  i:"Первый закон Аркада: из каждых десяти монет, что приходят, тратить не больше девяти. Десятая — твоя навсегда. Не «отложу, что останется», а сначала себе — потом всем остальным.",
+  p:"Отложи 10% от последних денег, что пришли, — на отдельный счёт"},
+ {t:"Знай, куда уходят деньги",b:"Самый богатый человек в Вавилоне",a:"Джордж Клейсон",
+  i:"То, что мы зовём «необходимыми расходами», всегда дорастает до размера дохода — если этому не мешать. Желаний больше, чем денег. Видишь свои траты — управляешь ими, не видишь — они управляют тобой.",
+  p:"Запиши в «Финансы» все свои траты за сегодня",go:"money"},
+ {t:"Актив или пассив",b:"Богатый папа, бедный папа",a:"Роберт Кийосаки",
+  i:"Актив кладёт деньги тебе в карман, пассив — вынимает. Богатые покупают активы, остальные — пассивы, думая, что это активы. Машина в кредит и телефон на последние — пассивы, даже если выглядят как успех.",
+  p:"Выпиши, что у тебя приносит деньги, а что их забирает"},
+ {t:"Точная цель",b:"Думай и богатей",a:"Наполеон Хилл",
+  i:"Желание без точной цели — просто мечта. Хилл велит назвать точную сумму, срок, что отдашь взамен, и план — начать сразу. Записать это и читать вслух утром и вечером, пока цель не станет навязчивой.",
+  p:"Запиши цель: точная сумма, срок и что ты дашь взамен"},
+ {t:"Круг влияния",b:"7 навыков высокоэффективных людей",a:"Стивен Кови",
+  i:"Реактивные тратят силы на то, чего не могут изменить: цены, погоду, чужие решения. Проактивные — только на то, что зависит от них. Чем больше делаешь в своём круге, тем шире он становится.",
+  p:"Выпиши 3 проблемы и к каждой — шаг, который зависит только от тебя"},
+ {t:"Пока не умею",b:"Гибкое сознание",a:"Кэрол Дуэк",
+  i:"Есть два взгляда на себя: «я такой родился» и «я могу научиться». Первый прячется от ошибок, второй на них растёт. Одно слово меняет всё: не «я не умею», а «я пока не умею».",
+  p:"Возьмись за то, что не получается, — и сделай ещё одну попытку"},
+ {t:"Дневник успехов",b:"Пёс по имени Мани",a:"Бодо Шефер",
+  i:"Шефер советует каждый вечер записывать минимум пять своих успехов за день — даже мелких. Уверенность растёт не от слов «я смогу», а от доказательств: через месяц их у тебя полторы сотни.",
+  p:"Запиши вечером 5 своих сегодняшних успехов"},
+ {t:"Петля привычки",b:"Сила привычки",a:"Чарльз Дахигг",
+  i:"Любая привычка — петля: сигнал → действие → награда. Плохую нельзя просто стереть, но можно заменить действие, оставив сигнал и награду. Так устроен и Магнат: дело → монета → награда.",
+  p:"Найди сигнал своей вредной привычки и реши, чем заменишь действие"},
+ {t:"Съешь лягушку",b:"Съешьте лягушку!",a:"Брайан Трейси",
+  i:"Лягушка — самое трудное и важное дело дня, которое хочется отложить. Съешь её первой, с утра, — и весь день пойдёт под горку. Отложишь — она будет смотреть на тебя до вечера.",
+  p:"Поставь самую неприятную задачу на завтра — с высоким приоритетом",go:"tasks"},
+ {t:"Сначала главное",b:"7 навыков высокоэффективных людей",a:"Стивен Кови",
+  i:"Срочное и важное — разные вещи. Большинство живёт в срочном: уведомления, чужие просьбы. Рост — в важном, но не срочном: здоровье, навыки, своё дело. Их никто не потребует — поэтому их и не делают.",
+  p:"Выдели завтра час на важное, но не срочное — и не отдавай его никому"},
+ {t:"Глубокая работа",b:"Глубокая работа",a:"Кэл Ньюпорт",
+  i:"Ценное создаётся в часы полной сосредоточенности. Каждый взгляд в телефон оставляет «осадок внимания»: мозг ещё долго думает о ленте. Один час без отвлечений стоит трёх рваных.",
+  p:"Проведи 60 минут на главном деле — телефон в другой комнате"},
+ {t:"Правило 40%",b:"Меня не сломить",a:"Дэвид Гоггинс",
+  i:"Когда голова кричит «всё, хватит», ты выложился примерно на 40%. Остальное — запас, который мозг бережёт на всякий случай. Сила растёт, когда делаешь ещё чуть-чуть после «не могу».",
+  p:"На тренировке сделай ещё один подход, когда захочется остановиться"},
+ {t:"Накопительный эффект",b:"Накопительный эффект",a:"Даррен Харди",
+  i:"Маленькие решения — пропустить, перекусить, полистать — по отдельности ничего не стоят. Но за годы они складываются в здоровье, деньги и репутацию. В плюс или в минус — решаешь каждый день.",
+  p:"Посчитай, сколько рублей стоит твоя вредная привычка за 5 лет"},
+ {t:"Сила воли — мышца",b:"Сила воли",a:"Келли Макгонигал",
+  i:"Сила воли устаёт к вечеру, как мышца, — и как мышца растёт от тренировки. Поэтому трудные решения принимай утром, а соблазны убери с глаз: лучшая сила воли — не встречаться с соблазном.",
+  p:"Убери с глаз один соблазн: приложение с первого экрана, сладкое со стола"},
+ {t:"Принцип 80/20",b:"Принцип 80/20",a:"Ричард Кох",
+  i:"20% дел приносят 80% результата. Остальные дают крохи — их можно делать хуже, отдать другим или бросить. Богатеет не тот, кто больше занят, а тот, кто занят главным.",
+  p:"Вычеркни из задач одно дело, которое ничего тебе не даёт",go:"tasks"},
+ {t:"Боль + разбор = рост",b:"Принципы",a:"Рэй Далио",
+  i:"Далио: боль плюс размышление — это прогресс. Ошибка без разбора — просто боль, с разбором — урок, который больше не повторится. Записывай: что случилось, почему и что поменяешь.",
+  p:"Разбери одну ошибку недели: что случилось, почему, что поменяешь"},
+ {t:"Деньги-работники",b:"Самый богатый человек в Вавилоне",a:"Джордж Клейсон",
+  i:"Отложенная монета не должна лежать мёртвой. Аркад: каждая монета — работник, который приводит новых, а их дети — ещё новых. Богатство — не то, что ты заработал, а то, что работает на тебя.",
+  p:"Узнай, какой процент даёт накопительный счёт или вклад в твоём банке"},
+ {t:"Защищай капитал",b:"Самый богатый человек в Вавилоне",a:"Джордж Клейсон",
+  i:"Аркад потерял первые сбережения, доверив их кирпичнику, который взялся купить драгоценности, — и привёз стекло. Урок: вкладывай только в то, что понимаешь, и слушай тех, кто в этом разбирается. Обещают слишком много — уходи.",
+  p:"Запиши правило: во что ты не вкладываешь никогда"},
+ {t:"Время — главный процент",b:"Психология денег",a:"Морган Хаузел",
+  i:"Почти всё состояние Уоррен Баффет заработал после 65 лет. Секрет не только в уме — он начал вкладывать в 10 лет и не останавливался. Сложный процент любит не большие суммы, а долгое время.",
+  p:"Настрой автоперевод в копилку на день, когда приходят деньги"},
+ {t:"Расти в цене",b:"Самый богатый человек в Вавилоне",a:"Джордж Клейсон",
+  i:"Седьмое правило Аркада — увеличивай свою способность зарабатывать. Чем больше умеешь, тем больше за тебя платят. Тот, кто учится каждый год, обгоняет того, кто просто много работает.",
+  p:"Выбери навык, за который платят больше, — и пройди по нему первый урок"},
+ {t:"Мастермайнд",b:"Думай и богатей",a:"Наполеон Хилл",
+  i:"Большой успех не делается в одиночку. Мастермайнд по Хиллу — союз людей, которые работают на одну цель и делятся знаниями. Окружение тянет вверх или вниз — выбирай его сам.",
+  p:"Найди человека, который уже там, куда ты идёшь, — и напиши ему"},
+ {t:"Начинай с конца",b:"7 навыков высокоэффективных людей",a:"Стивен Кови",
+  i:"Кови предлагает мысленный опыт: что скажут о тебе через много лет самые близкие люди? Ответ и есть твоя настоящая цель — не цифра на счёте. Всё, что не ведёт туда, — лишнее.",
+  p:"Напиши три строки: каким ты хочешь, чтобы тебя запомнили"}];
+const GOLBL={habits:"Привычки ›",money:"Финансы ›",tasks:"Задачи ›"};
 const DEFHABITS=[["🏋️","Тренировка"],["📚","Час на дело / обучение"],["💰","Шаг к деньгам"],["📵","День без залипания"],["🧊","Холодный душ"],["💧","Вода 2 л"],["🚶","10 000 шагов"],["✍️","Разбор дня"]];
 // С чего начать — выбирает сам владелец; отмечены три (решение Артёма 29.09.2026).
 // Раньше чистый лист сразу давал восемь привычек: каждый день начинался с «0 из 8»,
@@ -444,7 +571,7 @@ function save(){ invalidate();
 }
 function freshStart(){  // чистый лист — без чужих данных
   let id=1; const habits=DEFHABITS.map(([ico,name])=>({id:id++,ico,name,since:""}));
-  return {habits, checks:{}, tasks:[], taskBank:0, finance:{income:0,entries:[]}, body:{goalW:0,calGoal:2400,waterGoal:2500,calManual:false,waterManual:false,sex:"",height:0,birth:0,act:"auto",log:[]}, rewards:defRewards(), rv:RV, boughtCnt:{}, spent:0};
+  return {habits, checks:{}, tasks:[], taskBank:0, finance:{income:0,entries:[]}, body:{goalW:0,calGoal:2400,waterGoal:2500,calManual:false,waterManual:false,sex:"",height:0,birth:0,act:"auto",log:[]}, rewards:defRewards(), rv:RV, boughtCnt:{}, spent:0, les:[]};
 }
 // приводим любые данные (старая версия, ручная правка, чужой файл) к рабочему виду —
 // иначе одно недостающее поле роняет всё приложение в белый экран
@@ -527,10 +654,12 @@ function normalize(d){
     o.rv=RV;
   }
   o.spent=Math.max(0,Math.round(num(d.spent)));
+  // уроки пути с выполненным заданием (06.10.2026). Порядок не трогаем — круг копии байт в байт
+  o.les=Array.isArray(d.les)?[...new Set(d.les.map(Number).filter(n=>Number.isInteger(n)&&n>=1&&n<=LESSONS.length))]:[];
   // порядок полей — как у freshStart(): копия данных должна проходить круг
   // «выгрузил → загрузил» байт в байт, это проверяют тесты сайта
   const r={habits:o.habits, checks:o.checks, tasks:o.tasks, taskBank:o.taskBank, finance:o.finance,
-           body:o.body, rewards:o.rewards, rv:o.rv, boughtCnt:o.boughtCnt, spent:o.spent};
+           body:o.body, rewards:o.rewards, rv:o.rv, boughtCnt:o.boughtCnt, spent:o.spent, les:o.les};
   if(d.demoData) r.demoData=true;
   // уровень, который уже отпраздновали. Старое поле lastLvl считало пять званий, а не уровни —
   // его не переносим, иначе первый же запуск показал бы ложное «новый уровень»
@@ -568,7 +697,7 @@ function seed(){
   const body={goalW:78, calGoal:2400, waterGoal:2500, calManual:false, waterManual:false,
     sex:"m", height:182, birth:1990, act:"auto",
     log:[["-56",84],["-49",83.2],["-42",82.5],["-35",81.9],["-28",81.1],["-21",80.4],["-14",79.8],["-7",79.3],["0",78.9]].map(([k,w])=>({date:addDays(TODAY,+k),w}))};
-  return {habits,checks,tasks,taskBank:0,finance,body,rewards:defRewards(),rv:RV,boughtCnt:{},spent:0};
+  return {habits,checks,tasks,taskBank:0,finance,body,rewards:defRewards(),rv:RV,boughtCnt:{},spent:0,les:[1,2,3,4,5,6,7,9,10,11]};
 }
 
 // ---- gamification ----
@@ -594,22 +723,26 @@ function stats(){
   if(_st) return _st;
   const days=Object.keys(S.checks).sort();
   const streakOf=Object.create(null);
-  let xp=0,record=0,streak=0,prev=null;
+  let xp=0,record=0,streak=0,prev=null,closed=0,marks=0;
   for(const d of days){
     const before=(prev&&addDays(prev,1)===d)?streak:0;
     xp+=Math.round(checksOf(d).length*COIN*mult(before));
     streak=dayComplete(d)?before+1:0;
     if(streak>record) record=streak;
+    if(dayComplete(d)) closed++;
+    marks+=checksOf(d).length;
     streakOf[d]=streak; prev=d;
   }
-  return (_st={xp,record,streakOf});
+  return (_st={xp,record,streakOf,closed,marks});
 }
 const streakEndingOn=d=>stats().streakOf[d]||0;
 const streakBefore=d=>streakEndingOn(addDays(d,-1));
 const coinsFor=d=>Math.round(baseCoins(d)*mult(streakBefore(d)));
 // опыт = монеты за привычки + за задачи (и выполненные сейчас, и уже убранные из списка)
 const taskXP=()=>S.tasks.filter(t=>t.done).length*TASKCOIN+(S.taskBank||0);
-const totalXP=()=>stats().xp+taskXP();
+// задание урока пути — как выполненная задача: +20 🪙 и столько же опыта
+const lesXP=()=>S.les.length*TASKCOIN;
+const totalXP=()=>stats().xp+taskXP()+lesXP();
 const recordStreak=()=>stats().record;
 const curStreak=()=>dayComplete(TODAY)?streakEndingOn(TODAY):streakEndingOn(addDays(TODAY,-1));
 const levelBonus=L=>(L-1)*LVLBONUS;
@@ -739,19 +872,22 @@ function celebrateLevel(L,prev,intro){
   const head=intro?"В империи теперь уровни":newRank?"Новое звание":"Новый уровень";
   const text=intro
     ? `Каждый уровень — новое здание в городе и +${LVLBONUS} 🪙 в кошелёк. За уже пройденные уровни начислено <b class="g">+${nf(gift)} 🪙</b>.`
-    : `В империи ${L-prev>1?"выросли новые здания":"выросло новое здание"}. <b class="g">+${nf(gift)} 🪙</b> в кошелёк.`;
+    : `В империи ${L-prev>1?"выросли новые здания":"выросло новое здание"}${newRank?` и открыта ступень «${STAGES[r]}»`:""}. <b class="g">+${nf(gift)} 🪙</b> в кошелёк.`;
+  const les=!intro&&LESSONS[L-1];
   const ovl=el(`<div class="ovl" style="z-index:70"><div class="modal" style="text-align:center;max-width:330px">
     <div style="font-size:62px;line-height:1;filter:drop-shadow(0 0 20px #2fe38f77)">${RANKS[r][3]}</div>
     <div style="color:var(--emerald);font-size:11px;letter-spacing:2.2px;text-transform:uppercase;margin-top:12px">${head}</div>
     <h4 style="font-size:27px;margin-top:2px">Уровень ${L}</h4>
     <div style="color:var(--mut);font-size:14px">${rankName(r)}</div>
     <p style="color:var(--mut);font-size:13.5px;margin:10px 0 0;line-height:1.55">${text}</p>
-    <div class="btns"><button class="ok">Строим дальше 🚀</button></div></div></div>`);
+    ${les?`<div class="lesnew"><small>Открыт урок ${L}</small><b>${les.t}</b><span>«${les.b}» — ${les.a}</span></div>`:""}
+    <div class="btns">${les?'<button class="no" id="celLes">📖 Урок</button>':""}<button class="ok">Строим дальше 🚀</button></div></div></div>`);
   document.body.appendChild(ovl);
   confettiBurst(innerWidth/2, innerHeight*0.32, 64, ["#2fe38f","#f5c451","#35d0ff","#b06bff"]);
   const close=()=>ovl.remove();
   ovl.querySelector(".ok").onclick=close;
   ovl.onclick=e=>{if(e.target===ovl)close();};
+  const cl=ovl.querySelector("#celLes"); if(cl) cl.onclick=()=>{ close(); openLesson(L); };
 }
 
 // Приложение живёт в двух местах: на своём сайте magnat-planer.ru и страницей в окне Claude.
@@ -964,8 +1100,8 @@ function vHome(root){
      <div class="tchips tlist" id="todayChips"></div>
    </div>
    <div class="glass hero" style="margin-top:13px">
-     <div class="hero-row">
-       <div><div class="lvl-tag">◆ твоя империя</div><div class="lvl-name">Уровень ${L}</div><div class="lvl-rank">${rankName(r)}</div></div>
+     <div class="hero-row pgo" id="heroPath" role="button" tabindex="0">
+       <div><div class="lvl-tag">◆ путь магната <span class="go">›</span></div><div class="lvl-name">Уровень ${L}</div><div class="lvl-rank">${rankName(r)}</div></div>
        <div class="building">${RANKS[r][3]}</div>
      </div>
      <div class="bar-t"><span style="width:${pct}%"></span></div>
@@ -976,6 +1112,7 @@ function vHome(root){
        <div class="tile"><div class="v e">×${dcm(mult(st).toFixed(1))}</div><div class="l">бонус серии</div></div>
        <div class="tile"><div class="v vi">🏆 ${recordStreak()}</div><div class="l">рекорд серии</div></div>
      </div>
+     ${lesRowHtml(L)}
    </div>
    ${ins?`<div class="glass card" style="margin-top:13px"><h3>Инсайт недели</h3>
      <div style="display:flex;gap:10px;font-size:13.5px;color:var(--mut);line-height:1.55;align-items:flex-start"><span style="flex:none">💡</span><span class="ins-t">${ins}</span></div></div>`:""}
@@ -1032,6 +1169,9 @@ function vHome(root){
     cw.appendChild(chip);
   });
   if(!S.habits.length) cw.innerHTML='<span style="font-size:12.5px;color:var(--mut2)">Привычек нет — добавь первую во вкладке «Привычки»</span>';
+  const hp=root.querySelector("#heroPath"); hp.addEventListener("click",()=>goPath()); onKeys(hp,goPath);
+  const lr=root.querySelector("#lesRow"); const lrGo=()=>{ const n=+lr.dataset.n; if(n) openLesson(n); else goPath(); };
+  lr.addEventListener("click",lrGo); onKeys(lr,lrGo);
   root.querySelector("#bkSave").addEventListener("click",downloadBackup);
   root.querySelector("#bkLoad").addEventListener("click",restoreBackup);
   root.querySelector("#resetBtn").addEventListener("click",async()=>{
@@ -1738,9 +1878,119 @@ function showImage(blob){
   ovl.onclick=e=>{ if(e.target===ovl) close(); };
 }
 
+// ---- Путь Магната: экран и окно урока ----
+const lesOpen=(n,L)=>n<=L||S.les.includes(n);
+// урок для Обзора: самый свежий открытый без задания; 0 — все открытые пройдены
+function lessonPick(L){
+  for(let n=Math.min(L,LESSONS.length);n>=1;n--) if(!S.les.includes(n)) return n;
+  return 0;
+}
+function lesRowHtml(L){
+  const n=lessonPick(L);
+  const [sm,big]=n?[`Урок ${n} · задание +${TASKCOIN} 🪙`,LESSONS[n-1].t]
+    :[`Путь магната · ${S.les.length} из ${LESSONS.length}`,L<LESSONS.length?`Следующий урок — на ${L+1}-м уровне`:"Все уроки пройдены"];
+  return `<div class="lesrow" id="lesRow" role="button" tabindex="0" data-n="${n}"><span class="li">📖</span><span class="lt"><small>${sm}</small><b>${big}</b></span><span class="go">›</span></div>`;
+}
+const livedDays=()=>Math.round((parseYmd(TODAY)-parseYmd(firstDay()))/864e5)+1;
+// темп — опыт за привычки в день за последние две недели в приложении. Задачи не считаем: у них
+// нет даты выполнения — срок выходит чуть длиннее настоящего, но не обманывает
+function pace(){
+  const k0=checksOf(TODAY).length?0:1, w=Math.min(14,livedDays()-k0);
+  if(w<3) return 0;
+  let sum=0,used=0;
+  for(let k=k0;k<k0+w;k++){ const c=coinsFor(addDays(TODAY,-k)); sum+=c; if(c) used++; }
+  return used>=3?sum/w:0;
+}
+// дисциплина первой недели против последней — только когда обе прожиты (как «Инсайт недели»)
+function discCmp(){
+  const n=livedDays(); if(n<14) return null;
+  const a=pctRange(n-1,n-7), b=pctRange(6,0);
+  return (a.used>=4&&b.used>=4)?{a:Math.round(a.pct*100),b:Math.round(b.pct*100)}:null;
+}
+const dateIn=k=>{const d=parseYmd(addDays(TODAY,k));return `${d.getDate()} ${MONTHS_GEN[d.getMonth()]}${d.getFullYear()!==+TODAY.slice(0,4)?" "+d.getFullYear():""}`;};
+function goPath(){ cur="path"; render(); window.scrollTo(0,0); }
+function vPath(root){
+  const xp=totalXP(),L=levelOf(xp),r=rankOf(L),st=stats(),p=pace(),cmp=discCmp();
+  const done=st.marks+S.tasks.filter(t=>t.done).length+Math.round((S.taskBank||0)/TASKCOIN)+S.les.length;
+  // правило 1% Клира: каждый закрытый день ×1,01. До удвоения — проценты, дальше — «×N»
+  // у новичка вместо «+0%» — само правило: «1%»
+  const pw=Math.pow(1.01,st.closed), grow=!st.closed?"1%":pw<2?`+${Math.round((pw-1)*100)}%`:`×${dcm(pw.toFixed(1))}`;
+  const goals=[];
+  if(RANKS[r+1]) goals.push([rankName(r+1),RANKS[r+1][2]]);
+  if(r<RANKS.length-2) goals.push([rankName(RANKS.length-1),RANKS[RANKS.length-1][2]]);
+  if(!RANKS[r+1]) goals.push([`Уровень ${L+1}`,L+1]);
+  const fc=goals.map(([nm,lv])=>{ const k=Math.max(1,Math.ceil((xpForLevel(lv)-xp)/p));
+    return `<div class="fcr"><span><b>${nm}</b><small>${lv}-й уровень</small></span><span>≈ ${nf(k)} ${pl(k,"день","дня","дней")}<small>${dateIn(k)}</small></span></div>`; }).join("");
+  const dg=dayGoal(TODAY);
+  let stg="";
+  RANKS.forEach((R,i)=>{
+    const to=RANKS[i+1]?RANKS[i+1][2]-1:LESSONS.length, ns=[];
+    for(let n=R[2];n<=Math.min(to,LESSONS.length);n++) ns.push(n);
+    const state=i<r?"done":i===r?"now":"lock";
+    const badge=state==="done"?"пройдена":state==="now"?"ты здесь":`с ${R[2]}-го уровня`;
+    const body=state==="lock"
+      ? `<div class="stg-more">${ns.map(n=>LESSONS[n-1].t).join(" · ")}</div>`
+      : ns.map(n=>{ const o=lesOpen(n,L), d=S.les.includes(n), Ls=LESSONS[n-1];
+          return `<div class="les${d?" done":o?"":" lock"}"${o?` data-les="${n}" role="button" tabindex="0"`:""}><span class="n">${n}</span><span class="lt"><b>${Ls.t}</b><small>${o?`«${Ls.b}» · ${Ls.a}`:`откроется на ${n}-м уровне`}</small></span>${o?'<span class="go">›</span>':""}</div>`; }).join("");
+    stg+=`<div class="glass card stg ${state}" style="margin-top:13px"><div class="stg-h"><span class="stg-i">${R[0]}</span><span class="stg-t"><b>${R[1]}</b><small>Ступень «${STAGES[i]}»</small></span><span class="stg-s ${state}">${badge}</span></div>${body}</div>`;
+  });
+  root.innerHTML=`
+    <button class="pback" id="pBack">‹ Обзор</button>
+    <div class="glass hero phero">
+      <div class="lvl-tag">◆ путь магната</div>
+      <div class="lvl-name">Уровень ${L} · ${RANKS[r][1]}</div>
+      <div class="lvl-rank">Ступень «${STAGES[r]}»: ты — человек, который ${STAGEME[r]}</div>
+      <div class="pgrow"><div class="big num">${grow}</div>
+        <p>${st.closed?`Столько ты прибавил к себе первому: по правилу 1% Джеймса Клира каждый закрытый день — плюс процент к тебе вчерашнему.`
+          :`Столько даёт каждый закрытый день по правилу Джеймса Клира. Закрой первый сегодня: <b>${dg} ${pl(dg,"отметка","отметки","отметок")}</b>.`}</p></div>
+      <div class="tiles">
+        <div class="tile"><div class="v g">${st.closed}</div><div class="l">дней роста</div></div>
+        <div class="tile"><div class="v e">${nf(done)}</div><div class="l">дел сделано</div></div>
+        <div class="tile"><div class="v cy">${S.les.length}<span class="of"> / ${LESSONS.length}</span></div><div class="l">уроков</div></div>
+      </div>
+      ${cmp?`<div class="pcmp">Дисциплина: первая неделя <b>${cmp.a}%</b> → последние 7 дней <b class="${cmp.b>=cmp.a?"e":"dn"}">${cmp.b}%</b></div>`:""}
+    </div>
+    <div class="glass card" style="margin-top:13px"><h3>В твоём темпе</h3>
+      ${p?`<p class="ptxt">≈ <b>${nf(p)} ⭐ в день</b> за последние две недели. Держи его — и вот когда ты будешь здесь:</p>${fc}
+        <p class="pnote">Это не обещание, а расчёт по твоим же отметкам: темп растёт — срок приближается.</p>`
+        :`<p class="ptxt">Отмечай привычки три дня — и здесь появится точный срок до следующего звания и до 👑 Магната.</p>`}
+    </div>
+    ${stg}
+    <p class="pend">${L>=LESSONS.length?`Все ${LESSONS.length} уроков открыты. Дальше — уровни без потолка: возвращайся к любому уроку.`
+      :`Урок за уровень, ${LESSONS.length} уроков из книг о дисциплине и деньгах. Закрывай дни — остальное посчитает Магнат.`}</p>`;
+  root.querySelector("#pBack").addEventListener("click",()=>{ cur="home"; render(); window.scrollTo(0,0); });
+  root.querySelectorAll("[data-les]").forEach(e=>{ const f=()=>openLesson(+e.dataset.les); e.addEventListener("click",f); onKeys(e,f); });
+}
+function openLesson(n){
+  const Ls=LESSONS[n-1]; if(!Ls) return;
+  const ovl=el(`<div class="ovl"><div class="modal lesm" role="dialog" aria-label="Урок ${n}">
+    <div class="lvl-tag">Урок ${n} · ${rankName(rankOf(n))}</div>
+    <h4>${Ls.t}</h4>
+    <div class="lbook">«${Ls.b}» — ${Ls.a}</div>
+    <p class="mtxt">${Ls.i}</p>
+    <div class="q ltask" role="checkbox" tabindex="0" data-pop="les${n}"><span class="box"></span><div class="nm"><small>Задание</small>${Ls.p}</div><span class="cn">+${TASKCOIN} 🪙</span></div>
+    <div class="btns">${Ls.go?`<button class="no" id="lesGo">${GOLBL[Ls.go]}</button>`:""}<button class="ok">Готово</button></div>
+  </div></div>`);
+  const box=ovl.querySelector(".ltask");
+  const paint=()=>{ const d=S.les.includes(n); box.classList.toggle("done",d); box.setAttribute("aria-checked",String(d)); };
+  const toggle=()=>{
+    const i=S.les.indexOf(n);
+    if(i>=0) S.les.splice(i,1); else { S.les.push(n); flyCoinToWallet(box); popEl(box); toast(`✓ Урок ${n} пройден · +${TASKCOIN} 🪙`); }
+    save(); render(); paint();
+  };
+  paint(); box.addEventListener("click",toggle); onKeys(box,toggle);
+  const close=()=>ovl.remove();
+  ovl.querySelector(".ok").onclick=close;
+  ovl.onclick=e=>{ if(e.target===ovl) close(); };
+  ovl.addEventListener("keydown",e=>{ if(e.key==="Escape") close(); });
+  const g=ovl.querySelector("#lesGo"); if(g) g.onclick=()=>{ close(); cur=Ls.go; render(); window.scrollTo(0,0); };
+  document.body.appendChild(ovl);
+  setTimeout(()=>ovl.querySelector(".ok").focus({preventScroll:true}),50);
+}
+
 // ---- router ----
 let cur="home", lastView="";
-const RENDER={home:vHome,habits:vHabits,tasks:vTasks,money:vMoney,body:vBody,shop:vShop};
+const RENDER={home:vHome,habits:vHabits,tasks:vTasks,money:vMoney,body:vBody,shop:vShop,path:vPath};
 function render(){
   try{ draw(); }
   catch(err){ rescue(err); }
@@ -1759,7 +2009,7 @@ function draw(){
   else if(L>S.lastLv){ const p=S.lastLv; S.lastLv=L; save(); celebrateLevel(L,p); }
   showWallet();
   document.getElementById("lvlChip").innerHTML=`Ур. ${L}<span class="rk"> · ${rankName(rankOf(L))}</span>`;
-  document.querySelectorAll(".tab").forEach(t=>{ const on=t.dataset.t===cur; t.classList.toggle("on",on); t.setAttribute("aria-current",on?"page":"false"); });
+  document.querySelectorAll(".tab").forEach(t=>{ const on=t.dataset.t===(cur==="path"?"home":cur); t.classList.toggle("on",on); t.setAttribute("aria-current",on?"page":"false"); });
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
   const root=document.getElementById("v-"+cur); root.classList.add("on"); RENDER[cur](root);
   // новая вкладка въезжает снизу на 8 px за 220 мс; перерисовка той же вкладки — без движения
@@ -1867,9 +2117,9 @@ window.addEventListener("focus",dayWatch);
   const cc=document.querySelector(".chip.coin"); if(!cc) return;
   cc.style.cursor="pointer"; cc.title="Награды";
   cc.addEventListener("click",()=>{cur="shop";render();window.scrollTo(0,0);});
-  // уровень в шапке ведёт на Обзор, к империи
+  // уровень в шапке ведёт в путь магната (06.10.2026; раньше — на Обзор)
   const lc=document.getElementById("lvlChip");
-  if(lc) lc.addEventListener("click",()=>{cur="home";render();window.scrollTo(0,0);});
+  if(lc) lc.addEventListener("click",goPath);
 })();
 
 
@@ -1944,12 +2194,12 @@ function showOnboarding(){
   const ovl=el(`<div class="ovl"></div>`);
   const m=el(`<div class="modal" style="max-width:380px">
     <h4 class="obh" style="font-size:22px"><svg class="mk obmk" viewBox="0 0 32 32" aria-hidden="true"><rect x=".5" y=".5" width="31" height="31" rx="8.5" fill="#0c1a1c" stroke="#25463d"/><g fill="#33e494"><path d="M16 7.4 7.3 12.1h17.4z"/><rect x="8.2" y="13.1" width="15.6" height="1.7" rx=".85"/><rect x="9.3" y="15.9" width="2.3" height="6.1" rx="1.1"/><rect x="13" y="15.9" width="2.3" height="6.1" rx="1.1"/><rect x="16.7" y="15.9" width="2.3" height="6.1" rx="1.1"/><rect x="20.4" y="15.9" width="2.3" height="6.1" rx="1.1"/><rect x="7.8" y="23.1" width="16.4" height="1.7" rx=".85"/></g></svg>Добро пожаловать</h4>
-    <p style="color:var(--mut);font-size:14px;margin:8px 0 0;line-height:1.5"><b style="color:var(--ink)">Магнат</b> превращает твою жизнь в игру-тайкун:</p>
+    <p style="color:var(--mut);font-size:14px;margin:8px 0 0;line-height:1.5"><b style="color:var(--ink)">Магнат</b> — игра, в которой прокачиваешь не героя, а себя:</p>
     <div class="how">
-      <div><span>✅</span><span>Отмечаешь привычки и задачи — за каждую <b class="g">+${COIN} 🪙</b></span></div>
-      <div><span>🏛</span><span>Копится <b class="e">⭐ опыт</b>: каждый уровень — новое здание в твоей империи</span></div>
+      <div><span>✅</span><span>Отмечаешь привычки и задачи — за каждую <b class="g">+${COIN} 🪙</b>, дни подряд — до ×2</span></div>
+      <div><span>🏛</span><span>Растёт <b class="e">уровень</b>: от 🐣 Новичка до 👑 Магната — и строится твоя империя</span></div>
+      <div><span>📖</span><span>Каждый уровень открывает <b class="e">урок</b> из книг о дисциплине и деньгах — и задание на день</span></div>
       <div><span>🎁</span><span>Монеты тратишь на реальные награды: TikTok, игры, читмил</span></div>
-      <div><span>🔥</span><span>Дни подряд — серия: монет за привычку до ×2</span></div>
     </div>
     <p style="color:var(--mut2);font-size:12.5px;margin:12px 0 2px">Сейчас внутри — пример для наглядности. С чего начнём?</p>
     <div class="btns" style="flex-direction:column">
