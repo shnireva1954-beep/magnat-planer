@@ -26,10 +26,14 @@ const launch = () => chromium.launch({ executablePath: chromePath() });
 
 // «Начать своё» с 29.09.2026 открывает выбор привычек: жмём «Начать» с тем,
 // что отмечено по умолчанию (три привычки). Сам выбор проверяет 01-scenarios, блок 1б.
+// С 06.10.2026 следом открывается урок 1 — закрываем «Готово», как человек.
+// Само окно первого урока проверяет 01-scenarios, блок 1к.
 async function startClean(p) {
   await p.click('#obFresh');
   await p.waitForSelector('#hpGo', { timeout: 3000 });
-  await p.click('#hpGo'); await p.waitForTimeout(400);
+  await p.click('#hpGo');
+  await p.waitForSelector('.lesm .ok', { timeout: 3000 });
+  await p.click('.lesm .ok'); await p.waitForTimeout(400);
 }
 
 module.exports = { chromium, launch, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR, startClean };

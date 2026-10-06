@@ -71,6 +71,10 @@ async function walkTabs(p, label) {
     await p.fill('#hpOwn', 'Чтение');
     const label = await p.$eval('#hpGo', e => e.textContent);
     await p.click('#hpGo'); await p.waitForTimeout(400);
+    // следом — урок 1 (06.10.2026); «Готово» закрывает его, и дальше всё как раньше
+    const first = await p.evaluate(() => ({ n: document.querySelectorAll('.ovl').length, h: (document.querySelector('.lesm h4') || {}).textContent }));
+    (first.n === 1 && first.h === 'Правило 1%') ? ok('после «Начать» открыт урок 1 — одно окно') : bad('после «Начать»: ' + JSON.stringify(first));
+    await p.click('.lesm .ok'); await p.waitForTimeout(300);
     const st = await p.evaluate(() => ({ hs: S.habits.map(h => [h.id, h.ico, h.name, h.since]), today: TODAY, gone: !document.querySelector('.ovl'),
       cnt: document.querySelector('#todayCnt').textContent, w: wallet(), sport: S.habits.filter(isWorkout).map(h => h.name) }));
     const names = st.hs.map(h => h[2]).join('|');
@@ -552,6 +556,96 @@ async function walkTabs(p, label) {
     const w = await p.evaluate(() => ({ sw: document.documentElement.scrollWidth, w: innerWidth }));
     w.sw <= w.w ? ok('путь без прокрутки вбок на 320') : bad(`путь на 320 шире экрана: ${w.sw}`);
     errCheck(p, 'данные пути');
+    await ctx.close();
+  }
+
+  // ---------- 1к. Книги владельца, урок 1 на старте, пройденное по паспорту урока (06.10.2026) ----------
+  // Владелец: «акцент книгами Дэвида Гоггинса… Вавилон, трансерфинг реальности, 48 законов власти,
+  // счастливый карман полный денег». Проход клиентом: урок — главное, а новичок его не видел (ниже
+  // первого экрана). Пройденное хранится по id урока: порядок пути меняли — у людей ничего не сбилось
+  console.log('\n1к) Книги владельца, урок 1 сразу после старта, пройденное по id урока');
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 844 });
+    await p.goto(URL); await p.waitForTimeout(400);
+    const how = await p.$$eval('.how > div', e => e.map(x => x.textContent).join(' | '));
+    (/Гоггинс/.test(how) && /Вавилон/.test(how) && /48 законов власти/.test(how)) ? ok('приветствие называет книги: Гоггинс, «Вавилон», «48 законов власти»') : bad('приветствие: ' + how);
+    await p.click('#obFresh'); await p.waitForSelector('#hpGo', { timeout: 3000 });
+    await p.click('#hpGo'); await p.waitForTimeout(500);
+    const f = await p.evaluate(() => { const m = document.querySelector('.lesm'); return m && { h: m.querySelector('h4').textContent,
+      hint: (m.querySelector('.lfirst') || {}).textContent || '', ovl: document.querySelectorAll('.ovl').length,
+      fits: m.getBoundingClientRect().bottom <= innerHeight, habits: S.habits.length }; });
+    (f && f.h === 'Правило 1%' && f.ovl === 1 && f.habits === 3) ? ok('после «Начать» сразу урок 1 «Правило 1%», привычки уже созданы') : bad('после «Начать»: ' + JSON.stringify(f));
+    (f && /на каждом уровне/.test(f.hint) && /нажми на уровень/.test(f.hint)) ? ok('подсказка: урок на каждом уровне, все — в «Пути» через уровень вверху') : bad('подсказка: ' + JSON.stringify(f && f.hint));
+    (f && f.fits) ? ok('окно первого урока целиком на экране 390×844') : bad('окно первого урока не влезает');
+    await p.click('.lesm .ok'); await p.waitForTimeout(300);
+    // тот же урок из пути — уже без подсказки новичка
+    await p.click('#lvlChip'); await p.waitForTimeout(300);
+    await p.click('#v-path [data-les="1"]'); await p.waitForTimeout(300);
+    const again = await p.evaluate(() => !!document.querySelector('.lesm .lfirst'));
+    !again ? ok('из «Пути» урок открывается без подсказки новичка') : bad('подсказка новичка не к месту');
+    await p.click('.lesm .ok'); await p.waitForTimeout(200);
+    // содержимое: книги, которые назвал владелец; Гоггинс — акцент, и он рано
+    const c = await p.evaluate(() => {
+      const nb = re => LESSONS.filter(l => re.test(l.b)).length;
+      return { n: LESSONS.length, gog: LESSONS.filter(l => /Гоггинс/.test(l.a)).length,
+        gogEarly: LESSONS.slice(0, 14).filter(l => /Гоггинс/.test(l.a)).length,
+        zel: nb(/Трансерфинг/), gr: nb(/48 законов власти/), bab: nb(/Вавилон/), pocket: nb(/Счастливый карман/),
+        trial: LESSONS.slice(0, 4).map(l => l.b),
+        ids: LESSONS.map(l => l.id), map: Object.fromEntries(LESSONS.map(l => [l.id, l.t])),
+        // мысль книги своими словами, а не простыня; задание — на один день; тире настоящие
+        style: LESSONS.filter(l => l.t.length > 24 || l.i.length < 150 || l.i.length > 240 || l.p.length > 80 || / - /.test(l.t + l.i + l.p) || /\.$/.test(l.p)).map(l => l.t),
+        banned: LESSONS.filter(l => /Маркарян/i.test(l.a + l.b + l.i + l.p)).map(l => l.t) };
+    });
+    (c.gog >= 5 && c.gogEarly >= 3) ? ok(`Гоггинс — акцент: ${c.gog} уроков, ${c.gogEarly} из них в первых 14`) : bad('Гоггинс: ' + JSON.stringify({ gog: c.gog, early: c.gogEarly }));
+    (c.zel >= 2 && c.gr >= 3 && c.bab >= 5 && c.pocket >= 1) ? ok(`книги владельца: «Трансерфинг» ${c.zel}, «48 законов власти» ${c.gr}, «Вавилон» ${c.bab}, «Счастливый карман» ${c.pocket}`)
+      : bad('книги: ' + JSON.stringify({ zel: c.zel, gr: c.gr, bab: c.bab, pocket: c.pocket }));
+    // пробные 7 дней — это уроки 1–4: в них Гоггинс, «Вавилон» и «Трансерфинг»
+    (c.trial.some(b => /Меня не сломить/.test(b)) && c.trial.some(b => /Вавилон/.test(b)) && c.trial.some(b => /Трансерфинг/.test(b)))
+      ? ok('первые 4 урока (неделя новичка): Гоггинс, «Вавилон», «Трансерфинг»') : bad('первые 4 урока: ' + c.trial.join(' | '));
+    !c.style.length ? ok(`все ${c.n} уроков по мерке: название ≤ 24, мысль 150–240 знаков, задание ≤ 80, тире «—»`) : bad('не по мерке: ' + c.style.join(', '));
+    !c.banned.length ? ok('авторов с уголовными делами нет') : bad('нельзя: ' + c.banned.join(', '));
+    // паспорта: уникальные целые; 1–24 — ровно те уроки, что были 06.10 (иначе у людей сменилось бы пройденное)
+    const FROZEN = { 1: 'Правило 1%', 2: 'Голос за себя', 3: 'Заплати сначала себе', 4: 'Знай, куда уходят деньги', 5: 'Актив или пассив',
+      6: 'Точная цель', 7: 'Круг влияния', 8: 'Пока не умею', 9: 'Дневник успехов', 10: 'Петля привычки', 11: 'Съешь лягушку',
+      12: 'Сначала главное', 13: 'Глубокая работа', 14: 'Правило 40%', 15: 'Накопительный эффект', 16: 'Сила воли — мышца',
+      17: 'Принцип 80/20', 18: 'Боль + разбор = рост', 19: 'Деньги-работники', 20: 'Защищай капитал', 21: 'Время — главный процент',
+      22: 'Расти в цене', 23: 'Мастермайнд', 24: 'Начинай с конца' };
+    const idsOk = c.ids.every(Number.isInteger) && new Set(c.ids).size === c.ids.length;
+    const lost = Object.entries(FROZEN).filter(([id, t]) => c.map[id] !== t).map(([id, t]) => `${id} ${t} → ${c.map[id]}`);
+    (idsOk && !lost.length) ? ok(`паспорта уроков уникальны; 1–24 — прежние уроки 06.10`) : bad('паспорта: ' + JSON.stringify({ idsOk, lost }));
+    // старые данные: «пройден урок 2» значило «Голос за себя» — он и отмечен, где бы ни стоял сейчас
+    const mv = await p.evaluate(() => { S.les = normalize({ ...JSON.parse(JSON.stringify(S)), les: [2] }).les; save(); render();
+      const at = LESSONS.findIndex(l => l.id === 2) + 1;
+      return { at, doneThere: lesDone(at), doneAt2: at === 2 || lesDone(2), xp: totalXP(), pick: lessonPick(1),
+        row: document.querySelector('#lesRow').textContent };
+    });
+    (mv.doneThere && (mv.at === 2 || !mv.doneAt2) && mv.xp === 20 && mv.pick === 1 && /Правило 1%/.test(mv.row))
+      ? ok(`пройденное по паспорту: «Голос за себя» (теперь урок ${mv.at}) отмечен, на его старом месте — нет, опыт +20`) : bad('перенос пройденного: ' + JSON.stringify(mv));
+    // закрытая ступень говорит, из каких книг её уроки; конец пути — сколько книг
+    await p.evaluate(() => goPath()); await p.waitForTimeout(300);
+    const pt = await p.evaluate(() => ({ bk: [...document.querySelectorAll('#v-path .stg-bk')].map(e => e.textContent),
+      end: document.querySelector('#v-path .pend').textContent, nb: new Set(LESSONS.map(l => l.b)).size,
+      sw: document.documentElement.scrollWidth, w: innerWidth }));
+    (pt.bk.length === 4 && pt.bk.every(t => /^Из книг: «/.test(t)) && pt.bk.join().includes('«48 законов власти»'))
+      ? ok('у закрытых ступеней — «Из книг: …», среди них «48 законов власти»') : bad('книги ступеней: ' + JSON.stringify(pt.bk));
+    (pt.end.includes(`${c.n} уроков из ${pt.nb} книг`)) ? ok(`конец пути: «${c.n} уроков из ${pt.nb} книг»`) : bad('конец пути: ' + pt.end);
+    pt.sw <= pt.w ? ok('путь без прокрутки вбок') : bad(`путь шире экрана: ${pt.sw}`);
+    errCheck(p, 'книги и паспорта уроков');
+    await ctx.close();
+  }
+  // самое длинное окно урока на 320×568 — прокручивается, кнопки достижимы, вбок не едет
+  {
+    const { ctx, p } = await newPage(b, { width: 320, height: 568 });
+    await p.goto(URL); await p.waitForTimeout(300);
+    await startClean(p);
+    const longest = await p.evaluate(() => { let k = 0; LESSONS.forEach((l, i) => { if ((l.i + l.p).length > (LESSONS[k].i + LESSONS[k].p).length) k = i; });
+      S.les = []; S.checks = {}; for (let d = 1; d <= 400; d++) S.checks[addDays(TODAY, -d)] = S.habits.map(h => h.id);
+      S.habits.forEach(h => { h.since = addDays(TODAY, -400); }); save(); render(); document.querySelectorAll('.ovl').forEach(o => o.remove()); return k + 1; });
+    await p.evaluate(n => openLesson(n), longest); await p.waitForTimeout(300);
+    const fit = await p.evaluate(() => { const ok = document.querySelector('.lesm .ok'); ok.scrollIntoView({ block: 'nearest' });
+      const r = ok.getBoundingClientRect(); return { vis: r.bottom <= innerHeight && r.top >= 0, sw: document.documentElement.scrollWidth, w: innerWidth }; });
+    (fit.vis && fit.sw <= fit.w) ? ok(`самый длинный урок (${longest}) на 320×568: «Готово» достижимо, вбок не едет`) : bad('длинный урок на 320: ' + JSON.stringify(fit));
+    errCheck(p, 'длинный урок на 320');
     await ctx.close();
   }
 
