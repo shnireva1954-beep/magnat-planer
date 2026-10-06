@@ -649,6 +649,12 @@ async function walkTabs(p, label) {
     const fit = await p.evaluate(() => { const ok = document.querySelector('.lesm .ok'); ok.scrollIntoView({ block: 'nearest' });
       const r = ok.getBoundingClientRect(); return { vis: r.bottom <= innerHeight && r.top >= 0, sw: document.documentElement.scrollWidth, w: innerWidth }; });
     (fit.vis && fit.sw <= fit.w) ? ok(`самый длинный урок (${longest}) на 320×568: «Готово» достижимо, вбок не едет`) : bad('длинный урок на 320: ' + JSON.stringify(fit));
+    // шапка ступени на 320: «Предприниматель» не помещается рядом с плашкой — плашка уходит строкой ниже, а не под слово
+    await p.evaluate(() => { document.querySelectorAll('.ovl').forEach(o => o.remove()); S.checks = {}; save(); goPath(); }); await p.waitForTimeout(300);
+    const hdr = await p.evaluate(() => [...document.querySelectorAll('#v-path .stg-h')].map(h => {
+      const r = document.createRange(); r.selectNodeContents(h.querySelector('.stg-t b')); const t = r.getBoundingClientRect(), s = h.querySelector('.stg-s').getBoundingClientRect(), c = h.getBoundingClientRect();
+      return { n: h.querySelector('.stg-t b').textContent, clash: t.right > s.left + 0.5 && s.top < t.bottom - 0.5, out: s.right > c.right + 0.5 || t.right > c.right + 0.5 }; }));
+    (hdr.length === 5 && hdr.every(h => !h.clash && !h.out)) ? ok('на 320 название ступени и плашка уровня не наезжают друг на друга') : bad('шапки ступеней на 320: ' + JSON.stringify(hdr.filter(h => h.clash || h.out)));
     errCheck(p, 'длинный урок на 320');
     await ctx.close();
   }
