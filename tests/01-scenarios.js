@@ -92,6 +92,12 @@ async function walkTabs(p, label) {
     await p.click('#hpNo'); await p.waitForTimeout(200);
     const kept = await p.evaluate(() => S.habits.length);
     kept === 4 ? ok('сброс → «Назад»: прогресс не стёрт') : bad('после отмены сброса привычек ' + kept);
+    // сброс до конца — тоже урок 1 и одно окно (06.10.2026)
+    await p.evaluate(() => { document.querySelector('#resetBtn').click(); }); await p.waitForTimeout(300);
+    await p.click('#hpGo'); await p.waitForTimeout(400);
+    const rs = await p.evaluate(() => ({ n: document.querySelectorAll('.ovl').length, h: (document.querySelector('.lesm h4') || {}).textContent, f: document.activeElement && document.activeElement.textContent }));
+    (rs.n === 1 && rs.h === 'Правило 1%' && rs.f === 'Готово') ? ok('сброс → «Начать»: урок 1, одно окно, фокус на «Готово»') : bad('после сброса: ' + JSON.stringify(rs));
+    await p.click('.lesm .ok'); await p.waitForTimeout(200);
     errCheck(p, 'выбор привычек');
     await ctx.close();
   }
@@ -522,6 +528,10 @@ async function walkTabs(p, label) {
     await p.waitForTimeout(300);
     const cel = await p.evaluate(() => ({ L: levelOf(totalXP()), t: (document.querySelector('.ovl .modal') || {}).textContent || '', les: !!document.querySelector('#celLes') }));
     (cel.L === 2 && /Открыт урок 2/.test(cel.t) && /Зеркало ответственности/.test(cel.t) && cel.les) ? ok('праздник 2-го уровня называет урок 2 «Зеркало ответственности»') : bad('праздник: ' + JSON.stringify(cel));
+    const cb = await p.evaluate(() => { const c = document.querySelector('#celLes'), o = document.querySelector('.ovl .ok');
+      return { c: c && c.textContent, o: o && o.textContent, cbg: c && getComputedStyle(c).backgroundImage, obg: o && getComputedStyle(o).backgroundImage }; });
+    (cb.c === '📖 Читать урок' && cb.o === 'Позже' && /gradient/.test(cb.cbg) && !/gradient/.test(cb.obg))
+      ? ok('в окне уровня главная кнопка — «📖 Читать урок», «Позже» спокойная') : bad('кнопки окна уровня: ' + JSON.stringify(cb));
     await p.click('#celLes'); await p.waitForTimeout(300);
     const l2 = await p.evaluate(() => ({ h: (document.querySelector('.lesm h4') || {}).textContent, ovl: document.querySelectorAll('.ovl').length }));
     (l2.h === 'Зеркало ответственности' && l2.ovl === 1) ? ok('«📖 Урок» из праздника открывает урок 2') : bad('урок из праздника: ' + JSON.stringify(l2));
@@ -634,6 +644,10 @@ async function walkTabs(p, label) {
       ? ok('у закрытых ступеней — «N уроков из книг: …», среди них «48 законов власти»') : bad('книги ступеней: ' + JSON.stringify(pt.bk));
     (pt.end.includes(`${c.n} уроков из ${pt.nb} книг`)) ? ok(`конец пути: «${c.n} уроков из ${pt.nb} книг»`) : bad('конец пути: ' + pt.end);
     pt.sw <= pt.w ? ok('путь без прокрутки вбок') : bad(`путь шире экрана: ${pt.sw}`);
+    const moved = await p.evaluate(() => { const at = LESSONS.findIndex(l => l.id === 2) + 1, e = document.querySelector(`#v-path [data-les="${at}"]`);
+      return { at, row: !!(e && e.classList.contains('done')), inv: !!document.querySelector('.obinapp') }; });
+    moved.row ? ok(`пройденный урок, переехавший в закрытую ступень (${moved.at}), виден строкой и открывается`) : bad('пройденный урок спрятан в сводке закрытой ступени');
+    !moved.inv ? ok('в обычном браузере предупреждения про Instagram нет') : bad('предупреждение про Instagram не к месту');
     errCheck(p, 'книги и паспорта уроков');
     await ctx.close();
   }
@@ -656,6 +670,50 @@ async function walkTabs(p, label) {
       return { n: h.querySelector('.stg-t b').textContent, clash: t.right > s.left + 0.5 && s.top < t.bottom - 0.5, out: s.right > c.right + 0.5 || t.right > c.right + 0.5 }; }));
     (hdr.length === 5 && hdr.every(h => !h.clash && !h.out)) ? ok('на 320 название ступени и плашка уровня не наезжают друг на друга') : bad('шапки ступеней на 320: ' + JSON.stringify(hdr.filter(h => h.clash || h.out)));
     errCheck(p, 'длинный урок на 320');
+    await ctx.close();
+  }
+
+  // ---------- 1л. Неделя покупателя (проход «покупателем» 06.10.2026) ----------
+  console.log('\n1л) Неделя покупателя: прыжок через уровни, темп за 7 дней, вход из демо, Instagram');
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 844 });
+    await p.goto(URL); await p.waitForTimeout(400);
+    // из демо → «Начать своё» → тот же урок 1 и одно окно
+    await p.click('#obDemo'); await p.waitForTimeout(300);
+    await p.click('#startOwn'); await p.waitForTimeout(300);
+    await p.click('#hpGo'); await p.waitForTimeout(400);
+    const dm = await p.evaluate(() => ({ n: document.querySelectorAll('.ovl').length, h: (document.querySelector('.lesm h4') || {}).textContent, demo: !!S.demoData }));
+    (dm.n === 1 && dm.h === 'Правило 1%' && !dm.demo) ? ok('пример → «Начать своё»: урок 1, одно окно, пример стёрт') : bad('вход из примера: ' + JSON.stringify(dm));
+    await p.click('.lesm .ok'); await p.waitForTimeout(200);
+    // неделя по три отметки задним числом: прыжок через уровни — окно называет все открытые уроки
+    await p.evaluate(() => { const ids = S.habits.map(h => h.id); S.habits.forEach(h => { h.since = addDays(TODAY, -7); });
+      for (let k = 1; k <= 7; k++) S.checks[addDays(TODAY, -k)] = ids; save(); render(); });
+    await p.waitForTimeout(400);
+    const jp = await p.evaluate(() => ({ L: levelOf(totalXP()), t: (document.querySelector('.ovl .modal') || {}).textContent || '' }));
+    const range = jp.t.match(/Открыты уроки (\d+)–(\d+)/);
+    (jp.L >= 3 && range && +range[1] === 2 && +range[2] === jp.L && jp.t.includes('Зеркало ответственности'))
+      ? ok(`прыжок 1 → ${jp.L}: «Открыты уроки 2–${jp.L}», показан первый из них`) : bad('прыжок через уровни: ' + JSON.stringify({ L: jp.L, t: jp.t.slice(0, 160) }));
+    await p.click('#celLes'); await p.waitForTimeout(300);
+    const jl = await p.evaluate(() => (document.querySelector('.lesm h4') || {}).textContent);
+    jl === 'Зеркало ответственности' ? ok('«Читать урок» открывает первый из новых — урок 2') : bad('после прыжка открыт: ' + jl);
+    await p.click('.lesm .ok'); await p.waitForTimeout(200);
+    // темп за неделю называет неделю, а не «две недели»
+    await p.evaluate(() => goPath()); await p.waitForTimeout(300);
+    const pt = await p.evaluate(() => (document.querySelector('#v-path .ptxt') || {}).textContent || '');
+    (/за последние 7 дней/.test(pt) && !/две недели/.test(pt)) ? ok('темп за 7 дней так и назван: «за последние 7 дней»') : bad('темп: ' + pt);
+    const tl = await p.evaluate(() => [...document.querySelectorAll('#v-path .tile .l')].map(e => e.textContent).join('|'));
+    tl.includes('заданий') ? ok('плитка считает задания и так и называется') : bad('плитки пути: ' + tl);
+    errCheck(p, 'неделя покупателя');
+    await ctx.close();
+  }
+  // пришёл из рилса — встроенный браузер Instagram: предупреждение ещё в приветствии, до настройки
+  {
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 300.0.0.0' });
+    const p = await ctx.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push('PAGEERROR: ' + e.message));
+    await p.goto(URL); await p.waitForTimeout(400);
+    const ob = await p.evaluate(() => (document.querySelector('.obinapp') || {}).textContent || '');
+    (/Instagram/.test(ob) && /Открыть в браузере/.test(ob)) ? ok('в Instagram приветствие сразу зовёт открыть в браузере') : bad('приветствие в Instagram: ' + ob);
+    errCheck(p, 'приветствие в Instagram');
     await ctx.close();
   }
 
