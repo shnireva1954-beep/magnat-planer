@@ -283,6 +283,7 @@
     background:#0e2f2240; border:1.5px solid #1f8f61; color:var(--emerald); transition:transform .1s;}
   .share-btn:active{transform:scale(.99)}
   .reset{display:block; margin:20px auto 0; background:none; border:none; color:var(--mut2); font-size:11px; text-decoration:underline; cursor:pointer;}
+  .legal{display:flex; flex-wrap:wrap; justify-content:center; gap:0 16px; margin:14px 0 4px;} .legal a{display:inline-flex; align-items:center; min-height:32px; color:var(--mut2); font-size:12px; text-decoration:none;} .legal a:hover,.legal a:focus-visible{color:var(--ink); text-decoration:underline;} .modal .legal{display:grid; grid-template-columns:repeat(2,auto); justify-content:center; justify-items:center; gap:0 22px; margin-top:12px;}
   .bkrow{display:flex; gap:10px; margin-top:22px;}
   .bk{flex:1; padding:11px 8px; border-radius:11px; background:var(--panel); border:1px solid var(--line2); color:var(--mut); font-size:12.5px; cursor:pointer;}
   .bknote{text-align:center; font-size:10.5px; color:var(--mut2); margin-top:8px; line-height:1.5;}
@@ -976,6 +977,13 @@ function a2hsHint(){
   if(!IOS||STANDALONE||FRAMED||INAPP) return false;
   try{ return !(Date.now()<+localStorage.getItem(A2HS_KEY)); }catch(e){ return true; }
 }
+// Тарифы, документы и поддержка — их требует платёжный сервис до согласования (06.10.2026).
+// Адрес полный: в окне Claude (артефакт) относительная ссылка вела бы на claude.ai.
+// Новая вкладка — чтобы со значка на экране «Домой» не потерять приложение без кнопки «назад».
+const SITE="https://magnat-planer.ru/";
+function legalLinks(){
+  return `<nav class="legal" aria-label="Тарифы и документы"><a href="${SITE}pricing.html" target="_blank" rel="noopener">Тарифы</a><a href="${SITE}terms.html" target="_blank" rel="noopener">Соглашение</a><a href="${SITE}privacy.html" target="_blank" rel="noopener">Конфиденциальность</a><a href="${SITE}pricing.html#support" target="_blank" rel="noopener">Поддержка</a></nav>`;
+}
 function askConfirm(text,okLabel,danger){
   if(!FRAMED) return Promise.resolve(confirm(text));
   return new Promise(resolve=>{
@@ -1190,7 +1198,8 @@ function vHome(root){
      <button class="bk" id="bkLoad">📥 Восстановить из копии</button>
    </div>
    <p class="bknote">Данные живут в этом браузере. Копия — страховка при смене телефона или чистке кэша.</p>
-   <button class="reset" id="resetBtn">сбросить всё и начать с чистого листа</button>`;
+   <button class="reset" id="resetBtn">сбросить всё и начать с чистого листа</button>
+   ${legalLinks()}`;
   // charts
   const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),diM=new Date(y,mo+1,0).getDate();
   let md=0,mp=0; for(let d=1;d<=Math.min(diM,now.getDate());d++){const ds=`${y}-${pad(mo+1)}-${pad(d)}`;md+=Math.min(checksOf(ds).length,poolOn(ds));mp+=poolOn(ds);}
@@ -2277,7 +2286,7 @@ function showOnboarding(){
     <div class="btns" style="flex-direction:column">
       <button class="ok" id="obFresh">🚀 Начать своё (чистый лист)</button>
       <button class="no" id="obDemo">👀 Посмотреть пример</button>
-    </div></div>`);
+    </div>${legalLinks()}</div>`);
   ovl.appendChild(m); document.body.appendChild(ovl);
   m.querySelector("#obFresh").onclick=async()=>{ if(await startFresh()) ovl.remove(); };
   m.querySelector("#obDemo").onclick=()=>{ S.demoData=true; save(); ovl.remove(); render(); };

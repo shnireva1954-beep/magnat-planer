@@ -1,0 +1,71 @@
+/* Магнат — оформление страниц «Тарифы», «Пользовательское соглашение», «Политика
+   конфиденциальности». Цвета и шрифт — те же, что в приложении (index.html, :root):
+   поменял там — поменяй здесь. Шрифт — тот же урезанный Manrope, что встроен в
+   приложение, только отдельным файлом. */
+@font-face{font-family:"Manrope"; font-style:normal; font-weight:400 800; font-display:swap; src:url(fonts/manrope.woff2) format("woff2");}
+:root{
+  --bg:#080b11; --bg2:#0b0f17; --panel:#0f1520; --panel2:#131b28;
+  --line:#1c2735; --line2:#26374b;
+  --emerald:#2fe38f; --gold:#f5c451;
+  --ink:#eef4fb; --mut:#93a6bd; --mut2:#738ca7;
+  --f:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html{-webkit-text-size-adjust:100%; text-size-adjust:100%;}
+body{background:radial-gradient(1100px 620px at 82% -6%,#123044 0%,transparent 55%),radial-gradient(800px 560px at 6% 3%,#0f2a20 0%,transparent 55%),linear-gradient(180deg,var(--bg2),var(--bg));
+  background-color:var(--bg); background-attachment:fixed; color:var(--ink); font-family:var(--f); font-size:16px; line-height:1.6; min-height:100vh;}
+a{color:var(--emerald); text-underline-offset:3px;}
+a:focus-visible{outline:2px solid var(--emerald); outline-offset:2px; border-radius:4px;}
+.wrap{max-width:760px; margin:0 auto; padding:0 16px;}
+
+header{position:sticky; top:0; z-index:5; background:#080b11d9; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-bottom:1px solid var(--line);}
+header .wrap{display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:56px;}
+.brand{display:flex; align-items:center; min-height:44px; gap:10px; color:var(--ink); text-decoration:none; font-weight:800; font-size:17px; letter-spacing:-.01em;}
+.brand svg{width:30px; height:30px; flex:none;}
+.toapp{display:inline-flex; align-items:center; min-height:44px; padding:0 14px; border-radius:11px; border:1px solid var(--line2); background:var(--panel); color:var(--ink); font-size:14px; font-weight:600; text-decoration:none; white-space:nowrap;}
+
+main.wrap{padding-top:30px; padding-bottom:10px;}
+h1{font-size:30px; line-height:1.15; font-weight:800; letter-spacing:-.02em;}
+.upd{color:var(--mut2); font-size:14px; margin-top:8px;}
+.lead{color:var(--mut); font-size:17px; margin-top:14px;}
+h2{font-size:19px; line-height:1.3; font-weight:800; margin:34px 0 10px; letter-spacing:-.01em;}
+p,li{color:#d4dee9;}
+p+p{margin-top:10px;}
+ol,ul{padding-left:22px; margin-top:8px;}
+li+li{margin-top:6px;}
+b{color:var(--ink); font-weight:700;}
+.num{font-variant-numeric:tabular-nums;}
+
+.box{background:linear-gradient(168deg,rgba(20,28,42,.62),rgba(15,21,32,.62)); border:1px solid var(--line2); border-radius:16px; padding:18px; margin-top:16px;}
+.note{border-color:#6e5320; background:linear-gradient(180deg,#1d1707cc,#120d04cc); color:#f2dfae; font-size:15px;}
+.note b{color:var(--gold);}
+
+/* Тарифы */
+.plans{display:grid; gap:12px; margin-top:22px;}
+@media (min-width:640px){ .plans{grid-template-columns:repeat(3,1fr);} }
+.plan{position:relative; background:var(--panel); border:1px solid var(--line2); border-radius:16px; padding:18px 16px; display:flex; flex-direction:column;}
+.plan.best{border-color:var(--emerald); box-shadow:0 0 0 1px var(--emerald) inset;}
+.plan .tag{position:absolute; top:-11px; left:16px; background:var(--emerald); color:#04140c; font-size:12px; font-weight:800; padding:3px 10px; border-radius:99px;}
+.plan h3{font-size:15px; font-weight:700; color:var(--mut);}
+.plan .price{font-size:34px; font-weight:800; line-height:1.1; margin-top:8px; letter-spacing:-.02em;}
+.plan .price small{font-size:15px; font-weight:600; color:var(--mut);}
+.plan .sub{font-size:14px; color:var(--mut); margin-top:6px;}
+.plan .sub b{color:var(--emerald);}
+.incl li{list-style:none; position:relative; padding-left:28px;}
+.incl{padding-left:0;}
+.incl li::before{content:""; position:absolute; left:2px; top:.45em; width:15px; height:8px; border-left:2.5px solid var(--emerald); border-bottom:2.5px solid var(--emerald); transform:rotate(-45deg);}
+.steps{counter-reset:s; padding-left:0;}
+.steps li{list-style:none; position:relative; padding-left:40px; min-height:28px;}
+.steps li::before{counter-increment:s; content:counter(s); position:absolute; left:0; top:0; width:28px; height:28px; border-radius:50%; background:var(--panel2); border:1px solid var(--line2); color:var(--emerald); font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center;}
+.support{display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px;}
+.support .contact{font-size:18px; font-weight:800; word-break:break-all;}
+
+footer{border-top:1px solid var(--line); margin-top:40px; padding:22px 0 calc(28px + env(safe-area-inset-bottom)); color:var(--mut2); font-size:14px;}
+footer nav{display:flex; flex-wrap:wrap; gap:6px 18px; margin-bottom:10px;}
+footer nav a{color:var(--mut); text-decoration:none;}
+footer nav a[aria-current="page"]{color:var(--ink); font-weight:700;}
+footer p{color:var(--mut2);}
+
+@media (max-width:360px){ h1{font-size:26px;} .toapp{padding:0 11px;} }
+@media (prefers-reduced-motion:reduce){ *{scroll-behavior:auto !important;} }
