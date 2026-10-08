@@ -35,11 +35,14 @@
 <script>
 // Значок на экране «Домой» и тот, кто уже пользуется Магнатом в этом браузере, — сразу в
 // приложение: им продающая страница не нужна, а старые значки вели на «/». ?site — показать
-// страницу всё равно (владельцу и для проверки).
+// страницу всё равно (владельцу и для проверки). Пришёл сюда кнопкой «Назад» из приложения —
+// страница остаётся: иначе «Назад» крутил бы по кругу обратно в приложение (08.10.2026).
 (function () {
   try {
     if (/[?&]site\b/.test(location.search)) return;
     var sa = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches, has = false;
+    var nav = (performance.getEntriesByType && performance.getEntriesByType("navigation")[0]) || {};
+    if (!sa && (nav.type === "back_forward" || (performance.navigation && performance.navigation.type === 2))) return;
     try { has = !!localStorage.getItem("magnat_app_v2"); } catch (e) {}
     if (sa || has) { document.documentElement.className += " go"; location.replace("app.html" + location.hash); }
   } catch (e) {}
@@ -145,8 +148,10 @@ section{position:relative;}
 @media (min-width:960px){ .hero-in{grid-template-columns:1.12fr .88fr; gap:32px; min-height:min(820px,calc(100svh - 90px));} }
 .eyebrow{display:inline-flex; align-items:center; gap:10px; padding:8px 15px 8px 12px; border-radius:99px; border:1px solid var(--line-2);
   background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015)); color:var(--ink-2); font-size:clamp(12px,3.7vw,13.5px); font-weight:700; letter-spacing:.005em; white-space:nowrap;}
-.eyebrow .dot{width:8px; height:8px; border-radius:50%; background:var(--accent); animation:ping 2.6s var(--ease) infinite;}
-@keyframes ping{0%{box-shadow:0 0 0 0 rgba(47,227,143,.6);} 70%,100%{box-shadow:0 0 0 10px rgba(47,227,143,0);}}
+/* пульс точки — прозрачностью и масштабом кольца: их считает видеокарта, а не процессор */
+.eyebrow .dot{position:relative; width:8px; height:8px; border-radius:50%; background:var(--accent);}
+.eyebrow .dot::after{content:""; position:absolute; inset:-1px; border-radius:50%; border:2px solid var(--accent); animation:ping 2.6s var(--ease) infinite;}
+@keyframes ping{0%{transform:scale(1); opacity:.7;} 70%,100%{transform:scale(3); opacity:0;}}
 .hero h1{margin-top:22px;}
 .hero .lead{margin-top:20px; max-width:540px;}
 .cta-row{display:flex; flex-wrap:wrap; gap:12px; margin-top:30px;}
@@ -155,7 +160,7 @@ section{position:relative;}
 .trust{display:flex; flex-wrap:wrap; gap:10px 20px; margin:24px 0 0; padding:0; list-style:none; color:var(--mut); font-size:14.5px; font-weight:600;}
 .trust li{display:flex; align-items:center; gap:8px;}
 .trust .ico{width:18px; height:18px; color:var(--accent); stroke-width:2.6;}
-.inapp{display:none; margin-top:18px; padding:12px 14px; border-radius:14px; border:1px solid #6e5320; background:linear-gradient(180deg,#1d1707,#120d04); color:#f2dfae; font-size:14px; line-height:1.5;}
+.inapp{display:none; margin-top:22px; padding:12px 14px; border-radius:14px; border:1px solid #6e5320; background:linear-gradient(180deg,#1d1707,#120d04); color:#f2dfae; font-size:14px; line-height:1.5;}
 .inapp b{color:var(--gold);}
 .inapp.on{display:block;}
 
@@ -173,7 +178,7 @@ section{position:relative;}
   background:linear-gradient(125deg,rgba(255,255,255,.08) 0%,rgba(255,255,255,0) 32%); box-shadow:0 0 0 1px rgba(255,255,255,.05) inset;}
 .island{position:absolute; top:10px; left:50%; transform:translateX(-50%); width:31%; height:25px; border-radius:20px; background:#000; z-index:31;}
 .badge{position:absolute; z-index:3; display:flex; align-items:center; gap:9px; padding:10px 14px 10px 10px; border-radius:16px;
-  background:linear-gradient(180deg,rgba(24,33,47,.86),rgba(14,20,30,.86)); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  background:linear-gradient(180deg,rgba(26,36,52,.97),rgba(15,22,33,.97));
   border:1px solid var(--line-3); box-shadow:0 18px 40px -16px rgba(0,0,0,.9); font-size:13.5px; font-weight:700; color:var(--ink); white-space:nowrap;
   animation:float 6s ease-in-out infinite;}
 .badge .bi{display:grid; place-items:center; width:30px; height:30px; border-radius:10px; font-size:16px; background:rgba(255,255,255,.06);}
@@ -182,13 +187,13 @@ section{position:relative;}
    правый вылезал за край экрана. На телефоне ложатся на край экрана (строка состояния и
    вкладки), а не на галочки */
 .device{position:relative;}
-.badge.b1{left:-24px; top:3%;}
+.badge.b1{left:-24px; top:-1.5%;}
 .badge.b2{right:-24px; bottom:6%; animation-delay:-2s;}
 .badge.b3{display:none; animation-delay:-4s;}
 @keyframes float{0%,100%{transform:translateY(0);} 50%{transform:translateY(-9px);}}
 /* узкий телефон: значки меньше, чтобы не закрывать уровень и кошелёк в телефоне */
-@media (max-width:380px){ .badge{gap:7px; padding:7px 10px 7px 7px; border-radius:13px; font-size:12px;} .badge small{font-size:10.5px;} .badge .bi{width:24px; height:24px; border-radius:8px; font-size:13px;} .badge.b1{top:1%; left:-14px;} .badge.b2{right:-14px;} }
-@media (min-width:960px){ .badge.b1{left:-62px; top:5%;} .badge.b2{right:-56px; top:63%; bottom:auto;} .badge.b3{display:flex; left:-52px; bottom:7%;} .phone{width:clamp(280px,26vw,330px);} }
+@media (max-width:380px){ .badge{gap:7px; padding:7px 10px 7px 7px; border-radius:13px; font-size:12px;} .badge small{font-size:10.5px;} .badge .bi{width:24px; height:24px; border-radius:8px; font-size:13px;} .badge.b1{top:-1.5%; left:-14px;} .badge.b2{right:-14px;} }
+@media (min-width:960px){ .badge.b1{left:-62px; top:-1%;} .badge.b2{right:-56px; top:63%; bottom:auto;} .badge.b3{display:flex; left:-52px; bottom:7%;} .phone{width:clamp(280px,26vw,330px);} }
 
 /* приложение внутри телефона — в масштабе 390 px, как на настоящем экране */
 .ma{position:absolute; left:0; top:0; width:390px; height:calc(100% / var(--s,.72)); transform:scale(var(--s,.72)); transform-origin:0 0;
@@ -261,7 +266,8 @@ section{position:relative;}
 .ma-lvup.on .lu-card{transform:none;}
 .lu-badge{position:relative; width:118px; height:118px; margin:0 auto; border-radius:34px; display:grid; place-items:center; font-size:62px; font-weight:800; color:var(--accent-ink);
   background:linear-gradient(160deg,#8af7c6,#2fe38f 55%,#16a865); box-shadow:0 0 0 6px rgba(47,227,143,.16), 0 24px 60px -10px rgba(47,227,143,.7);}
-.lu-badge::after{content:""; position:absolute; inset:-22px; border-radius:46px; border:1.5px dashed rgba(47,227,143,.45); animation:spin 14s linear infinite;}
+.lu-badge::after{content:""; position:absolute; inset:-22px; border-radius:46px; border:1.5px dashed rgba(47,227,143,.45); animation:spin 14s linear infinite paused;}
+.ma-lvup.on .lu-badge::after{animation-play-state:running;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .lu-t{margin-top:26px; font-size:36px; font-weight:800; letter-spacing:-.03em;}
 .lu-s{margin-top:6px; font-size:17px; color:var(--mut);}
@@ -512,7 +518,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
 .f-grid{display:grid; gap:34px;}
 @media (min-width:860px){ .f-grid{grid-template-columns:1.4fr 1fr 1fr 1fr;} }
 .f-about{margin-top:14px; color:var(--mut); font-size:15px; max-width:340px;}
-.f-col h4{margin:0 0 10px; font-size:13px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--dim);}
+.f-col .f-h{margin:0 0 10px; font-size:13px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--dim);}
 .f-col a{display:flex; align-items:center; min-height:40px; color:var(--ink-2); text-decoration:none; font-size:15px;}
 .f-col a:hover{color:var(--accent);}
 .f-col p{color:var(--mut); font-size:14px;}
@@ -584,6 +590,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
       <span class="eyebrow" data-reveal style="--d:.05s"><span class="dot"></span>Игра, в которой прокачиваешь себя</span>
       <h1 id="h1" data-reveal="blur" style="--d:.15s"><span class="metal">Хватит начинать</span> <span class="grad">с&nbsp;понедельника</span></h1>
       <p class="lead" data-reveal style="--d:.3s">Магнат превращает дисциплину в игру. Привычки приносят монеты, монеты растят уровень, а каждый уровень открывает урок из книг — от Гоггинса до «48&nbsp;законов власти».</p>
+      <p class="inapp" id="inapp"></p>
       <div class="cta-row" data-reveal style="--d:.42s">
         <a class="btn btn-primary btn-lg" id="heroCta" data-app="start" href="app.html?start">Начать бесплатно<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
         <a class="btn btn-ghost btn-lg" data-app="demo" href="app.html?demo">Посмотреть пример</a>
@@ -593,7 +600,6 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
         <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Работает без интернета</li>
         <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>40 уроков из 23 книг</li>
       </ul>
-      <p class="inapp" id="inapp"></p>
     </div>
 
     <div class="stage" data-reveal="scale" style="--d:.25s" role="img" aria-label="Экран Магната: отмечаешь привычки — монеты летят в кошелёк, растёт уровень, открывается урок">
@@ -896,9 +902,9 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
         <a class="brand" href="#top"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#i-mark"/></svg>Магнат</a>
         <p class="f-about">Игра, в которой прокачиваешь себя: привычки, задачи, деньги и тело в одной системе монет.</p>
       </div>
-      <nav class="f-col" aria-label="Разделы страницы"><h4>Разделы</h4><a href="#how">Как это работает</a><a href="#path">Путь магната</a><a href="#price">Тарифы</a><a href="#faq">Вопросы</a></nav>
-      <nav class="f-col" aria-label="Документы"><h4>Документы</h4><a href="pricing.html">Тарифы и оплата</a><a href="terms.html">Пользовательское соглашение</a><a href="privacy.html">Политика конфиденциальности</a></nav>
-      <div class="f-col"><h4>Поддержка</h4><a href="mailto:planermagnat@gmail.com">planermagnat@gmail.com</a><p>Обычно отвечаем в течение дня.</p></div>
+      <nav class="f-col" aria-label="Разделы страницы"><p class="f-h">Разделы</p><a href="#how">Как это работает</a><a href="#path">Путь магната</a><a href="#price">Тарифы</a><a href="#faq">Вопросы</a></nav>
+      <nav class="f-col" aria-label="Документы"><p class="f-h">Документы</p><a href="pricing.html">Тарифы и оплата</a><a href="terms.html">Пользовательское соглашение</a><a href="privacy.html">Политика конфиденциальности</a></nav>
+      <div class="f-col"><p class="f-h">Поддержка</p><a href="mailto:planermagnat@gmail.com">planermagnat@gmail.com</a><p>Обычно отвечаем в течение дня.</p></div>
     </div>
     <div class="f-copy"><span>© 2026 Магнат · magnat-planer.ru</span><span>Сделано для тех, кто начинает сегодня</span></div>
   </div>
@@ -1321,10 +1327,14 @@ function inApp() {
   el.classList.add("on");
 }
 
-fillPrices(); choosePlan(); buildBooks(); buildLadder(); buildCal(); buildGame(); lessonTask();
-heroPhone(); reveal(); counters(); stepsLine(); spotlight(); faq(); navState(); sticky(); inApp();
+// Каждая часть запускается отдельно: сбой одной (старый браузер, расширение) не должен оставить
+// страницу пустой — блоки ждут появления (opacity:0), и проявляет их reveal()
+const safe = f => { try { f(); } catch (e) { console.error(e); } };
+[fillPrices, choosePlan, buildBooks, buildLadder, buildCal, buildGame, lessonTask].forEach(safe);
+safe(reveal);
 // первый экран проявляется сразу, не дожидаясь прокрутки
 requestAnimationFrame(() => document.querySelectorAll(".hero [data-reveal]").forEach(e => e.classList.add("in")));
+[heroPhone, counters, stepsLine, spotlight, faq, navState, sticky, inApp].forEach(safe);
 </script>
 </body>
 </html>

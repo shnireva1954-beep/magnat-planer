@@ -252,6 +252,17 @@ function serve() {
     await q.goto(BASE + "?site"); await q.waitForTimeout(300);
     ok(await q.evaluate(() => location.pathname === "/" && !!document.querySelector("h1")), "?site — страница видна и с данными (владельцу для проверки)");
     await c4.close();
+    // «Назад» из приложения возвращает на страницу, а не крутит по кругу обратно в приложение
+    {
+      const cb = await b.newContext({ viewport: { width: 390, height: 844 } });
+      const qb = await cb.newPage();
+      await qb.goto(BASE); await qb.click("#heroCta"); await qb.waitForSelector("#hpGo"); await qb.click("#hpGo");
+      await qb.waitForSelector(".lesm .ok"); await qb.click(".lesm .ok"); await qb.waitForTimeout(300);
+      await qb.goBack(); await qb.waitForTimeout(800);
+      const back = await qb.evaluate(() => location.pathname + (document.querySelector("h1") ? " (страница)" : "") + (document.querySelector("#tabs") ? " (приложение)" : ""));
+      ok(back === "/ (страница)", `«Назад» из приложения — на страницу, без петли обратно (${back})`);
+      await cb.close();
+    }
     const c5 = await b.newContext({ viewport: { width: 390, height: 844 } });
     await c5.addInitScript(() => Object.defineProperty(Navigator.prototype, "standalone", { get: () => true }));
     const q5 = await c5.newPage(); await q5.goto(BASE); await q5.waitForTimeout(500);
@@ -284,6 +295,18 @@ function serve() {
     ok(d.path === "/app.html" && !d.welcome && d.demo === true, `«Посмотреть пример» → сразу пример, без окна выбора (${d.path})`);
     await c7.close();
     ok(!e6.length, "ошибок в приложении на этом пути нет" + (e6.length ? ": " + e6.join(" | ") : ""));
+    // «Поделиться своей империей»: увидевший сторис должен знать адрес — на картинке и в тексте
+    const c9 = await b.newContext({ viewport: { width: 390, height: 844 } });
+    const q9 = await c9.newPage(); await q9.goto(BASE + "app.html?demo"); await q9.waitForTimeout(500);
+    const sh = await q9.evaluate(() => new Promise(res => {
+      const drawn = [], orig = CanvasRenderingContext2D.prototype.fillText;
+      CanvasRenderingContext2D.prototype.fillText = function (s, ...a) { drawn.push(String(s)); return orig.call(this, s, ...a); };
+      navigator.canShare = () => true; navigator.share = d => { res({ drawn, text: d.text }); return Promise.resolve(); };
+      try { shareCard(); } catch (e) { res({ err: e.message }); }
+      setTimeout(() => res({ drawn, text: null }), 3000);
+    }));
+    ok(sh.drawn && sh.drawn.includes("magnat-planer.ru") && /magnat-planer\.ru/.test(sh.text || ""), `картинка «Поделиться» и её текст — с адресом сайта (текст: «${sh.text}»)`);
+    await c9.close();
   }
 
   // ── 9) ссылки, картинки, обложка, вес, ошибки ────────────────────────────
@@ -306,6 +329,14 @@ function serve() {
   ok(a11y.h1 === 1 && !a11y.deadAnchors.length && !a11y.nameless && a11y.lang === "ru",
     `один h1, все якоря на месте, у кнопок и ссылок есть названия, lang=ru${a11y.deadAnchors.length ? " (мёртвые: " + a11y.deadAnchors + ")" : ""}`);
   ok(!a11y.noindex, "страницу видят поисковики (noindex — только у приложения)");
+  const robots = fs.existsSync(path.join(ROOT, "robots.txt")) ? fs.readFileSync(path.join(ROOT, "robots.txt"), "utf8") : "";
+  const smap = fs.existsSync(path.join(ROOT, "sitemap.xml")) ? fs.readFileSync(path.join(ROOT, "sitemap.xml"), "utf8") : "";
+  const locs = [...smap.matchAll(/<loc>https:\/\/magnat-planer\.ru\/([^<]*)<\/loc>/g)].map(m => m[1] || "index.html");
+  ok(/^User-agent: \*/m.test(robots) && /Sitemap: https:\/\/magnat-planer\.ru\/sitemap\.xml/.test(robots) && locs.length >= 4 && locs.every(f => fs.existsSync(path.join(ROOT, f))),
+    `robots.txt и карта сайта на месте, в карте — существующие страницы (${locs.join(", ")})`);
+  const heads = await p.evaluate(() => [...document.querySelectorAll("h1,h2,h3,h4,h5,h6")].map(h => +h.tagName[1]));
+  const skip = heads.findIndex((l, i) => i && l > heads[i - 1] + 1);
+  ok(heads[0] === 1 && skip < 0, `заголовки идут по порядку, без пропуска уровня (${heads.join("")})`);
   const ogf = path.join(ROOT, "img/og.jpg"), ogb = fs.existsSync(ogf) ? fs.readFileSync(ogf) : null;
   const jpgSize = buf => { for (let i = 2; i < buf.length;) { const m = buf[i + 1], len = buf.readUInt16BE(i + 2); if (m >= 0xc0 && m <= 0xc2) return [buf.readUInt16BE(i + 7), buf.readUInt16BE(i + 5)]; i += 2 + len; } return [0, 0]; };
   const [ow, oh] = ogb ? jpgSize(ogb) : [0, 0];
@@ -324,7 +355,9 @@ function serve() {
     const q = await c8.newPage(); await q.goto(PAGE);
     const ia = await q.evaluate(() => { const e = document.getElementById("inapp"); return [getComputedStyle(e).display, e.textContent]; });
     const plain = await p.evaluate(() => getComputedStyle(document.getElementById("inapp")).display);
-    ok(ia[0] !== "none" && /Instagram/.test(ia[1]) && /Открыть в браузере/.test(ia[1]) && plain === "none", "во встроенном браузере Instagram — подсказка открыть в браузере; в обычном её нет");
+    const above = await q.evaluate(() => document.getElementById("inapp").getBoundingClientRect().bottom <= document.getElementById("heroCta").getBoundingClientRect().top);
+    ok(ia[0] !== "none" && /Instagram/.test(ia[1]) && /Открыть в браузере/.test(ia[1]) && plain === "none" && above,
+      "во встроенном браузере Instagram — подсказка открыть в браузере, и стоит ДО кнопки «Начать»; в обычном её нет");
     await c8.close();
   }
   ok(errs.length === 0, "ошибок на странице нет" + (errs.length ? ": " + [...new Set(errs)].slice(0, 4).join(" | ") : ""));

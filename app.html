@@ -1919,13 +1919,14 @@ function shareCard(){
   c.textAlign="center";
   c.fillStyle="#2fe38f";c.font="600 30px "+CF;c.fillText(L+" "+pl(L,"ЗДАНИЕ","ЗДАНИЯ","ЗДАНИЙ")+" В ИМПЕРИИ",W/2,1625);
   c.fillStyle="#93a6bd";c.font="34px "+CF;c.fillText("построй свою империю дисциплины",W/2,H-120);
-  c.fillStyle="#5f7288";c.font="28px "+CF;c.fillText("приложение «Магнат»",W/2,H-70);
+  // адрес сайта, а не «приложение «Магнат»»: увидевший сторис должен знать, где это взять (08.10.2026)
+  c.fillStyle="#2fe38f";c.font="700 32px "+CF;c.fillText(SITE.replace(/^https?:\/\/|\/$/g,""),W/2,H-70);
   // В окне Claude нельзя ни «Поделиться», ни скачать файл ссылкой — раньше там всплывало
   // «Картинка сохранена», хотя не сохранялось ничего. Там показываем картинку: зажал — сохранил.
   cv.toBlob(b=>{ if(!b){toast("Не вышло собрать картинку");return;}
     const file=new File([b],"magnat.png",{type:"image/png"});
     if(navigator.canShare&&navigator.canShare({files:[file]})){
-      navigator.share({files:[file],text:"Моя империя в Магнате 🏛"})
+      navigator.share({files:[file],text:"Моя империя в Магнате 🏛 "+SITE})
         .catch(e=>{ if(FRAMED&&(!e||e.name!=="AbortError")) showImage(b); });
       return;
     }
