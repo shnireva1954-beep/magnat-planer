@@ -16,7 +16,8 @@ function chromePath(){
 }
 
 const APP_DIR = path.join(__dirname, "..");
-const APP_FILE = path.join(APP_DIR, "index.html");
+// С 08.10.2026 приложение — app.html, а на «/» (index.html) продающая страница: её сторожит 05-landing
+const APP_FILE = path.join(APP_DIR, "app.html");
 // MAGNAT_URL — тот же прогон на настоящем веб-сервере (06-server: Caddy с
 // заголовками безопасности, как на magnat-planer.ru). По умолчанию — файл.
 const APP_URL = process.env.MAGNAT_URL || "file://" + APP_FILE;

@@ -5,7 +5,8 @@
   "display": "standalone",
   "background_color": "#080b11",
   "theme_color": "#080b11",
-  "start_url": "./",
+  "id": "/",
+  "start_url": "./app.html",
   "scope": "./",
   "icons": [
     {

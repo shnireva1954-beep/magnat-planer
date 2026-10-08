@@ -1,8 +1,10 @@
 /* Магнат — офлайн-оболочка приложения.
    Стратегия «сначала сеть, кэш как запаска»: свежая версия приезжает сама,
-   а без интернета приложение всё равно открывается. */
-const CACHE = "magnat-app-v2";
-const ASSETS = ["./", "./index.html", "./manifest.json", "./icon.png", "./icon-512.png"];
+   а без интернета приложение всё равно открывается.
+   С 08.10.2026 на «/» — продающая страница, приложение — app.html. Старые значки
+   ведут на «/», а она сразу отправляет в приложение, поэтому в запасе обе. */
+const CACHE = "magnat-app-v3";
+const ASSETS = ["./", "./index.html", "./app.html", "./manifest.json", "./icon.png", "./icon-512.png", "./fonts/manrope.woff2"];
 
 self.addEventListener("install", e => {
   e.waitUntil(
@@ -37,7 +39,8 @@ self.addEventListener("fetch", e => {
         return res;
       })
       .catch(() => caches.match(req, { ignoreSearch: true })
-        .then(hit => hit || (req.mode === "navigate" ? caches.match("./index.html") : undefined))
+        // без сети незнакомый адрес — в приложение: открывший значок хочет Магнат, а не страницу продажи
+        .then(hit => hit || (req.mode === "navigate" ? caches.match("./app.html") : undefined))
         .then(hit => hit || Response.error()))
   );
 });

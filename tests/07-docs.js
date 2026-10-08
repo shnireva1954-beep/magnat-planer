@@ -18,7 +18,8 @@ const bad = (m) => { fails++; console.log("  ✗ FAIL:", m); };
 const DOCS = ["pricing.html", "terms.html", "privacy.html"];
 const SITE = "https://magnat-planer.ru/";
 const read = f => fs.readFileSync(path.join(APP_DIR, f), "utf8");
-const app = read("index.html");
+const app = read("app.html");
+const land = read("index.html");   // продающая страница — те же обещания политики
 
 function serve(root, csp) {
   const types = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "application/javascript", ".png": "image/png", ".woff2": "font/woff2", ".json": "application/json" };
@@ -70,14 +71,17 @@ function serve(root, csp) {
 
   // ---- 3. Обещания политики правдивы -----------------------------------------
   console.log("\n3. Политика говорит правду о приложении");
-  const leaks = [/\bfetch\s*\(/, /XMLHttpRequest/, /sendBeacon/, /document\.cookie/, /new\s+WebSocket/, /<script[^>]+src=/i, /<link[^>]+href="https?:/i, /<img[^>]+src="https?:/i]
-    .filter(re => re.test(app)).map(String);
-  leaks.length ? bad("приложение может отправлять данные или ставить cookie (" + leaks.join(", ") + ") — а политика обещает обратное; сначала поправь privacy.html")
-    : ok("в приложении нет запросов наружу, cookie и чужих скриптов — как написано в политике");
+  for (const [name, src] of [["приложении", app], ["продающей странице", land]]) {
+    // canonical и alternate — адрес страницы для поисковиков, браузер по ним ничего не грузит
+    const leaks = [/\bfetch\s*\(/, /XMLHttpRequest/, /sendBeacon/, /document\.cookie/, /new\s+WebSocket/, /<script[^>]+src=/i, /<link(?![^>]*rel="(?:canonical|alternate)")[^>]+href="https?:/i, /<img[^>]+src="https?:/i]
+      .filter(re => re.test(src)).map(String);
+    leaks.length ? bad("в " + name + " есть запрос наружу, cookie или чужой скрипт (" + leaks.join(", ") + ") — а политика обещает обратное; сначала поправь privacy.html")
+      : ok("в " + name + " нет запросов наружу, cookie и чужих скриптов — как написано в политике");
+  }
   const cf = read("server/Caddyfile");
   /Журнал запросов не ведём/.test(cf) && !/^\s*log\b/m.test(cf) ? ok("журнал посещений на сервере выключен — как написано в политике")
     : bad("в server/Caddyfile включён журнал запросов — политика обещает, что его нет");
-  const font = read("index.html").match(/url\(data:font\/woff2;base64,([A-Za-z0-9+/=]+)\)/);
+  const font = app.match(/url\(data:font\/woff2;base64,([A-Za-z0-9+/=]+)\)/);
   font && Buffer.from(font[1], "base64").equals(fs.readFileSync(path.join(APP_DIR, "fonts/manrope.woff2")))
     ? ok("шрифт страниц — тот же, что встроен в приложение") : bad("fonts/manrope.woff2 разошёлся со шрифтом приложения");
   const tok = s => Object.fromEntries([...s.matchAll(/--(bg|bg2|panel|panel2|line|line2|emerald|gold|ink|mut|mut2):\s*(#[0-9a-f]+)/gi)].map(m => [m[1], m[2].toLowerCase()]));
@@ -120,7 +124,7 @@ function serve(root, csp) {
     const ctx = await b.newContext({ viewport: { width: 320, height: 700 } });
     const p = await ctx.newPage(), errs = [];
     p.on("pageerror", e => errs.push(e.message));
-    await p.goto(base); await p.waitForTimeout(400);
+    await p.goto(base + "app.html"); await p.waitForTimeout(400);
     const want5 = ["pricing.html", "terms.html", "privacy.html", "pricing.html#support"].map(x => SITE + x);
     const links = sel => p.$$eval(sel + " .legal a", as => as.map(a => ({ h: a.getAttribute("href"), t: a.target, r: a.rel, vis: a.getBoundingClientRect().height >= 32 })));
     const ob = await links(".modal");

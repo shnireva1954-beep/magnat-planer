@@ -8,7 +8,9 @@
 //      www на главный адрес;
 //   4. всё приложение (01-scenarios) проходит под этими заголовками — CSP
 //      не ломает ни одной кнопки (нарушение CSP — ошибка в консоли, её
-//      01-scenarios и ловит).
+//      01-scenarios и ловит);
+//   5. продающая страница на «/» под той же CSP: без ошибок; кто уже
+//      пользуется (есть данные) — сразу в приложение (app.html).
 // Caddy берётся из PATH, из CADDY= или скачивается с официального
 // репозитория в node_modules/.cache (он в .gitignore).
 const { spawn, spawnSync } = require("child_process");
@@ -185,7 +187,7 @@ exit 0
 
   let r = deploy(), sha1 = head();
   cur() === sha1 ? ok("первая выкладка: current → " + sha1.slice(0, 7)) : bad("первая выкладка не встала: " + r.stdout + r.stderr);
-  for (const p of ["index.html", "sw.js", "manifest.json", "icon.png", "app.html"]) if (!live(p)) bad("в выкладке нет " + p);
+  for (const p of ["index.html", "app.html", "sw.js", "manifest.json", "icon.png", "fonts/manrope.woff2", "img/og.jpg"]) if (!live(p)) bad("в выкладке нет " + p);
   const leaked = ["CLAUDE.md", "README.md", "tests", "server", "_config.yml", "CNAME", ".gitignore"].filter(live);
   leaked.length ? bad("в выкладку попало служебное: " + leaked.join(", ")) : ok("служебного в выкладке нет (CLAUDE.md, tests/, server/, _config.yml, CNAME, .gitignore)");
   fs.readFileSync(path.join(STATE, "fetch-how"), "utf8").includes("открыт") ? ok("ключа нет — взял открыто, как и должен до закрытия репозитория") : bad("fetch-how: " + fs.readFileSync(path.join(STATE, "fetch-how"), "utf8"));
@@ -257,6 +259,9 @@ exit 0
     const miss = Object.entries(need).filter(([k, re]) => !re.test(home.h[k] || ""));
     miss.length ? bad("заголовки не те: " + miss.map(([k]) => k + "=" + (home.h[k] || "нет")).join("; ")) : ok("заголовки безопасности, no-cache и сжатие — на месте");
     !home.h.server ? ok("заголовка Server нет") : bad("Server: " + home.h.server);
+    // приложение (с 08.10.2026 — app.html) тоже всегда сверяется с сервером: иначе клиент застрял бы на старой версии
+    const appH = await get(P, "/app.html");
+    appH.status === 200 && /^no-cache$/.test(appH.h["cache-control"] || "") ? ok("/app.html → 200, no-cache") : bad("/app.html → " + appH.status + " " + appH.h["cache-control"]);
     const icon = await get(P, "/icon.png");
     /max-age=86400/.test(icon.h["cache-control"] || "") ? ok("картинки кэшируются на сутки") : bad("icon.png cache-control: " + icon.h["cache-control"]);
     // Второй замок: служебное, даже если оно попало в папку, — 404.
@@ -274,13 +279,38 @@ exit 0
 
     // ---- 4. приложение целиком под этими заголовками ------------------------
     console.log("\n4. 01-scenarios на этом Caddy (CSP не должна ломать ни одной кнопки)");
-    const s = spawnSync(process.execPath, [path.join(__dirname, "01-scenarios.js")], { encoding: "utf8", timeout: 600000, env: { ...process.env, MAGNAT_URL: `http://127.0.0.1:${P}/` } });
+    const s = spawnSync(process.execPath, [path.join(__dirname, "01-scenarios.js")], { encoding: "utf8", timeout: 600000, env: { ...process.env, MAGNAT_URL: `http://127.0.0.1:${P}/app.html` } });
     const out = (s.stdout || "") + (s.stderr || "");
     const failsIn = out.split("\n").filter(l => l.includes("✗"));
     const csp = out.split("\n").filter(l => /Content Security Policy|Refused to/.test(l));
     if (csp.length) bad("нарушения CSP:\n    " + csp.slice(0, 5).join("\n    "));
     s.status === 0 && !failsIn.length ? ok("01-scenarios на сервере — чисто (" + (out.match(/✓/g) || []).length + " проверок)")
       : bad(`01-scenarios на сервере (код ${s.status}):\n    ` + (failsIn.length ? failsIn : out.trim().split("\n").slice(-6)).slice(0, 8).join("\n    "));
+
+    // ---- 5. продающая страница под этой же CSP ------------------------------
+    console.log("\n5. Продающая страница на этом Caddy");
+    {
+      const { chromium, chromePath } = require("./lib");
+      const br = await chromium.launch({ executablePath: chromePath() });
+      try {
+        const ctx = await br.newContext({ viewport: { width: 390, height: 844 } });
+        const pg = await ctx.newPage(), errs = [];
+        pg.on("pageerror", e => errs.push(e.message));
+        pg.on("console", m => { if (m.type() === "error") errs.push(m.text()); });
+        pg.on("requestfailed", q => errs.push("не загрузилось " + q.url()));
+        await pg.goto(`http://127.0.0.1:${P}/`); await pg.evaluate(() => document.fonts.ready); await pg.waitForTimeout(600);
+        const land = await pg.evaluate(() => ({ h1: (document.querySelector("h1") || {}).textContent || "", path: location.pathname,
+          font: [...document.fonts].some(f => f.family.includes("Manrope") && f.status === "loaded") }));
+        !errs.length && /понедельника/.test(land.h1) && land.path === "/" && land.font
+          ? ok("/ — продающая страница: без ошибок и нарушений CSP, свой шрифт")
+          : bad("продающая страница на сервере: " + JSON.stringify(land) + " " + errs.slice(0, 3).join(" | "));
+        await pg.evaluate(() => localStorage.setItem("magnat_app_v2", "{}"));
+        await pg.goto(`http://127.0.0.1:${P}/`); await pg.waitForTimeout(500);
+        const to = await pg.evaluate(() => location.pathname + (document.querySelector("#tabs") ? " (приложение)" : ""));
+        to === "/app.html (приложение)" ? ok("кто уже пользуется — с «/» сразу в приложение") : bad("с данными «/» → " + to);
+        await ctx.close();
+      } finally { await br.close(); }
+    }
   } finally {
     caddy.kill("SIGTERM");
     await new Promise(r => setTimeout(r, 300));

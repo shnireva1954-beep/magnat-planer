@@ -12,14 +12,15 @@ const bad = m => { fails++; console.log('  ✗ ПРОВАЛ:', m); };
 // файл, и трогать оригинал в репозитории нельзя ни при каком исходе.
 function tempCopy() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'magnat-'));
-  for (const f of ['index.html', 'sw.js', 'manifest.json', 'icon.png', 'icon-512.png']) {
+  for (const f of ['index.html', 'app.html', 'sw.js', 'manifest.json', 'icon.png', 'icon-512.png', 'fonts/manrope.woff2']) {
     const src = path.join(APP, f);
+    fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
     if (fs.existsSync(src)) fs.copyFileSync(src, path.join(dir, f));
   }
   return dir;
 }
 function serve(port, root) {
-  const types = { '.html':'text/html', '.js':'application/javascript', '.json':'application/json', '.png':'image/png' };
+  const types = { '.html':'text/html', '.js':'application/javascript', '.json':'application/json', '.png':'image/png', '.woff2':'font/woff2' };
   return http.createServer((rq, rs) => {
     let f = rq.url.split('?')[0]; if (f === '/') f = '/index.html';
     const p = path.join(root, path.normalize(f).replace(/^(\.\.[/\\])+/, ''));
@@ -41,12 +42,12 @@ function serve(port, root) {
     const srv = serve(8911, tmp);
     const ctx = await b.newContext({ viewport: { width: 390, height: 900 } });
     const p = await ctx.newPage(); p.on('dialog', d => d.accept());
-    await p.goto('http://localhost:8911/'); await p.waitForTimeout(700);
+    await p.goto('http://localhost:8911/app.html'); await p.waitForTimeout(700);
     await startClean(p);
     await p.evaluate(() => navigator.serviceWorker.ready); await p.waitForTimeout(1000);
 
     // подменяем ВРЕМЕННУЮ копию на «новую версию» — оригинал не трогаем
-    const tf = path.join(tmp, 'index.html');
+    const tf = path.join(tmp, 'app.html');
     const orig = fs.readFileSync(tf, 'utf8');
     fs.writeFileSync(tf, orig.replace('<title>Магнат</title>', '<title>Магнат v-НОВАЯ</title>'));
     await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(900);
