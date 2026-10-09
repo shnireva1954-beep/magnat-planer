@@ -52,6 +52,11 @@ b{color:var(--ink); font-weight:700;}
 .plan .price small{font-size:15px; font-weight:600; color:var(--mut);}
 .plan .sub{font-size:14px; color:var(--mut); margin-top:6px;}
 .plan .sub b{color:var(--emerald);}
+/* кнопка тарифа: «Начать бесплатно» или «Оформить» (→ checkout.html) — всегда внизу карточки */
+.plan .go{display:flex; align-items:center; justify-content:center; min-height:46px; margin-top:auto; padding:0 14px; border-radius:12px; border:1px solid var(--line2); background:var(--panel2); color:var(--ink); font-size:15px; font-weight:800; text-decoration:none;}
+.plan .sub{margin-bottom:14px;}
+.plan.best .go{border-color:transparent; background:linear-gradient(180deg,#6af4b4 0%,#2fe38f 48%,#22cd7f 100%); color:#04140c;}
+.plan .go:focus-visible{outline:2px solid var(--ink); outline-offset:2px;}
 .incl li{list-style:none; position:relative; padding-left:28px;}
 .incl{padding-left:0;}
 .incl li::before{content:""; position:absolute; left:2px; top:.45em; width:15px; height:8px; border-left:2.5px solid var(--emerald); border-bottom:2.5px solid var(--emerald); transform:rotate(-45deg);}

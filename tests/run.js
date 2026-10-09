@@ -13,11 +13,12 @@ const SUITES = [
   ["05-landing.js",   "Продающая страница: правила игры = приложение, цена, ширины, анимации", true],
   ["06-server.js",    "Свой сервер: выкладка, Caddy, заголовки, приложение под CSP",     true],
   ["07-docs.js",      "Тарифы, соглашение, политика, поддержка: правда и одна цена",    true],
+  ["08-checkout.js",  "Оформление подписки: путь виден, согласие не отмечено, без оплаты ничего не уходит", true],
 ];
 
 // 0. Синтаксис скриптов внутри страниц — самая дешёвая и самая важная проверка
 function checkSyntax() {
-  for (const file of [APP_FILE, path.join(__dirname, "..", "index.html")]) {
+  for (const file of [APP_FILE, path.join(__dirname, "..", "index.html"), path.join(__dirname, "..", "checkout.html")]) {
     const name = path.basename(file), html = fs.readFileSync(file, "utf8");
     const parts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
     if (!parts.length) { console.log("✗ В " + name + " не найден <script>"); return false; }

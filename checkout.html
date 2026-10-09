@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Оформление подписки — Магнат</title>
+<meta name="description" content="Оформление подписки на Магнат: тариф, e-mail, согласие на автопродление и оплата через СБП.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#080b11">
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="doc.css">
+<!--
+  Оформление подписки (09.10.2026) — путь покупки, который платёжный сервис хочет видеть
+  до согласования. Устройство и что обязано стать правдой при включении оплаты — CLAUDE.md,
+  раздел «Оформление подписки». Коротко:
+  • цена — в CFG скрипта, та же, что в тарифах (data-price), сторожит tests/08-checkout.js;
+  • CFG.pay пустой — оплата не подключена: форма проверяется, но НИКУДА не уходит;
+  • стили страницы — здесь, а не в doc.css: устаревший doc.css из кэша не сломает форму.
+-->
+<style>
+  :root{--danger:#ff6b6b;
+    --chk:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 12.4 4 4 8-8.6' fill='none' stroke='%2304120b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+  form{margin-top:22px;}
+  fieldset{border:0; min-width:0;}
+  legend,.lbl{display:block; font-size:15px; font-weight:700; color:var(--ink); margin-bottom:8px;}
+  .lbl small{font-weight:600; color:var(--mut); font-size:14px;}
+  .field{margin-top:22px;}
+  .opts{display:grid; gap:10px;}
+  @media (min-width:560px){ .opts{grid-template-columns:1fr 1fr;} }
+  .opt{position:relative; display:flex; align-items:center; gap:12px; min-height:64px; padding:14px 16px; border-radius:16px; border:1.5px solid var(--line2); background:var(--panel); cursor:pointer; -webkit-tap-highlight-color:transparent;}
+  .opt input{appearance:none; -webkit-appearance:none; flex:none; width:22px; height:22px; margin:0; border-radius:50%; border:2px solid #3a4c63; background:transparent; cursor:pointer;}
+  .opt input:checked{border-color:var(--emerald); box-shadow:0 0 0 4px var(--emerald) inset;}
+  .opt input:focus-visible{outline:2px solid var(--emerald); outline-offset:3px;}
+  .opt:has(input:checked){border-color:var(--emerald); background:linear-gradient(180deg,rgba(47,227,143,.10),rgba(47,227,143,.02));}
+  .opt .t{display:flex; flex-direction:column; min-width:0;}
+  .opt .n{font-size:14px; font-weight:700; color:var(--mut);}
+  .opt .p{font-size:24px; font-weight:800; letter-spacing:-.02em; line-height:1.15; color:var(--ink);}
+  .opt .p small{font-size:14px; font-weight:600; color:var(--mut);}
+  .opt .s{font-size:13.5px; color:var(--mut);}
+  .opt .tag{position:absolute; top:-11px; right:14px; background:var(--emerald); color:#04140c; font-size:12px; font-weight:800; padding:3px 10px; border-radius:99px;}
+  .inp{display:block; width:100%; min-height:52px; padding:12px 14px; border-radius:12px; border:1.5px solid var(--line2); background:var(--panel); color:var(--ink); font:inherit; font-size:16px;}
+  .inp::placeholder{color:var(--mut2);}
+  .inp:focus{outline:none; border-color:var(--emerald); box-shadow:0 0 0 3px rgba(47,227,143,.18);}
+  .inp[aria-invalid="true"]{border-color:var(--danger);}
+  .inp[aria-invalid="true"]:focus{box-shadow:0 0 0 3px rgba(255,107,107,.2);}
+  /* шапка липкая: поле с ошибкой и ответ после отправки не прячутся под ней */
+  .inp,.check,#done{scroll-margin-top:76px;}
+  .hint{font-size:14px; color:var(--mut); margin-top:6px;}
+  .err{font-size:14px; color:var(--danger); margin-top:6px; font-weight:600;}
+  .sum{display:flex; flex-direction:column; gap:4px; margin-top:24px;}
+  .sum .row{display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap;}
+  .sum .row span{color:var(--mut);}
+  .sum .row b{font-size:20px; font-weight:800;}
+  .sum p{font-size:14px; color:var(--mut);}
+  .check{display:flex; gap:12px; align-items:flex-start; margin-top:20px; padding:14px 16px; border-radius:16px; border:1.5px solid var(--line2); background:var(--panel); cursor:pointer; -webkit-tap-highlight-color:transparent;}
+  .check input{appearance:none; -webkit-appearance:none; flex:none; width:24px; height:24px; margin:1px 0 0; border-radius:7px; border:2px solid #3a4c63; background:transparent; cursor:pointer;}
+  .check input:checked{border-color:var(--emerald); background:var(--emerald) var(--chk) center/18px no-repeat;}
+  .check input:focus-visible{outline:2px solid var(--emerald); outline-offset:3px;}
+  .check:has(input[aria-invalid="true"]){border-color:var(--danger);}
+  .check span{font-size:15px; color:#d4dee9;}
+  .legal{font-size:14px; color:var(--mut); margin-top:16px;}
+  .pay{display:flex; align-items:center; justify-content:center; width:100%; min-height:56px; margin-top:16px; padding:0 20px; border:0; border-radius:16px; cursor:pointer;
+    background:linear-gradient(180deg,#6af4b4 0%,#2fe38f 48%,#22cd7f 100%); color:#04140c; font:inherit; font-size:17px; font-weight:800; text-decoration:none;}
+  .pay:focus-visible{outline:2px solid var(--ink); outline-offset:3px;}
+  .pay[disabled]{opacity:.6; cursor:default;}
+  .safe{font-size:14px; color:var(--mut); margin-top:12px; text-align:center;}
+  #done{margin-top:22px;}
+  #done h2{margin-top:0;}
+  #done:focus{outline:none;}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="/"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x=".5" y=".5" width="31" height="31" rx="8.5" fill="#0c1a1c" stroke="#25463d"/><g fill="#33e494"><path d="M16 7.4 7.3 12.1h17.4z"/><rect x="8.2" y="13.1" width="15.6" height="1.7" rx=".85"/><rect x="9.3" y="15.9" width="2.3" height="6.1" rx="1.1"/><rect x="13" y="15.9" width="2.3" height="6.1" rx="1.1"/><rect x="16.7" y="15.9" width="2.3" height="6.1" rx="1.1"/><rect x="20.4" y="15.9" width="2.3" height="6.1" rx="1.1"/><rect x="7.8" y="23.1" width="16.4" height="1.7" rx=".85"/></g></svg>Магнат</a>
+  <a class="toapp" href="app.html">Открыть приложение</a>
+</div></header>
+
+<main class="wrap">
+  <h1>Оформление подписки</h1>
+  <p class="lead">Выбери тариф и оставь e-mail — дальше оплата через СБП в приложении твоего банка.</p>
+
+  <div class="box note" id="soon"><b>Оплата на сайте подключается.</b> Пока она не включена, оформить подписку нельзя — зато Магнат открыт целиком и бесплатно.</div>
+
+  <form id="buy" method="post" action="" novalidate>
+    <fieldset>
+      <legend>Тариф</legend>
+      <div class="opts">
+        <label class="opt"><input type="radio" name="plan" value="year" checked><span class="t"><span class="n">Год</span><span class="p num" data-price="year">1 490 ₽<small> / год</small></span><span class="s">≈ 124 ₽ в месяц</span></span><span class="tag">−58%</span></label>
+        <label class="opt"><input type="radio" name="plan" value="month"><span class="t"><span class="n">Месяц</span><span class="p num" data-price="month">299 ₽<small> / месяц</small></span><span class="s">Продлевается каждый месяц</span></span></label>
+      </div>
+    </fieldset>
+
+    <div class="field">
+      <label class="lbl" for="email">E-mail</label>
+      <input class="inp" id="email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" maxlength="254" placeholder="name@mail.ru" required aria-describedby="emailHint emailErr">
+      <p class="hint" id="emailHint">Сюда придёт письмо об оплате со ссылкой для отмены подписки. По этому адресу поддержка свяжется с тобой, если с оплатой что-то пойдёт не так.</p>
+      <p class="err" id="emailErr" hidden>Проверь e-mail: нужен адрес вида name@mail.ru</p>
+    </div>
+
+    <div class="field">
+      <label class="lbl" for="tg">Telegram <small>— по желанию</small></label>
+      <input class="inp" id="tg" name="telegram" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="64" placeholder="@username" aria-describedby="tgHint tgErr">
+      <p class="hint" id="tgHint">Если удобнее, чтобы поддержка писала в Telegram.</p>
+      <p class="err" id="tgErr" hidden>Имя в Telegram — от 5 до 32 латинских букв, цифр и «_», начинается с буквы. Например, @magnat_user</p>
+    </div>
+
+    <div class="box sum" aria-live="polite">
+      <div class="row"><span>К оплате сейчас</span><b class="num" id="sumNow">1 490 ₽</b></div>
+      <p id="sumNext">Дальше — 1 490 ₽ раз в год, пока не отменишь подписку.</p>
+    </div>
+
+    <label class="check"><input type="checkbox" id="autopay" name="autopay" value="1" aria-describedby="autoErr"><span id="autoTxt">Соглашаюсь на автопродление подписки: 1 490 ₽ списываются раз в год, пока я её не отменю. Отменить можно в любой момент.</span></label>
+    <p class="err" id="autoErr" hidden>Без согласия на автопродление подписку не оформить. Не хочешь — пользуйся бесплатными днями.</p>
+
+    <!-- что именно человек принял — уходит вместе с заказом и хранится как доказательство согласия -->
+    <input type="hidden" name="consent" id="consent" value="">
+    <input type="hidden" name="terms" value="2026-10-07">
+
+    <p class="legal">Нажимая «Перейти к оплате», ты принимаешь <a href="terms.html">пользовательское соглашение</a> и <a href="privacy.html">политику конфиденциальности</a>.</p>
+    <!-- без скрипта кнопка выключена: иначе форма ушла бы на сервер, который её ещё не принимает -->
+    <button class="pay" type="submit" id="payBtn" disabled>Перейти к оплате</button>
+    <p class="safe">Оплата — через СБП в приложении твоего банка. Данные карты и счёта к нам не попадают: платёж проводит сервис Platega.</p>
+  </form>
+
+  <div class="box" id="done" hidden tabindex="-1" role="status">
+    <h2>Оплата пока не подключена</h2>
+    <p>Мы ждём, когда платёжный сервис её согласует. Ничего не списано, и данные формы никуда не отправлены.</p>
+    <p>А пока Магнат открыт целиком и бесплатно.</p>
+    <a class="pay" href="app.html?start">Открыть Магнат</a>
+  </div>
+
+  <h2>Что будет после оплаты</h2>
+  <ol class="steps">
+    <li>Банк попросит подтвердить подписку — один раз, в его приложении через СБП.</li>
+    <li>Доступ включается сразу после подтверждения оплаты, на e-mail приходит письмо об оплате.</li>
+    <li>Через месяц или год подписка продлевается сама — на ту же сумму.</li>
+    <li>Отменить можно в любой момент: по ссылке из письма или написав в поддержку. Передумал — вернём деньги за неиспользованные дни.</li>
+  </ol>
+
+  <h2 id="support">Вопросы об оплате</h2>
+  <div class="box support">
+    <a class="contact" href="mailto:planermagnat@gmail.com">planermagnat@gmail.com</a>
+    <span style="color:var(--mut)">Оплата, отмена, возврат. Обычно отвечаем в течение дня.</span>
+  </div>
+</main>
+
+<footer><div class="wrap">
+  <nav aria-label="Документы">
+    <a href="pricing.html">Тарифы</a>
+    <a href="terms.html">Пользовательское соглашение</a>
+    <a href="privacy.html">Политика конфиденциальности</a>
+    <a href="pricing.html#support">Поддержка</a>
+  </nav>
+  <p>© 2026 Магнат · magnat-planer.ru · Поддержка: <a href="mailto:planermagnat@gmail.com">planermagnat@gmail.com</a></p>
+</div></footer>
+
+<script>
+// ═══ ВСЁ, ЧТО МЕНЯЕТСЯ, — ЗДЕСЬ ═══════════════════════════════════════════════
+// Цена — та же, что в тарифах (data-price в pricing.html), разойдётся — краснеет
+// tests/08-checkout.js. pay — адрес нашего сервера, который записывает заказ и создаёт
+// подписку в платёжном сервисе. Пока он пустой, оплата не подключена: форма проверяется,
+// но никуда не отправляется — политика обещает, что данные к нам не уходят.
+const CFG = {
+  month: 299,   // ₽ в месяц
+  year: 1490,   // ₽ в год
+  pay: "",      // "" — оплата не подключена
+};
+
+const $ = id => document.getElementById(id);
+const nf = n => Math.round(n).toLocaleString("ru-RU").replace(/\s/g, " ");
+const form = $("buy");
+const PER = { month: ["раз в месяц", "/ месяц"], year: ["раз в год", "/ год"] };
+const plan = () => (form.querySelector('input[name="plan"]:checked') || {}).value || "year";
+
+// тариф из адреса: тарифы и главная ведут сюда с ?plan=month или ?plan=year.
+// Только из списка: чужое значение в селекторе роняло бы скрипт, а с ним и кнопку
+(function () {
+  const want = new URLSearchParams(location.search).get("plan");
+  if (want === "month" || want === "year") form.querySelector(`input[name="plan"][value="${want}"]`).checked = true;
+})();
+
+function fill() {
+  document.querySelectorAll("[data-price]").forEach(el => {
+    const k = el.dataset.price; el.innerHTML = `${nf(CFG[k])} ₽<small> ${PER[k][1]}</small>`;
+  });
+  const k = plan(), sum = `${nf(CFG[k])} ₽`;
+  $("sumNow").textContent = sum;
+  $("sumNext").textContent = `Дальше — ${sum} ${PER[k][0]}, пока не отменишь подписку.`;
+  $("autoTxt").textContent = `Соглашаюсь на автопродление подписки: ${sum} списываются ${PER[k][0]}, пока я её не отменю. Отменить можно в любой момент.`;
+  $("soon").hidden = !!CFG.pay;
+}
+
+// e-mail: что-то@домен.зона, без пробелов
+const emailOk = s => s.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$/.test(s);
+// Telegram: пусто — можно (поле по желанию); иначе имя без @ и без t.me/, 5–32 знака
+const tgClean = s => s.trim().replace(/^(?:https?:\/\/)?(?:t\.me|telegram\.me)\//i, "").replace(/^@/, "");
+const tgOk = s => !s || /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(s);
+
+function mark(input, err, good) {
+  input.setAttribute("aria-invalid", String(!good));
+  $(err).hidden = good;
+  return good;
+}
+
+function check() {
+  const email = $("email"), tg = $("tg"), auto = $("autopay");
+  email.value = email.value.trim();
+  const t = tgClean(tg.value);
+  const res = [
+    [email, mark(email, "emailErr", emailOk(email.value))],
+    [tg, mark(tg, "tgErr", tgOk(t))],
+    [auto, mark(auto, "autoErr", auto.checked)],
+  ];
+  const first = res.find(r => !r[1]);
+  if (first) { first[0].focus(); return false; }
+  if (t) tg.value = "@" + t;
+  return true;
+}
+
+form.addEventListener("change", e => {
+  if (e.target.name === "plan") fill();
+  if (e.target.id === "autopay" && e.target.checked) mark(e.target, "autoErr", true);
+});
+// ошибку под полем убираем, как только человек её исправил
+$("email").addEventListener("input", e => { if (e.target.getAttribute("aria-invalid") === "true" && emailOk(e.target.value.trim())) mark(e.target, "emailErr", true); });
+$("tg").addEventListener("input", e => { if (e.target.getAttribute("aria-invalid") === "true" && tgOk(tgClean(e.target.value))) mark(e.target, "tgErr", true); });
+
+form.addEventListener("submit", e => {
+  if (!check()) { e.preventDefault(); return; }
+  $("consent").value = $("autoTxt").textContent;
+  if (!CFG.pay) {
+    // оплата не подключена: ничего не отправляем, честно говорим, что дальше
+    e.preventDefault();
+    form.hidden = true; $("soon").hidden = true;
+    const d = $("done"); d.hidden = false; d.focus();
+    d.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    return;
+  }
+  form.action = CFG.pay;
+  $("payBtn").disabled = true; $("payBtn").textContent = "Переходим к оплате…";
+});
+// кнопка оживает только со скриптом; вернулся «Назад» со страницы оплаты — снова живая
+const ready = () => { $("payBtn").disabled = false; $("payBtn").textContent = "Перейти к оплате"; };
+addEventListener("pageshow", ready);
+
+fill(); ready();
+</script>
+</body>
+</html>

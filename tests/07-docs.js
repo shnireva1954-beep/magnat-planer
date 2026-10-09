@@ -20,6 +20,7 @@ const SITE = "https://magnat-planer.ru/";
 const read = f => fs.readFileSync(path.join(APP_DIR, f), "utf8");
 const app = read("app.html");
 const land = read("index.html");   // продающая страница — те же обещания политики
+const buy = read("checkout.html"); // оформление подписки: пока оплата не подключена — тоже ничего наружу
 
 function serve(root, csp) {
   const types = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "application/javascript", ".png": "image/png", ".woff2": "font/woff2", ".json": "application/json" };
@@ -48,7 +49,7 @@ function serve(root, csp) {
   for (const [f, list] of hrefs) for (const h of list) {
     if (/^(mailto:|https:\/\/t\.me\/)/.test(h)) { support.add(h); continue; }
     if (h === "/" || /@@\w+@@/.test(h)) continue;   // заглушка — уже названа выше
-    const file = h.split("#")[0];
+    const file = h.split(/[?#]/)[0];   // «Оформить» ведёт на checkout.html?plan=…
     if (/^[a-z]+:/i.test(h) || !file || !fs.existsSync(path.join(APP_DIR, file))) broken.push(f + " → " + h);
   }
   broken.length ? bad("ссылки в никуда: " + broken.join(", ")) : ok("все ссылки страниц ведут на существующие файлы");
@@ -71,7 +72,7 @@ function serve(root, csp) {
 
   // ---- 3. Обещания политики правдивы -----------------------------------------
   console.log("\n3. Политика говорит правду о приложении");
-  for (const [name, src] of [["приложении", app], ["продающей странице", land]]) {
+  for (const [name, src] of [["приложении", app], ["продающей странице", land], ["оформлении подписки", buy]]) {
     // canonical и alternate — адрес страницы для поисковиков, браузер по ним ничего не грузит
     const leaks = [/\bfetch\s*\(/, /XMLHttpRequest/, /sendBeacon/, /document\.cookie/, /new\s+WebSocket/, /<script[^>]+src=/i, /<link(?![^>]*rel="(?:canonical|alternate)")[^>]+href="https?:/i, /<img[^>]+src="https?:/i]
       .filter(re => re.test(src)).map(String);

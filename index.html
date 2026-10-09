@@ -481,6 +481,7 @@ section{position:relative;}
 .incl .ico{color:var(--accent); stroke-width:2.6; margin-top:2px;}
 .incl b{color:var(--ink);}
 .price-box .btn{width:100%; margin-top:24px;}
+.price-box .btn + .btn{margin-top:10px;}
 .p-note{margin-top:14px; text-align:center; font-size:14px; color:var(--mut);}
 .p-note b{color:var(--ink);}
 .assure{display:flex; flex-wrap:wrap; justify-content:center; gap:10px 22px; margin-top:22px; color:var(--mut); font-size:14px; font-weight:600;}
@@ -853,6 +854,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
         <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span>Все обновления — <b>бесплатно</b></span></li>
       </ul>
       <a class="btn btn-primary btn-lg" id="priceCta" data-app="start" href="app.html?start">Начать бесплатно<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <a class="btn btn-ghost btn-lg" id="priceBuy" href="checkout.html?plan=year">Оформить подписку</a>
       <p class="p-note" id="pNote"><b data-k="trial">7&nbsp;дней</b> бесплатно, затем <span data-k="planPrice">1 490&nbsp;₽ в год</span>. Списание — только с твоего согласия.</p>
       <div class="assure"><span><svg class="ico" aria-hidden="true"><use href="#i-undo"/></svg>Отмена в любой момент</span><span><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>Возврат за неиспользованные дни</span></div>
       <a class="p-more" href="pricing.html">Подробно о тарифах и оплате →</a>
@@ -923,6 +925,7 @@ const CFG = {
   app: "app.html",             // «Открыть»
   start: "app.html?start",     // «Начать бесплатно»: сразу выбор привычек
   demo: "app.html?demo",       // «Посмотреть пример»: сразу пример
+  buy: "checkout.html",        // «Оформить подписку»: + ?plan= выбранного тарифа
 };
 
 // ═══ Правила игры — КОПИЯ правил app.html ═════════════════════════════════════
@@ -984,6 +987,7 @@ function fillPrices() {
   };
   document.querySelectorAll("[data-k]").forEach(el => { if (el.dataset.k in v) el.textContent = v[el.dataset.k]; });
   document.querySelectorAll("[data-app]").forEach(a => { const to = CFG[a.dataset.app]; if (to) a.href = to; });
+  const buy = $("priceBuy"); if (buy) buy.href = `${CFG.buy}?plan=${plan}`;   // оформление — с выбранным тарифом
 }
 function choosePlan() {
   const tiles = [...document.querySelectorAll("[data-plan]")];
