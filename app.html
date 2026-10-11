@@ -95,6 +95,11 @@
   .bar-t span{display:block; height:100%; background:linear-gradient(90deg,#178a5a,var(--emerald));}
   .bar-m{display:flex; justify-content:space-between; font-size:12px; color:var(--mut); margin-top:7px;} .bar-m b{color:var(--ink)}
   .tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-top:12px;}
+  /* щит серии (11.10): спокойная строка; горит золотом, только когда он вчера спас серию */
+  .shl{display:flex; gap:8px; align-items:flex-start; margin-top:10px; font-size:12px; line-height:1.5; color:var(--mut2);}
+  .shl .ic{flex:none; width:16px; height:16px; margin-top:1px;} .shl span{min-width:0;} .shl b{color:var(--ink); font-weight:600;}
+  .shl.on .ic{color:var(--emerald);}
+  .shl.hot{color:var(--mut); background:rgba(245,196,81,.08); border:1px solid rgba(245,196,81,.28); border-radius:12px; padding:9px 11px;} .shl.hot .ic{color:var(--gold);}
   .tile{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 6px; text-align:center;}
   .tile .v{font-size:19px; font-weight:700; line-height:1;} .tile .l{font-size:9.5px; color:var(--mut2); text-transform:uppercase; letter-spacing:.6px; margin-top:5px;}
   .g{color:var(--gold)} .e{color:var(--emerald)} .cy{color:var(--cyan)} .vi{color:var(--violet)} .dn{color:var(--danger)} .or{color:var(--orange)}
@@ -780,6 +785,7 @@ const ICONS={
  gift:'<rect x="3.5" y="8.4" width="17" height="4" rx="1"/><path d="M5.5 12.4v7a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-7M12 8.4v12"/><path d="M12 8.4c-1.2-3-3.6-4.3-5-3.1-1.3 1.1-.2 3.1 5 3.1Zm0 0c1.2-3 3.6-4.3 5-3.1 1.3 1.1.2 3.1-5 3.1Z"/>',
  dumbbell:'<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>',
  home:'<path d="M3.5 10.2 12 3.6l8.5 6.6V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"/>',
+ shield:'<path d="M12 3.4 19 6v5.7c0 4.2-2.9 7.5-7 8.9-4.1-1.4-7-4.7-7-8.9V6z"/><path d="m9.2 12.2 2 2 3.8-4"/>',
  spark:'<path d="M12 4v4M12 16v4M4 12h4M16 12h4M6.3 6.3l2.8 2.8M14.9 14.9l2.8 2.8M6.3 17.7l2.8-2.8M14.9 9.1l2.8-2.8"/>'};
 const ic=(k,cls)=>`<svg class="ic${cls?" "+cls:""}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]||ICONS.spark}</svg>`;
 // монета — золотой диск со знаком Магната (той же колоннадой, что в шапке)
@@ -1000,25 +1006,36 @@ const dayComplete=d=>{const n=checksOf(d).length; return n>0 && n>=dayGoal(d);};
 const baseCoins=d=>checksOf(d).length*COIN;
 const mult=s=>Math.min(2,1+0.1*s);
 
+// «Не пропусти дважды» (11.10.2026): SHIELD закрытых дней подряд дают щит. Пропуск со щитом
+// серию не рвёт — она стоит на месте, щит сгорает и копится заново; второй пропуск подряд рвёт.
+// До щита серия рвалась с первого пропуска, а после срыва люди бросают. Пропуски раньше
+// SHIELD_FROM судятся по-старому: иначе у старых данных задним числом выросли бы монеты.
+const SHIELD=7, SHIELD_FROM="2026-10-11";
 // Весь опыт и рекорд серии — за один проход по датам вместо обхода истории на каждый день.
 // С двумя годами отметок старый способ занимал полсекунды на каждую перерисовку.
+// Проход идёт по каждому календарному дню до вчера: пустой день — тоже пропуск, и щит
+// должен его увидеть. Сегодня, пока не закрыт, — не пропуск: день ещё идёт.
 let _st=null;
 const invalidate=()=>{_st=null;};
 function stats(){
   if(_st) return _st;
-  const days=Object.keys(S.checks).sort();
-  const streakOf=Object.create(null);
-  let xp=0,record=0,streak=0,prev=null,closed=0,marks=0;
-  for(const d of days){
-    const before=(prev&&addDays(prev,1)===d)?streak:0;
-    xp+=Math.round(checksOf(d).length*COIN*mult(before));
-    streak=dayComplete(d)?before+1:0;
-    if(streak>record) record=streak;
-    if(dayComplete(d)) closed++;
-    marks+=checksOf(d).length;
-    streakOf[d]=streak; prev=d;
+  const days=Object.keys(S.checks).sort(), yest=addDays(TODAY,-1);
+  const last=days.length&&days[days.length-1]>yest?days[days.length-1]:yest;
+  const streakOf=Object.create(null), saved=Object.create(null);
+  let xp=0,record=0,streak=0,closed=0,marks=0,charge=0,chargedOn="";
+  for(let d=days[0]; d&&d<=last; d=addDays(d,1)){
+    const n=checksOf(d).length;
+    xp+=Math.round(n*COIN*mult(streak));
+    marks+=n;
+    if(dayComplete(d)){
+      streak++; closed++; if(streak>record) record=streak;
+      if(charge<SHIELD&&++charge===SHIELD) chargedOn=d;
+    } else if(d>=TODAY){ streakOf[d]=0; continue; }
+    else if(streak&&charge>=SHIELD&&d>=SHIELD_FROM){ saved[d]=1; charge=0; }
+    else { streak=0; charge=0; }
+    streakOf[d]=streak;
   }
-  return (_st={xp,record,streakOf,closed,marks});
+  return (_st={xp,record,streakOf,closed,marks,saved,charge,chargedOn});
 }
 const streakEndingOn=d=>stats().streakOf[d]||0;
 const streakBefore=d=>streakEndingOn(addDays(d,-1));
@@ -1087,7 +1104,20 @@ const monthEntries=()=>S.finance.entries.filter(e=>e.date.slice(0,7)===CURMONTH)
 // меняла «серию» и «множитель» в карточке ниже, и связь «отметки → серия → монеты» не читалась
 function streakNote(ds,was){
   if(ds!==TODAY||was||!dayComplete(TODAY)) return;
-  const st=curStreak(); toast(`${ic("flame","or")} День в серии: ${st} · завтра монеты ×${dcm(mult(st).toFixed(1))}`);
+  const st=curStreak();
+  if(stats().chargedOn===TODAY) toast(`${ic("shield","or")} День в серии: ${st} · щит готов — один пропуск серию не порвёт`);
+  else toast(`${ic("flame","or")} День в серии: ${st} · завтра монеты ×${dcm(mult(st).toFixed(1))}`);
+}
+// строка щита под плитками серии: что он даёт и когда будет. Вчера сгорел — сказать прямо,
+// что второй пропуск подряд серию порвёт: ради этой минуты щит и придуман
+function shieldLine(st){
+  const s=stats(), yest=addDays(TODAY,-1);
+  if(s.saved[yest]&&!dayComplete(TODAY))
+    return `<div class="shl hot">${ic("shield")}<span>Вчера пропуск — щит спас серию <b>${st} ${pl(st,"день","дня","дней")}</b>. Закрой сегодня: второй пропуск подряд её порвёт.</span></div>`;
+  if(s.charge>=SHIELD)
+    return `<div class="shl on">${ic("shield")}<span><b>Щит готов</b> — один пропуск серию не порвёт. Второй подряд — порвёт.</span></div>`;
+  const left=SHIELD-s.charge;
+  return `<div class="shl">${ic("shield")}<span>${st?`Щит — через <b>${left} ${pl(left,"закрытый день","закрытых дня","закрытых дней")}</b>`:`Закрой <b>${SHIELD} дней подряд</b> — получишь щит`}: один пропуск не порвёт серию.</span></div>`;
 }
 // текст с разметкой: внутри бывает значок монеты. Имена, впечатанные человеком, — через esc()
 let toastT; function toast(m){const t=document.getElementById("toast");t.innerHTML=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),1900);}
@@ -1418,6 +1448,7 @@ function vHome(root){
        <div class="tile"><div class="v e">×${dcm(mult(st).toFixed(1))}</div><div class="l">бонус серии</div></div>
        <div class="tile"><div class="v vi">${ic("trophy")} ${recordStreak()}</div><div class="l">рекорд серии</div></div>
      </div>
+     ${shieldLine(st)}
      ${lesRowHtml(L)}
    </div>
    ${ins?`<div class="glass card" style="margin-top:13px"><h3>Инсайт недели</h3>

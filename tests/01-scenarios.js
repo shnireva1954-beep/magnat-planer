@@ -1173,6 +1173,66 @@ async function walkTabs(p, label) {
     await ctx.close();
   }
 
+  // ---------- 10. щит серии ----------
+  // «Не пропусти дважды» (11.10.2026): 7 закрытых дней дают щит, один пропуск со щитом серию
+  // не рвёт, второй подряд — рвёт. Часы — на 20 ноября: пропуски раньше 11.10 судятся
+  // по-старому, и без своих часов проверка зависела бы от дня прогона.
+  console.log('\n10) Щит серии: один пропуск не рвёт, второй — рвёт');
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 900 });
+    await ctx.clock.install({ time: new Date(2026, 10, 20, 12, 0) });
+    await p.goto(URL); await p.waitForTimeout(400);
+    await startClean(p);
+    // закрытые дни — сдвигами от сегодня (-1 = вчера), остальные пустые
+    const setDays = (offs) => p.evaluate((offs) => {
+      S.habits = [{ id: 1, ico: '', name: 'Бег', since: '' }, { id: 2, ico: '', name: 'Чтение', since: '' }, { id: 3, ico: '', name: 'Вода', since: '' }];
+      S.checks = {}; for (const k of offs) S.checks[addDays(TODAY, k)] = [1, 2, 3];
+      save(); render();
+      const s = stats(), y = addDays(TODAY, -1), el = document.querySelector('.shl') || {};
+      return { st: curStreak(), saved: !!s.saved[y], charge: s.charge, rec: recordStreak(), before: streakBefore(TODAY),
+               line: el.className || '', text: el.textContent || '' };
+    }, offs);
+    const range = (a, z) => Array.from({ length: z - a + 1 }, (_, i) => a + i);
+
+    let r = await setDays(range(-10, -2));                       // 9 закрытых, вчера пусто
+    (r.st === 9 && r.saved && r.before === 9 && r.line.includes('hot') && r.text.includes('щит спас серию'))
+      ? ok('9 дней и пропуск вчера → серия 9 цела, бонус серии сегодня тот же, строка «щит спас»')
+      : bad('один пропуск со щитом: ' + JSON.stringify(r));
+
+    r = await setDays(range(-10, -3));                           // 8 закрытых, два пустых подряд
+    (r.st === 0 && r.rec === 8) ? ok('два пропуска подряд → серия 0, рекорд 8 остался')
+                                : bad('второй пропуск подряд не порвал серию: ' + JSON.stringify(r));
+
+    r = await setDays([...range(-12, -7), ...range(-5, -1)]);    // 6 закрытых, пропуск, 5
+    (r.st === 5 && r.charge === 5 && r.text.includes('через 2'))
+      ? ok('пропуск без щита (6 дней) рвёт серию, щит копится заново: «через 2»')
+      : bad('пропуск без щита: ' + JSON.stringify(r));
+
+    r = await setDays([...range(-20, -12), ...range(-10, -8), ...range(-6, -1)]);  // 9, пропуск, 3, пропуск, 6
+    (r.st === 6 && r.rec === 12) ? ok('сгоревший щит не спасает второй пропуск через 3 дня: серия 6, рекорд 12')
+                                 : bad('щит после сгорания: ' + JSON.stringify(r));
+
+    r = await setDays(range(-7, -1));                            // ровно 7 дней — щит готов
+    (r.st === 7 && r.charge === 7 && r.line.includes('on') && r.text.includes('Щит готов'))
+      ? ok('7 закрытых дней → «Щит готов»') : bad('щит за 7 дней: ' + JSON.stringify(r));
+
+    // пропуск до 11.10.2026 — по старым правилам: монеты у старых данных задним числом не растут
+    const old = await p.evaluate(() => {
+      S.checks = {}; for (let d = '2026-09-25'; d <= '2026-10-09'; d = addDays(d, 1)) if (d !== '2026-10-05') S.checks[d] = [1, 2, 3];
+      save(); return { s: stats().streakOf['2026-10-09'], saved: Object.keys(stats().saved).length };
+    });
+    (old.s === 4 && old.saved === 0) ? ok('пропуск до 11.10 рвёт серию, как раньше') : bad('старые данные: ' + JSON.stringify(old));
+
+    // шесть дней + три отметки сегодня → тост «щит готов»
+    await setDays(range(-6, -1));
+    // окно нового уровня (опыт подскочил от подставленных дней) перекрывает чипы — жмём сквозь него
+    for (let i = 0; i < 3; i++) { await p.evaluate(i => document.querySelectorAll('#todayChips .tchip')[i].click(), i); await p.waitForTimeout(300); }
+    const toastT = await p.$eval('#toast', e => e.textContent);
+    toastT.includes('щит готов') ? ok('седьмой закрытый день: тост «щит готов»') : bad('тост: ' + toastT);
+    errCheck(p, 'щит серии');
+    await ctx.close();
+  }
+
   await b.close();
   console.log(fails ? `\n=== ПРОВАЛОВ: ${fails} ===` : '\n=== ВСЁ ЗЕЛЁНОЕ ===');
   process.exit(fails ? 1 : 0);
