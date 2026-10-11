@@ -181,11 +181,11 @@ echo "=============================================="
 # Решение Артёма 01.10.2026: эта машина больше не вход VPN, а дом Магната.
 # Пересылка (install-relay.sh из репозитория GenaVPN) держала порт 443 — пока
 # она стоит, сайту его не получить. Снимаем только своё, по метке.
-echo; echo "--- 1/7 Снимаю старую пересылку VPN ---"
+echo; echo "--- 1/8 Снимаю старую пересылку VPN ---"
 remove_relay
 
 # --- 2. Пакеты ------------------------------------------------------------------
-echo; echo "--- 2/7 Пакеты: Caddy, git, файрвол, защита SSH, автообновления ---"
+echo; echo "--- 2/8 Пакеты: Caddy, git, файрвол, защита SSH, автообновления ---"
 # Полгигабайта памяти: apt и Caddy на старте могут упереться. Файл подкачки
 # на 1 ГБ — дешёвая страховка от «убит по нехватке памяти».
 if ! swapon --show=NAME --noheadings | grep -q .; then
@@ -197,7 +197,7 @@ if ! swapon --show=NAME --noheadings | grep -q .; then
   fi
 fi
 apt_get update -qq
-apt_get install -y -qq ca-certificates curl gnupg git openssh-client ufw fail2ban python3-systemd unattended-upgrades >/dev/null
+apt_get install -y -qq ca-certificates curl gnupg git openssh-client ufw fail2ban python3 python3-systemd unattended-upgrades >/dev/null
 
 # Caddy — из официального репозитория (свежий, сам обновляется). Не вышло —
 # из репозитория Ubuntu: старее, но рабочий.
@@ -214,7 +214,7 @@ apt_get install -y -qq caddy >/dev/null || fail "Caddy не поставился
 ok "Caddy $(caddy version | awk '{print $1}'), git, ufw, fail2ban на месте."
 
 # --- 3. Пользователь, папки, ключ выкладки --------------------------------------------
-echo; echo "--- 3/7 Пользователь выкладки и ключ к GitHub ---"
+echo; echo "--- 3/8 Пользователь выкладки и ключ к GitHub ---"
 id magnat >/dev/null 2>&1 ||
   useradd --system --home-dir "$STATE" --create-home --shell /usr/sbin/nologin magnat
 install -d -o magnat -g magnat -m 0750 "$STATE"
@@ -238,7 +238,7 @@ done
 ok "Ключ выкладки готов (только чтение, ставится в GitHub одним действием)."
 
 # --- 4. Выкладка: скрипт, таймер, первая выкладка ---------------------------------
-echo; echo "--- 4/7 Выкладка из GitHub ---"
+echo; echo "--- 4/8 Выкладка из GitHub ---"
 install -m 0755 "$HERE/magnat.sh" /usr/local/sbin/magnat
 cat > /etc/systemd/system/magnat-deploy.service <<'EOF'
 [Unit]
@@ -268,8 +268,119 @@ systemctl daemon-reload
 [ -s "$BASE/current/index.html" ] || fail "Первая выкладка не удалась: сайт не скачался из GitHub. Пришли вывод мне."
 ok "Сайт скачан: версия $(basename "$(readlink "$BASE/current")" | cut -c1-7)."
 
-# --- 5. Caddy ---------------------------------------------------------------------
-echo; echo "--- 5/7 Веб-сервер Caddy (HTTPS сам, заголовки безопасности) ---"
+# --- 5. API входа по почте --------------------------------------------------------
+# server/api/api.py — один процесс на Python из системы (только stdlib), слушает
+# только 127.0.0.1:8787; снаружи его видно лишь через Caddy (/api/*). Живёт под
+# своим пользователем magnat-api в песочнице systemd: писать может только в
+# /var/lib/magnat-api, памяти — не больше 96 МБ (у машины всего 366).
+# Код из репозитория root не запускает никогда: magnat.sh зовёт api.py через
+# runuser. Ставит и обновляет API выкладка (magnat deploy → apply_api):
+# проверка на копии базы → копия базы → переключение → ответ /api/health,
+# иначе — прежний. Почта для кодов — отдельно, руками: magnat mail.
+echo; echo "--- 5/8 API входа по почте (закрыт: код — только ящикам владельца) ---"
+id magnat-api >/dev/null 2>&1 ||
+  useradd --system --home-dir /var/lib/magnat-api --no-create-home --shell /usr/sbin/nologin magnat-api
+install -d -o magnat-api -g magnat-api -m 0700 /var/lib/magnat-api /var/lib/magnat-api/tmp /var/lib/magnat-api/backup
+install -d -o root -g root -m 0700 /etc/magnat /var/backups/magnat /var/backups/magnat/deploy
+# Пустой smtp.env — служба стартует и без почты (LoadCredential без файла не стартует).
+[ -e /etc/magnat/smtp.env ] || install -o root -g root -m 0600 /dev/null /etc/magnat/smtp.env
+install -d -o root -g root -m 0755 /srv/magnat-api /srv/magnat-api/releases
+cat > /etc/systemd/system/magnat-api.service <<'EOF'
+[Unit]
+Description=Magnat API: login by e-mail code and sync
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+User=magnat-api
+Group=magnat-api
+Environment=MAGNAT_LISTEN=127.0.0.1:8787 MAGNAT_DB=/var/lib/magnat-api/magnat.db MAGNAT_STATE=/var/lib/magnat-api MAGNAT_ORIGIN=https://magnat-planer.ru
+LoadCredential=smtp:/etc/magnat/smtp.env
+ExecStart=/usr/bin/python3 -I /srv/magnat-api/current/api.py serve
+Restart=on-failure
+RestartSec=3
+MemoryHigh=72M
+MemoryMax=96M
+TasksMax=64
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ReadWritePaths=/var/lib/magnat-api
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target
+EOF
+# Копия базы раз в сутки, на этой же машине, семь последних — от magnat-api,
+# без runuser и без сети. Копия вне машины — позже, отдельным шагом.
+cat > /etc/systemd/system/magnat-api-backup.service <<'EOF'
+[Unit]
+Description=Magnat API: daily local copy of the database (keeps 7)
+
+[Service]
+Type=oneshot
+User=magnat-api
+Group=magnat-api
+ExecStart=/usr/local/sbin/magnat api-backup
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=15min
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ReadWritePaths=/var/lib/magnat-api
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+EOF
+cat > /etc/systemd/system/magnat-api-backup.timer <<'EOF'
+[Unit]
+Description=Magnat API: daily local copy of the database
+
+[Timer]
+OnCalendar=*-*-* 00:40:00 UTC
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+systemctl enable magnat-api.service >/dev/null 2>&1
+systemctl enable --now magnat-api-backup.timer >/dev/null 2>&1
+systemctl try-restart magnat-api.service || true     # повторный запуск: новые настройки службы
+/usr/local/sbin/magnat deploy || true                 # apply_api ставит API из выложенной версии и запускает
+for _ in $(seq 20); do
+  curl --noproxy '*' -fsS --max-time 2 http://127.0.0.1:8787/api/health 2>/dev/null | grep -q '"ok":true' && break
+  sleep 1
+done
+if curl --noproxy '*' -fsS --max-time 2 http://127.0.0.1:8787/api/health 2>/dev/null | grep -q '"ok":true'; then
+  ok "API входа работает (закрыт: код получают только ящики владельца)."
+else
+  warn "API входа пока не отвечает — сайт работает и без него. Пришли вывод magnat status."
+fi
+
+# --- 6. Caddy ---------------------------------------------------------------------
+echo; echo "--- 6/8 Веб-сервер Caddy (HTTPS сам, заголовки безопасности) ---"
 [ -f /etc/caddy/Caddyfile ] && cp -f /etc/caddy/Caddyfile /etc/caddy/Caddyfile.orig 2>/dev/null || true
 install -m 0644 "$HERE/Caddyfile" /etc/caddy/Caddyfile
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 || fail "Caddyfile не прошёл проверку."
@@ -282,8 +393,8 @@ systemctl is-active --quiet caddy || fail "Caddy не запустился: jour
 systemctl enable --now magnat-deploy.timer >/dev/null 2>&1
 ok "Caddy работает, проверка новых версий — раз в минуту."
 
-# --- 6. Файрвол и защита SSH --------------------------------------------------------
-echo; echo "--- 6/7 Файрвол и защита входа ---"
+# --- 7. Файрвол и защита SSH --------------------------------------------------------
+echo; echo "--- 7/8 Файрвол и защита входа ---"
 ssh_ports="$({
   sshd -T 2>/dev/null | awk '/^port /{print $2}' || true
   [ -n "${SSH_CONNECTION:-}" ] && awk '{print $4}' <<<"${SSH_CONNECTION}"
@@ -313,8 +424,8 @@ systemctl enable fail2ban >/dev/null 2>&1 || true
 systemctl restart fail2ban || warn "fail2ban не перезапустился — не страшно, сайт работает."
 ok "Открыто только: SSH ($ssh_ports), 80, 443. Перебор пароля — бан на час."
 
-# --- 7. Автообновления безопасности ---------------------------------------------------
-echo; echo "--- 7/7 Автообновления ---"
+# --- 8. Автообновления безопасности ---------------------------------------------------
+echo; echo "--- 8/8 Автообновления ---"
 cat > /etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
@@ -332,5 +443,9 @@ ok "Обновления безопасности и Caddy ставятся са
 
 echo
 /usr/local/sbin/magnat status
+if ! grep -q '^SMTP_PASS=.' /etc/magnat/smtp.env 2>/dev/null; then
+  echo
+  echo "Дальше — почта для кодов входа, один раз: набери  magnat mail"
+fi
 echo
 echo "VSE-GOTOVO"
