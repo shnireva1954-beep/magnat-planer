@@ -36,7 +36,8 @@ function appData() {
     mult: eval(grab(/const mult=(s=>[^;]+);/, "mult")),
     xpForLevel: eval(grab(/const xpForLevel=(L=>\{[^}]+\});/, "xpForLevel")),
     RANKS: arr("RANKS").map(r => r.slice(0, 3)),
-    PICK: arr("HABITPICK").filter(h => h[2]).map(h => h.slice(0, 2)),
+    // с 11.10.2026 HABITPICK собирается из групп HABITGROUPS
+    PICK: arr("HABITGROUPS").flatMap(g => g[1]).filter(h => h[2]).map(h => h.slice(0, 2)),
     STAGES: arr("STAGES"), STAGEME: arr("STAGEME"), LESSONS: arr("LESSONS"),
   };
 }

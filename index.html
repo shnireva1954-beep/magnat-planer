@@ -78,6 +78,15 @@ button{font:inherit; color:inherit;}
 .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;}
 .wrap{max-width:var(--max); margin:0 auto; padding:0 var(--gut);}
 .ico{width:20px; height:20px; flex:none; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+/* значки в тексте и плитках (11.10.2026): SVG вместо эмодзи, как в приложении */
+.ico.in{width:1.1em; height:1.1em; vertical-align:-.2em; display:inline-block; stroke-width:1.9;}
+.fl{color:#ff9f43;} .st{color:var(--gold);}
+.r-ico .ico{width:26px; height:26px; stroke-width:1.7; color:var(--accent);} .rung.top .r-ico .ico{color:var(--gold);}
+.ranks div span .ico{width:18px; height:18px; color:var(--mut);} .ranks div:last-child span .ico{color:var(--gold);}
+.ma-bld .ico{width:24px; height:24px; stroke-width:1.7;}
+.lu-ico .ico{width:28px; height:28px; color:var(--gold);} .reward .re .ico{width:28px; height:28px; color:var(--accent);}
+.badge .bi .ico{width:17px; height:17px;} .badge.b2 .bi{color:#ff9f43;} .badge.b3 .bi{color:var(--gold);}
+.d-name .ico,.g-rank .ico,.ma-rank .ico{color:var(--mut);} .l-k .ico{color:var(--accent);}
 .num{font-variant-numeric:tabular-nums;}
 
 /* ── типографика ───────────────────────────────────────────── */
@@ -236,7 +245,7 @@ section{position:relative;}
 .ma-lvrow{display:flex; justify-content:space-between; align-items:flex-start; margin-top:8px;}
 .ma-lvt{font-size:34px; font-weight:800; letter-spacing:-.03em; line-height:1.1;}
 .ma-rank{margin-top:4px; font-size:16px; color:var(--mut);}
-.ma-bld{font-size:54px; line-height:1; filter:drop-shadow(0 8px 16px rgba(0,0,0,.5));}
+.ma-bld{width:50px; height:50px; border-radius:16px; display:grid; place-items:center; color:var(--accent); background:linear-gradient(160deg,#0e2f22,#0b1d16); border:1px solid #1c7a54; box-shadow:inset 0 1px 0 rgba(255,255,255,.08);}
 .ma-bar{height:12px; margin-top:16px; border-radius:99px; background:#162030; border:1px solid #26374b; overflow:hidden;}
 .ma-bar i{display:block; height:100%; width:var(--w,0%); border-radius:inherit; background:linear-gradient(90deg,#1fc77a,#2fe38f,#7df5bf); transition:width .8s var(--ease);}
 .ma-next{display:flex; justify-content:space-between; margin-top:10px; font-size:14px; color:var(--mut);}
@@ -569,6 +578,17 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
   <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
   <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.2 19 6v5.6c0 4.4-2.9 7.8-7 9.2-4.1-1.4-7-4.8-7-9.2V6Z"/><path d="m8.8 12.2 2.2 2.2 4.2-4.4"/></symbol>
   <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m4 7 8 6 8-6"/></symbol>
+  <!-- значки приложения (11.10.2026): звания, привычки, звезда опыта — те же линии, что в app.html -->
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.4 2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L12 16.8l-5.3 2.8 1.1-5.9-4.3-4.1 5.9-.8z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="r-sprout" viewBox="0 0 24 24"><path d="M12 21v-8M12 13c0-3.6 2.6-6.2 6.6-6.2 0 3.6-2.6 6.2-6.6 6.2zM12 15.2c0-3-2.1-5.1-5.6-5.1 0 3 2.1 5.1 5.6 5.1z"/></symbol>
+  <symbol id="r-rocket" viewBox="0 0 24 24"><path d="M12 3.3c3.1 2.1 4.6 5.6 4.6 9.7l-2.6 2.6H10l-2.6-2.6c0-4.1 1.5-7.6 4.6-9.7z"/><path d="M7.4 13 4.5 15.5l2.1 1 1-1M16.6 13l2.9 2.5-2.1 1-1-1M10 15.6l-.5 4 2.5-1.6 2.5 1.6-.5-4"/><circle cx="12" cy="9.8" r="1.5"/></symbol>
+  <symbol id="r-briefcase" viewBox="0 0 24 24"><rect x="3" y="7.5" width="18" height="12" rx="2.5"/><path d="M8.5 7.5V5.9A1.9 1.9 0 0 1 10.4 4h3.2a1.9 1.9 0 0 1 1.9 1.9v1.6M3 12.5h18"/></symbol>
+  <symbol id="r-city" viewBox="0 0 24 24"><path d="M3 20.5h18M5 20.5V10h5v10.5M10 20.5V4.5h6v16M16 20.5V13h3v7.5M12.5 8h1M12.5 11.5h1M12.5 15h1"/></symbol>
+  <symbol id="r-crown" viewBox="0 0 24 24"><path d="M4.2 17.5 3 7.6l5 3.5 4-6 4 6 5-3.5-1.2 9.9z"/><path d="M4.8 20.5h14.4"/></symbol>
+  <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></symbol>
+  <symbol id="i-nophone" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M10.5 18h3M4.5 4.5l15 15"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M10.5 18h3"/></symbol>
+  <symbol id="i-burger" viewBox="0 0 24 24"><path d="M4 10.5c0-3.5 3.5-6 8-6s8 2.5 8 6zM4 10.5h16M4.5 14h15M5 17.5a3 3 0 0 0 3 2.5h8a3 3 0 0 0 3-2.5z"/></symbol>
   <symbol id="i-mark" viewBox="0 0 32 32"><rect x=".5" y=".5" width="31" height="31" rx="8.5" fill="#0c1a1c" stroke="#25463d"/><g fill="#33e494" stroke="none"><path d="M16 7.4 7.3 12.1h17.4z"/><rect x="8.2" y="13.1" width="15.6" height="1.7" rx=".85"/><rect x="9.3" y="15.9" width="2.3" height="6.1" rx="1.1"/><rect x="13" y="15.9" width="2.3" height="6.1" rx="1.1"/><rect x="16.7" y="15.9" width="2.3" height="6.1" rx="1.1"/><rect x="20.4" y="15.9" width="2.3" height="6.1" rx="1.1"/><rect x="7.8" y="23.1" width="16.4" height="1.7" rx=".85"/></g></symbol>
 </svg>
 
@@ -616,19 +636,19 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
             <div class="ma-card">
               <div class="ma-top">
                 <div class="ma-ring"><svg viewBox="0 0 86 86"><circle class="bg" cx="43" cy="43" r="34"/><circle class="fg" id="maRing" cx="43" cy="43" r="34" style="--off:0"/></svg><b id="maPct">100%</b></div>
-                <div><div class="ma-k" id="maDay">Сегодня · день 1</div><div class="ma-cnt"><b id="maDone">3</b>из 3 привычек</div><div class="ma-sub">каждая +20 <i class="coin"></i> · в серию 🔥 от 3 отметок</div></div>
+                <div><div class="ma-k" id="maDay">Сегодня · день 1</div><div class="ma-cnt"><b id="maDone">3</b>из 3 привычек</div><div class="ma-sub">каждая +20 <i class="coin"></i> · в серию <svg class="ico in fl" aria-hidden="true"><use href="#i-flame"/></svg> от 3 отметок</div></div>
               </div>
               <div class="ma-list" id="maList">
-                <div class="ma-h on"><span class="ma-c"><svg viewBox="0 0 24 24"><path d="m6 12.4 4 4 8-8.6"/></svg></span>🏋️ Тренировка</div>
-                <div class="ma-h on"><span class="ma-c"><svg viewBox="0 0 24 24"><path d="m6 12.4 4 4 8-8.6"/></svg></span>📵 Лента не больше 30 минут</div>
-                <div class="ma-h on"><span class="ma-c"><svg viewBox="0 0 24 24"><path d="m6 12.4 4 4 8-8.6"/></svg></span>💼 Шаг к работе</div>
+                <div class="ma-h on"><span class="ma-c"><svg viewBox="0 0 24 24"><path d="m6 12.4 4 4 8-8.6"/></svg></span><svg class="ico in" aria-hidden="true"><use href="#i-dumbbell"/></svg> Тренировка</div>
+                <div class="ma-h on"><span class="ma-c"><svg viewBox="0 0 24 24"><path d="m6 12.4 4 4 8-8.6"/></svg></span><svg class="ico in" aria-hidden="true"><use href="#i-nophone"/></svg> Лента не больше 30 минут</div>
+                <div class="ma-h on"><span class="ma-c"><svg viewBox="0 0 24 24"><path d="m6 12.4 4 4 8-8.6"/></svg></span><svg class="ico in" aria-hidden="true"><use href="#r-briefcase"/></svg> Шаг к работе</div>
               </div>
             </div>
             <div class="ma-card">
               <div class="ma-k">Путь магната ›</div>
-              <div class="ma-lvrow"><div><div class="ma-lvt" id="maLvT">Уровень 1</div><div class="ma-rank">🐣 Новичок</div></div><div class="ma-bld">🛖</div></div>
+              <div class="ma-lvrow"><div><div class="ma-lvt" id="maLvT">Уровень 1</div><div class="ma-rank"><svg class="ico in" aria-hidden="true"><use href="#r-sprout"/></svg> Новичок</div></div><div class="ma-bld"><svg class="ico" aria-hidden="true"><use href="#r-sprout"/></svg></div></div>
               <div class="ma-bar"><i id="maBar" style="--w:60%"></i></div>
-              <div class="ma-next"><span id="maNext">до 2-го уровня — ещё <b>40</b> ⭐</span><span id="maXp">⭐ 60 / 100</span></div>
+              <div class="ma-next"><span id="maNext">до 2-го уровня — ещё <b>40</b> <svg class="ico in st" aria-hidden="true"><use href="#i-star"/></svg></span><span id="maXp"><svg class="ico in st" aria-hidden="true"><use href="#i-star"/></svg> 60 / 100</span></div>
             </div>
             <div class="ma-toast" id="maToast"></div>
             <div class="ma-tabs">
@@ -644,7 +664,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
                 <div class="lu-badge" id="luN">2</div>
                 <div class="lu-t" id="luT">Уровень 2</div>
                 <div class="lu-s">Новое здание в городе · <b>+50 <i class="coin"></i></b></div>
-                <div class="lu-les"><span class="lu-ico">📖</span><div><div class="lu-k" id="luK">Открыт урок 2</div><div class="lu-n" id="luL">Зеркало ответственности</div><div class="lu-b" id="luB">«Меня не сломать» — Дэвид Гоггинс</div></div></div>
+                <div class="lu-les"><span class="lu-ico"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg></span><div><div class="lu-k" id="luK">Открыт урок 2</div><div class="lu-n" id="luL">Зеркало ответственности</div><div class="lu-b" id="luB">«Меня не сломать» — Дэвид Гоггинс</div></div></div>
               </div>
             </div>
             <div class="ma-finger" id="maFinger"></div>
@@ -653,8 +673,8 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
         <div class="island"></div>
       </div>
       <div class="badge b1" aria-hidden="true"><span class="bi"><i class="coin"></i></span><div>+20 за привычку<small>монеты — сразу</small></div></div>
-      <div class="badge b2" aria-hidden="true"><span class="bi">🔥</span><div>Серия до ×2<small>дни подряд</small></div></div>
-      <div class="badge b3" aria-hidden="true"><span class="bi">📖</span><div>Урок за уровень<small>40 уроков из 23 книг</small></div></div>
+      <div class="badge b2" aria-hidden="true"><span class="bi"><svg class="ico" aria-hidden="true"><use href="#i-flame"/></svg></span><div>Серия до ×2<small>дни подряд</small></div></div>
+      <div class="badge b3" aria-hidden="true"><span class="bi"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg></span><div>Урок за уровень<small>40 уроков из 23 книг</small></div></div>
       </div>
     </div>
   </div>
@@ -680,22 +700,22 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
       <div class="step" data-reveal>
         <span class="step-n"><svg class="ico" aria-hidden="true"><use href="#i-checkc"/></svg></span>
         <div><h3>Отмечай<small>01</small></h3><p>Привычки и задачи — в один тап. За каждую отметку <b>+20 монет</b>, сразу в кошелёк.</p>
-          <div class="chips"><span class="chip g"><i class="coin"></i>+20</span><span class="chip">🏋️ Тренировка</span></div></div>
+          <div class="chips"><span class="chip g"><i class="coin"></i>+20</span><span class="chip"><svg class="ico in" aria-hidden="true"><use href="#i-dumbbell"/></svg>Тренировка</span></div></div>
       </div>
       <div class="step" data-reveal style="--d:.08s">
         <span class="step-n"><svg class="ico" aria-hidden="true"><use href="#i-flame"/></svg></span>
         <div><h3>Держи серию<small>02</small></h3><p>Три отметки за день — день в серии. Дни подряд умножают монеты: <b>×1,1, ×1,2… до ×2</b>.</p>
-          <div class="chips"><span class="chip e">🔥 7 дней подряд</span><span class="chip g">×1,7 монет</span></div></div>
+          <div class="chips"><span class="chip e"><svg class="ico in fl" aria-hidden="true"><use href="#i-flame"/></svg>7 дней подряд</span><span class="chip g">×1,7 монет</span></div></div>
       </div>
       <div class="step" data-reveal style="--d:.16s">
         <span class="step-n"><svg class="ico" aria-hidden="true"><use href="#i-city"/></svg></span>
         <div><h3>Расти<small>03</small></h3><p>Опыт поднимает уровень: <b>новое здание</b> в твоём городе, <b>+50 монет</b> и новый урок из книги.</p>
-          <div class="chips"><span class="chip e">Ур. 2 → 3</span><span class="chip">🐣 → 🚀</span></div></div>
+          <div class="chips"><span class="chip e">Ур. 2 → 3</span><span class="chip"><svg class="ico in" aria-hidden="true"><use href="#r-sprout"/></svg>→<svg class="ico in" aria-hidden="true"><use href="#r-rocket"/></svg></span></div></div>
       </div>
       <div class="step gold" data-reveal style="--d:.24s">
         <span class="step-n"><svg class="ico" aria-hidden="true"><use href="#i-gift"/></svg></span>
         <div><h3>Награждай себя<small>04</small></h3><p>Монеты тратишь на то, что любишь: TikTok, игры, читмил. Цена — в привычках, отдых <b>без чувства вины</b>.</p>
-          <div class="chips"><span class="chip">🍔 Читмил</span><span class="chip g">= 5 привычек</span></div></div>
+          <div class="chips"><span class="chip"><svg class="ico in" aria-hidden="true"><use href="#i-burger"/></svg>Читмил</span><span class="chip g">= 5 привычек</span></div></div>
       </div>
     </div>
   </div>
@@ -711,7 +731,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
     </div>
     <div class="card game spot" data-reveal="scale" style="--d:.1s">
       <div class="g-top">
-        <div><div class="g-lv" id="dLv">Уровень 1</div><div class="g-rank" id="dRank">🐣 Новичок</div></div>
+        <div><div class="g-lv" id="dLv">Уровень 1</div><div class="g-rank" id="dRank"><svg class="ico in" aria-hidden="true"><use href="#r-sprout"/></svg> Новичок</div></div>
         <div class="wallet" id="dWallet" aria-live="polite"><i class="coin"></i><span id="dCoins" class="num">0</span></div>
       </div>
       <div class="city" id="dCity" aria-hidden="true"></div>
@@ -738,7 +758,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
     <div class="path-grid">
       <div>
         <article class="card lesson spot" data-reveal="scale" aria-label="Пример урока">
-          <div class="l-k">Урок 1 · 🐣 Новичок</div>
+          <div class="l-k">Урок 1 · <svg class="ico in" aria-hidden="true"><use href="#r-sprout"/></svg> Новичок</div>
           <div class="l-t" id="lT">Правило 1%</div>
           <div class="l-b" id="lB">«Атомные привычки» — Джеймс Клир</div>
           <p class="l-i" id="lI">Стать лучше на 1% за день — незаметно. Но 1% каждый день за год складывается в рост в 37 раз: так работает сложный процент. Поэтому не жди рывка — результат собирается из маленьких дней, а не из одного подвига.</p>
@@ -807,13 +827,13 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
       <div class="card tile spot" data-reveal style="--d:.06s">
         <span class="t-ico g"><svg class="ico" aria-hidden="true"><use href="#i-gift"/></svg></span>
         <h3>Награды</h3><p>Свои награды — любые. Цена в привычках: «вечер кино = 15 привычек».</p>
-        <div class="viz" aria-hidden="true"><div class="reward"><span class="re">📱</span><div><div class="rn">30 минут TikTok</div><div class="rp"><b>100</b> · = 5 привычек</div></div><span class="rb">Купить</span></div></div>
+        <div class="viz" aria-hidden="true"><div class="reward"><span class="re"><svg class="ico" aria-hidden="true"><use href="#i-phone"/></svg></span><div><div class="rn">30 минут TikTok</div><div class="rp"><b>100</b> · = 5 привычек</div></div><span class="rb">Купить</span></div></div>
       </div>
       <div class="card tile spot" data-reveal style="--d:.12s">
         <span class="t-ico g"><svg class="ico" aria-hidden="true"><use href="#i-city"/></svg></span>
         <h3>Путь</h3><p>Уровни, звания и уроки. Видно, как ты растёшь и когда станешь Магнатом — в твоём темпе.</p>
         <div class="viz ranks" aria-hidden="true">
-          <div><i style="height:22px"></i><span>🐣</span></div><div><i style="height:34px"></i><span>🚀</span></div><div><i style="height:48px"></i><span>💼</span></div><div><i style="height:62px"></i><span>🏢</span></div><div><i style="height:80px"></i><span>👑</span></div>
+          <div><i style="height:22px"></i><span><svg class="ico" aria-hidden="true"><use href="#r-sprout"/></svg></span></div><div><i style="height:34px"></i><span><svg class="ico" aria-hidden="true"><use href="#r-rocket"/></svg></span></div><div><i style="height:48px"></i><span><svg class="ico" aria-hidden="true"><use href="#r-briefcase"/></svg></span></div><div><i style="height:62px"></i><span><svg class="ico" aria-hidden="true"><use href="#r-city"/></svg></span></div><div><i style="height:80px"></i><span><svg class="ico" aria-hidden="true"><use href="#r-crown"/></svg></span></div>
         </div>
       </div>
     </div>
@@ -832,7 +852,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
   <div class="wrap">
     <div class="head center">
       <span class="kicker" data-reveal>Тарифы</span>
-      <h2 id="priceT" data-reveal="blur" style="--d:.08s"><span class="metal">Сначала <span data-k="trial">7&nbsp;дней</span> бесплатно</span></h2>
+      <h2 id="priceT" data-reveal="blur" style="--d:.08s"><span class="metal">Сначала <span data-k="trial">3&nbsp;дня</span> бесплатно</span></h2>
       <p class="lead" data-reveal style="--d:.16s">Без карты и без почты. Понравится — выберешь тариф.</p>
     </div>
     <div class="card price-box" data-reveal="scale" style="--d:.1s">
@@ -855,7 +875,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
       </ul>
       <a class="btn btn-primary btn-lg" id="priceCta" data-app="start" href="app.html?start">Начать бесплатно<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
       <a class="btn btn-ghost btn-lg" id="priceBuy" href="checkout.html?plan=year">Оформить подписку</a>
-      <p class="p-note" id="pNote"><b data-k="trial">7&nbsp;дней</b> бесплатно, затем <span data-k="planPrice">1 490&nbsp;₽ в год</span>. Списание — только с твоего согласия.</p>
+      <p class="p-note" id="pNote"><b data-k="trial">3&nbsp;дня</b> бесплатно, затем <span data-k="planPrice">1 490&nbsp;₽ в год</span>. Списание — только с твоего согласия.</p>
       <div class="assure"><span><svg class="ico" aria-hidden="true"><use href="#i-undo"/></svg>Отмена в любой момент</span><span><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>Возврат за неиспользованные дни</span></div>
       <a class="p-more" href="pricing.html">Подробно о тарифах и оплате →</a>
     </div>
@@ -874,7 +894,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
       <details><summary>Что за уроки и откуда они?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>40 уроков по 23 книгам: «Атомные привычки», «Меня не сломать», «Самый богатый человек в Вавилоне», «48 законов власти», «Трансерфинг реальности» и другие. В каждом — главная мысль своими словами и задание на день за +20 монет. Новый урок открывается с каждым уровнем.</p></div></details>
       <details><summary>Нужно что-то скачивать?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>Нет. Магнат открывается в браузере, а на телефоне ставится значком на экран «Домой» — и дальше открывается как обычное приложение, даже без интернета.</p></div></details>
       <details><summary>Где хранится мой прогресс?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>В браузере твоего телефона — к нам ничего не отправляется, регистрации нет. Чтобы ничего не потерять, открывай Магнат значком с экрана «Домой» и иногда сохраняй копию данных (Обзор → «Скачать копию данных»): с ней прогресс переезжает и на новый телефон.</p></div></details>
-      <details><summary>Сколько это стоит?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>Сейчас — бесплатно: оплата на сайте подключается, и пока Магнат открыт целиком. Когда она заработает, у каждого будет <span data-k="trial">7&nbsp;дней</span> бесплатно, дальше — <span data-k="month">299</span>&nbsp;₽ в месяц или <span data-k="year">1 490</span>&nbsp;₽ в год.</p></div></details>
+      <details><summary>Сколько это стоит?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>Сейчас — бесплатно: оплата на сайте подключается, и пока Магнат открыт целиком. Когда она заработает, у каждого будет <span data-k="trial">3&nbsp;дня</span> бесплатно, дальше — <span data-k="month">299</span>&nbsp;₽ в месяц или <span data-k="year">1 490</span>&nbsp;₽ в год.</p></div></details>
       <details><summary>Как отменить подписку?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>В любой момент — по ссылке из письма об оплате или написав в поддержку. Новых списаний после отмены не будет, а доступ останется до конца оплаченного срока. Передумал — вернём деньги за неиспользованные дни. Подробно — в <a href="terms.html">пользовательском соглашении</a>.</p></div></details>
       <details><summary>Кому подойдёт Магнат?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>Тому, кто устал начинать заново каждый понедельник. Кто хочет держать режим — тренировки, учёбу, работу, деньги — и видеть, как растёт, а не просто ставить галочки.</p></div></details>
     </div>
@@ -919,7 +939,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
 // Цена — решение владельца. Поменял число — страница пересчитает «в день», скидку и все
 // упоминания сама. В разметке те же числа стоят запаской.
 const CFG = {
-  trialDays: 7,
+  trialDays: 3,                // слово Артёма 11.10.2026: было 7
   month: 299,                  // ₽ в месяц
   year: 1490,                  // ₽ в год
   app: "app.html",             // «Открыть»
@@ -936,7 +956,7 @@ const RULES = {
   LVLBONUS: 50,                               // монет в кошелёк за каждый новый уровень
   mult: s => Math.min(2, 1 + 0.1 * s),        // множитель серии: +0,1 за день, не больше ×2
   xpForLevel: L => { const k = Math.max(0, L - 1); return 20 * k * (2 * k + 3); },
-  RANKS: [["🐣","Новичок",1],["🚀","Стартапер",3],["💼","Предприниматель",6],["🏢","Директор",11],["👑","Магнат",19]],
+  RANKS: [["sprout","Новичок",1],["rocket","Стартапер",3],["briefcase","Предприниматель",6],["city","Директор",11],["crown","Магнат",19]],   // значок — символ #r-… спрайта (11.10.2026)
 };
 const HABITS = [["🏋️","Тренировка"],["📵","Лента не больше 30 минут"],["💼","Шаг к работе"]];  // = отмеченные в HABITPICK
 // Путь: тема ступени, кем становишься, уроки по порядку (= STAGES, STAGEME, LESSONS приложения)
@@ -970,6 +990,10 @@ const pl = (n, a, b, c) => { const m = n % 100, d = n % 10; return m > 10 && m <
 const ord = n => n + "-го";
 const ICON = id => `<svg class="ico" aria-hidden="true"><use href="#${id}"/></svg>`;
 const COIN = `<i class="coin"></i>`;
+// значок звания и привычки — SVG из спрайта, как в приложении (11.10.2026; до того эмодзи)
+const RICO = k => `<svg class="ico in" aria-hidden="true"><use href="#r-${k}"/></svg>`;
+const HICO = { "🏋️": "i-dumbbell", "📵": "i-nophone", "💼": "r-briefcase" };
+const hico = e => `<svg class="ico in" aria-hidden="true"><use href="#${HICO[e] || "i-check"}"/></svg>`;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const levelOf = xp => { let L = 1; while (RULES.xpForLevel(L + 1) <= xp) L++; return L; };
 const rankOf = L => { let r = 0; RULES.RANKS.forEach((x, i) => { if (L >= x[2]) r = i; }); return r; };
@@ -1020,7 +1044,7 @@ function buildLadder() {
     const lv = (to ? `уровни ${from}–${to}` : `с ${ord(from)} уровня`) + ` · ${les.length}\u00a0${pl(les.length, "урок", "урока", "уроков")}`;
     const shown = les.slice(0, 3).map(t => `<span>${esc(t)}</span>`).join("") + (les.length > 3 ? `<span class="more">ещё ${les.length - 3}</span>` : "");
     return `<div class="card rung${i === 4 ? " top" : ""}" data-reveal style="--d:${i * .07}s">
-      <span class="r-ico" aria-hidden="true">${ico}</span>
+      <span class="r-ico" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#r-${ico}"/></svg></span>
       <div><div class="r-top"><span class="r-name">${name}</span><span class="r-lv">${lv}</span></div>
       <div class="r-theme">${theme}</div><p class="r-me">Тот, кто ${me}.</p><div class="r-les">${shown}</div></div></div>`;
   }).join("");
@@ -1063,7 +1087,7 @@ let prev = calc(), coinsShown = 0;
 function render(st, fresh) {
   const L = st.L, a = RULES.xpForLevel(L), b = RULES.xpForLevel(L + 1);
   $("dLv").textContent = `Уровень ${L}`;
-  $("dRank").textContent = RULES.RANKS[rankOf(L)].slice(0, 2).join(" ");
+  { const R = RULES.RANKS[rankOf(L)]; $("dRank").innerHTML = `${RICO(R[0])} ${R[1]}`; }
   $("dBar").style.width = `${Math.max(0, Math.min(100, (st.xp - a) / (b - a) * 100))}%`;
   $("dNext").innerHTML = `до ${ord(L + 1)} уровня — ещё <b>${nf(b - st.xp)}</b> опыта`;
   drawCity(st, fresh);
@@ -1096,15 +1120,15 @@ function message(st, d, wasOn) {
   const m = $("dMsg"); m.classList.remove("hot");
   const R = RULES.RANKS[rankOf(st.L)];
   if (st.total === 21) {
-    m.innerHTML = `<span><b>Неделя закрыта:</b> ${nf(st.coins)} монет и уровень ${st.L} — ${R[0]} ${R[1]}. Это всего одна неделя.</span>`;
+    m.innerHTML = `<span><b>Неделя закрыта:</b> ${nf(st.coins)} монет и уровень ${st.L} — ${RICO(R[0])} ${R[1]}. Это всего одна неделя.</span>`;
     m.classList.add("hot");
   } else if (st.L > prev.L) {
     m.innerHTML = rankOf(st.L) > rankOf(prev.L)
-      ? `<span><b>${R[0]} Новое звание — ${R[1]}!</b> Уровень ${st.L}: новое здание, +${RULES.LVLBONUS} монет и урок ${st.L}.</span>`
+      ? `<span><b>${RICO(R[0])} Новое звание — ${R[1]}!</b> Уровень ${st.L}: новое здание, +${RULES.LVLBONUS} монет и урок ${st.L}.</span>`
       : `<span><b>Уровень ${st.L}!</b> Новое здание, +${RULES.LVLBONUS} монет в кошелёк и урок ${st.L} из книги.</span>`;
     m.classList.add("hot");
   } else if (!wasOn && st.streakAt[d] > 0 && prev.streakAt[d] === 0) {
-    m.innerHTML = `<span><b>🔥 День в серии: ${st.streakAt[d]}.</b> Завтра монеты ×${dcm(RULES.mult(st.streakAt[d]))}.</span>`;
+    m.innerHTML = `<span><b><svg class="ico in fl" aria-hidden="true"><use href="#i-flame"/></svg> День в серии: ${st.streakAt[d]}.</b> Завтра монеты ×${dcm(RULES.mult(st.streakAt[d]))}.</span>`;
   } else if (!wasOn) {
     m.innerHTML = `<span>+${RULES.COIN} монет за привычку. Три за день — и день пойдёт в серию.</span>`;
   } else {
@@ -1114,7 +1138,7 @@ function message(st, d, wasOn) {
 }
 function buildGame() {
   const g = $("dGrid");
-  g.innerHTML = HABITS.map((h, r) => `<div class="d-row"><div class="d-name">${h[0]} ${esc(h[1])}</div><div class="d-cells">` +
+  g.innerHTML = HABITS.map((h, r) => `<div class="d-row"><div class="d-name">${hico(h[0])} ${esc(h[1])}</div><div class="d-cells">` +
     DAYS.map((d, c) => `<button class="cell${r === 0 && c === 0 ? " hint" : ""}" type="button" data-r="${r}" data-c="${c}" aria-pressed="false" aria-label="${esc(h[1])}, ${d}">${ICON("i-check")}</button>`).join("") +
     `</div></div>`).join("");
   g.addEventListener("click", e => {
@@ -1162,8 +1186,8 @@ function maPaint(st) {
   [...$("maList").children].forEach((h, i) => h.classList.toggle("on", !!st.checks[i]));
   $("maLv").textContent = `Ур. ${L}`; $("maLvT").textContent = `Уровень ${L}`;
   $("maBar").style.setProperty("--w", Math.max(2, (st.xp - a) / (b - a) * 100).toFixed(1) + "%");
-  $("maNext").innerHTML = `до ${ord(L + 1)} уровня — ещё <b>${nf(b - st.xp)}</b> ⭐`;
-  $("maXp").textContent = `⭐ ${nf(st.xp)} / ${nf(b)}`;
+  $("maNext").innerHTML = `до ${ord(L + 1)} уровня — ещё <b>${nf(b - st.xp)}</b> <svg class="ico in st" aria-hidden="true"><use href="#i-star"/></svg>`;
+  $("maXp").innerHTML = `<svg class="ico in st" aria-hidden="true"><use href="#i-star"/></svg> ${nf(st.xp)} / ${nf(b)}`;
 }
 // ждать, пока телефон на экране и вкладка открыта: анимация вне экрана — пустая трата батареи
 async function maWait(ms, tok) {
@@ -1221,7 +1245,7 @@ async function maLoop(tok) {
     await maWait(1100, tok);
     for (let i = 0; i < 3; i++) { await maTap(i, st, tok); await maWait(380, tok); }
     $("maFinger").style.opacity = "0";
-    maToast(`🔥 День в серии · завтра монеты <b>×${dcm(RULES.mult(1))}</b>`);
+    maToast(`<svg class="ico in fl" aria-hidden="true"><use href="#i-flame"/></svg> День в серии · завтра монеты <b>×${dcm(RULES.mult(1))}</b>`);
     await maWait(2300, tok); maToastOff();
     await maWait(500, tok);
     st.day = 2; st.checks = [false, false, false]; st.mult = RULES.mult(1); maPaint(st);
@@ -1231,7 +1255,7 @@ async function maLoop(tok) {
       if (up) await maLevelUp(up, tok); else await maWait(380, tok);
     }
     $("maFinger").style.opacity = "0";
-    maToast(`🔥 2 дня подряд · завтра <b>×${dcm(RULES.mult(2))}</b>`);
+    maToast(`<svg class="ico in fl" aria-hidden="true"><use href="#i-flame"/></svg> 2 дня подряд · завтра <b>×${dcm(RULES.mult(2))}</b>`);
     await maWait(2600, tok); maToastOff();
     await maWait(1200, tok);
   }

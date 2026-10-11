@@ -56,7 +56,8 @@ async function walkTabs(p, label) {
     await p.click('#obFresh'); await p.waitForTimeout(300);
     const on = await p.$$eval('#hpList .tchip.on .nm', e => e.map(x => x.textContent));
     const all = await p.$$eval('#hpList .tchip', e => e.length);
-    (on.length === 3 && on.join('|') === '🏋️ Тренировка|📵 Лента не больше 30 минут|💼 Шаг к работе')
+    // с 11.10.2026 значок — SVG, в тексте только название
+    (on.length === 3 && on.join('|') === 'Тренировка|Лента не больше 30 минут|Шаг к работе')
       ? ok(`отмечены три из ${all}: ${on.join(', ')}`) : bad('по умолчанию отмечено: ' + JSON.stringify(on));
     const fits = await p.$eval('#hpGo', e => e.getBoundingClientRect().bottom <= innerHeight);
     fits ? ok('кнопка «Начать» видна без прокрутки на 390×844') : bad('кнопка «Начать» за краем экрана');
@@ -83,7 +84,7 @@ async function walkTabs(p, label) {
     (st.hs[2][1] === '🤐' && st.hs.every((h, i) => h[0] === i + 1 && h[3] === st.today)) ? ok('своя с эмодзи, id по порядку, считаются с сегодня') : bad('поля: ' + JSON.stringify(st.hs));
     (st.gone && st.cnt.trim() === '0 из 4 привычек' && st.w === 0) ? ok('окна закрыты, «0 из 4», кошелёк 0') : bad('после старта: ' + JSON.stringify(st));
     st.sport.join() === 'Тренировка' ? ok('тренировкой считается только «Тренировка»') : bad('тренировки: ' + st.sport);
-    label === '🚀 Начать (4)' ? ok('на кнопке число выбранных: ' + label) : bad('кнопка: ' + label);
+    label.trim() === 'Начать (4)' ? ok('на кнопке число выбранных: ' + label.trim()) : bad('кнопка: ' + label);   // с 11.10 ракета — SVG, в тексте только слова
     // ничего не выбрано — начать нельзя
     await p.evaluate(() => { document.querySelector('#resetBtn').click(); }); await p.waitForTimeout(300);
     while (await p.$('#hpList .tchip.on')) await p.click('#hpList .tchip.on');
@@ -305,7 +306,7 @@ async function walkTabs(p, label) {
     const mid = await p.evaluate(() => ({ pop: document.querySelector('#shopGrid .si').getAnimations().length, shown: (document.querySelector('#shopW') || {}).textContent }));
     await p.waitForTimeout(700);
     const end = await p.evaluate(() => ({ w: wallet(), shown: (document.querySelector('#shopW') || {}).textContent, head: document.querySelector('#wallet').textContent, nf: nf(wallet()) }));
-    (end.w === w0 - cost && mid.pop > 0 && mid.shown !== end.shown && end.shown === end.nf + ' 🪙' && end.head === end.nf)
+    (end.w === w0 - cost && mid.pop > 0 && mid.shown !== end.shown && end.shown === end.nf && end.head === end.nf)
       ? ok(`покупка: карточка щёлкнула, сумма докрутилась ${w0} → ${end.nf}`) : bad('покупка: ' + JSON.stringify({ w0, cost, mid, end }));
     // «Задачи», «Тело»: три цифры одной строкой, и на 320 px тоже
     await p.evaluate(() => { logWeight(80); save(); });
@@ -530,8 +531,8 @@ async function walkTabs(p, label) {
     (cel.L === 2 && /Открыт урок 2/.test(cel.t) && /Зеркало ответственности/.test(cel.t) && cel.les) ? ok('праздник 2-го уровня называет урок 2 «Зеркало ответственности»') : bad('праздник: ' + JSON.stringify(cel));
     const cb = await p.evaluate(() => { const c = document.querySelector('#celLes'), o = document.querySelector('.ovl .ok');
       return { c: c && c.textContent, o: o && o.textContent, cbg: c && getComputedStyle(c).backgroundImage, obg: o && getComputedStyle(o).backgroundImage }; });
-    (cb.c === '📖 Читать урок' && cb.o === 'Позже' && /gradient/.test(cb.cbg) && !/gradient/.test(cb.obg))
-      ? ok('в окне уровня главная кнопка — «📖 Читать урок», «Позже» спокойная') : bad('кнопки окна уровня: ' + JSON.stringify(cb));
+    (/Читать урок/.test(cb.c) && cb.o === 'Позже' && /gradient/.test(cb.cbg) && !/gradient/.test(cb.obg))
+      ? ok('в окне уровня главная кнопка — «Читать урок», «Позже» спокойная') : bad('кнопки окна уровня: ' + JSON.stringify(cb));
     await p.click('#celLes'); await p.waitForTimeout(300);
     const l2 = await p.evaluate(() => ({ h: (document.querySelector('.lesm h4') || {}).textContent, ovl: document.querySelectorAll('.ovl').length }));
     (l2.h === 'Зеркало ответственности' && l2.ovl === 1) ? ok('«📖 Урок» из праздника открывает урок 2') : bad('урок из праздника: ' + JSON.stringify(l2));
@@ -612,7 +613,7 @@ async function walkTabs(p, label) {
     (c.gog >= 5 && c.gogEarly >= 3) ? ok(`Гоггинс — акцент: ${c.gog} уроков, ${c.gogEarly} из них в первых 14`) : bad('Гоггинс: ' + JSON.stringify({ gog: c.gog, early: c.gogEarly }));
     (c.zel >= 2 && c.gr >= 3 && c.bab >= 5 && c.pocket >= 1) ? ok(`книги владельца: «Трансерфинг» ${c.zel}, «48 законов власти» ${c.gr}, «Вавилон» ${c.bab}, «Счастливый карман» ${c.pocket}`)
       : bad('книги: ' + JSON.stringify({ zel: c.zel, gr: c.gr, bab: c.bab, pocket: c.pocket }));
-    // пробные 7 дней — это уроки 1–4: в них Гоггинс, «Вавилон» и «Трансерфинг»
+    // первая неделя — уроки 1–4 (пробные 3 дня с 11.10.2026 — внутри неё): Гоггинс, «Вавилон» и «Трансерфинг»
     (c.trial.some(b => /Меня не сломать/.test(b)) && c.trial.some(b => /Вавилон/.test(b)) && c.trial.some(b => /Трансерфинг/.test(b)))
       ? ok('первые 4 урока (неделя новичка): Гоггинс, «Вавилон», «Трансерфинг»') : bad('первые 4 урока: ' + c.trial.join(' | '));
     !c.style.length ? ok(`все ${c.n} уроков по мерке: название ≤ 24, мысль 150–240 знаков, задание ≤ 80, тире «—»`) : bad('не по мерке: ' + c.style.join(', '));
