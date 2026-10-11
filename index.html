@@ -265,9 +265,10 @@ section{position:relative;}
 .ma-fly{position:absolute; z-index:9; left:0; top:0; display:flex; align-items:center; gap:5px; font-size:19px; font-weight:800; color:var(--gold); text-shadow:0 2px 10px rgba(0,0,0,.6); pointer-events:none;}
 .ma-finger{position:absolute; z-index:10; left:0; top:0; width:50px; height:50px; margin:-25px 0 0 -25px; border-radius:50%; opacity:0;
   background:radial-gradient(circle,rgba(255,255,255,.55),rgba(255,255,255,.18) 60%,rgba(255,255,255,.08)); border:1.5px solid rgba(255,255,255,.6);
-  box-shadow:0 6px 20px rgba(0,0,0,.4); transition:transform .5s var(--ease), opacity .3s;}
-.ma-finger.tap{animation:tap .32s var(--ease);}
-@keyframes tap{50%{scale:.78;}}
+  box-shadow:0 6px 20px rgba(0,0,0,.4); transition:transform .3s cubic-bezier(.2,.8,.2,1), opacity .2s;}
+.ma-finger.jump{transition:none;}   /* скрытый палец встаёт на место без скольжения (11.10.2026) */
+.ma-finger.tap{animation:tap .26s var(--ease);}
+@keyframes tap{45%{scale:.7;}}
 .ma-lvup{position:absolute; inset:0; z-index:12; display:grid; place-items:center; padding:24px; opacity:0; pointer-events:none;
   background:radial-gradient(circle at 50% 36%,rgba(20,58,42,.97),rgba(8,11,17,.97) 66%); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); transition:opacity .45s var(--ease);}
 .ma-lvup.on{opacity:1;}
@@ -619,7 +620,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
       <ul class="trust" data-reveal style="--d:.52s">
         <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Без регистрации</li>
         <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Работает без интернета</li>
-        <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>40 уроков из 23 книг</li>
+        <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>43 урока из 23 книг</li>
       </ul>
     </div>
 
@@ -674,7 +675,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
       </div>
       <div class="badge b1" aria-hidden="true"><span class="bi"><i class="coin"></i></span><div>+20 за привычку<small>монеты — сразу</small></div></div>
       <div class="badge b2" aria-hidden="true"><span class="bi"><svg class="ico" aria-hidden="true"><use href="#i-flame"/></svg></span><div>Серия до ×2<small>дни подряд</small></div></div>
-      <div class="badge b3" aria-hidden="true"><span class="bi"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg></span><div>Урок за уровень<small>40 уроков из 23 книг</small></div></div>
+      <div class="badge b3" aria-hidden="true"><span class="bi"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg></span><div>Урок за уровень<small>43 урока из 23 книг</small></div></div>
       </div>
     </div>
   </div>
@@ -753,7 +754,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
     <div class="head center">
       <span class="kicker gold" data-reveal>Путь магната</span>
       <h2 id="pathT" data-reveal="blur" style="--d:.08s"><span class="metal">Каждый уровень&nbsp;—</span> <span class="goldt">урок из книги</span></h2>
-      <p class="lead" data-reveal style="--d:.16s">40 уроков из 23 книг о дисциплине, деньгах и силе воли. Главная мысль — своими словами, без воды, и задание на день: выполнил — +20 монет.</p>
+      <p class="lead" data-reveal style="--d:.16s">43 урока из 23 книг о дисциплине, деньгах и силе воли. Главная мысль — своими словами, без воды, и задание на день: выполнил — +20 монет.</p>
     </div>
     <div class="path-grid">
       <div>
@@ -869,7 +870,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
       </div>
       <ul class="incl">
         <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span><b>Все шесть разделов</b> — без ограничений</span></li>
-        <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span><b>Путь магната</b>: 40 уроков из 23 книг и задания</span></li>
+        <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span><b>Путь магната</b>: 43 урока из 23 книг и задания</span></li>
         <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span>Работает <b>без интернета</b>, ставится значком на экран</span></li>
         <li><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span>Все обновления — <b>бесплатно</b></span></li>
       </ul>
@@ -891,7 +892,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
     </div>
     <div class="faq" data-reveal style="--d:.12s">
       <details><summary>Чем это лучше обычного трекера привычек?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>В обычном трекере галочка — просто галочка. В Магнате каждая отметка приносит монеты и опыт: растёт уровень, строится город, открываются уроки из книг, а монеты ты тратишь на свои награды. Дисциплина начинает ощущаться как прогресс в игре — и бросать её жалко.</p></div></details>
-      <details><summary>Что за уроки и откуда они?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>40 уроков по 23 книгам: «Атомные привычки», «Меня не сломать», «Самый богатый человек в Вавилоне», «48 законов власти», «Трансерфинг реальности» и другие. В каждом — главная мысль своими словами и задание на день за +20 монет. Новый урок открывается с каждым уровнем.</p></div></details>
+      <details><summary>Что за уроки и откуда они?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>43 урока по 23 книгам: «Атомные привычки», «Меня не сломать», «Самый богатый человек в Вавилоне», «48 законов власти», «Трансерфинг реальности» и другие. В каждом — главная мысль своими словами и задание на день за +20 монет. Новый урок открывается с каждым уровнем.</p></div></details>
       <details><summary>Нужно что-то скачивать?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>Нет. Магнат открывается в браузере, а на телефоне ставится значком на экран «Домой» — и дальше открывается как обычное приложение, даже без интернета.</p></div></details>
       <details><summary>Где хранится мой прогресс?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>В браузере твоего телефона — к нам ничего не отправляется, регистрации нет. Чтобы ничего не потерять, открывай Магнат значком с экрана «Домой» и иногда сохраняй копию данных (Обзор → «Скачать копию данных»): с ней прогресс переезжает и на новый телефон.</p></div></details>
       <details><summary>Сколько это стоит?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>Сейчас — бесплатно: оплата на сайте подключается, и пока Магнат открыт целиком. Когда она заработает, у каждого будет <span data-k="trial">3&nbsp;дня</span> бесплатно, дальше — <span data-k="month">299</span>&nbsp;₽ в месяц или <span data-k="year">1 490</span>&nbsp;₽ в год.</p></div></details>
@@ -964,8 +965,8 @@ const PATH = [
   ["Дисциплина", "держит слово перед собой", ["Правило 1%","Зеркало ответственности"]],
   ["Деньги", "знает, куда идёт каждый рубль", ["Заплати сначала себе","Не корми маятник","Знай, куда уходят деньги"]],
   ["Мышление", "сам отвечает за свою жизнь", ["Точная цель","Банка с печеньем","Сбрось важность","Сотвори себя заново","Ради чего"]],
-  ["Фокус и воля", "делает главное, а не срочное", ["Съешь лягушку","Мозоль на разуме","Концентрируй силы","Правило 40%","Глубокая работа","Сила воли — мышца","Петля привычки","Сначала главное"]],
-  ["Капитал", "заставляет деньги и время работать на себя", ["Деньги-работники","Актив или пассив","Ошибка планирования","Защищай капитал","Ловушка дефицита","Желай, но не нуждайся","Голос за себя","Время — главный процент","Найди потерянные часы","Пока не умею","Знай, где остановиться","Расти в цене","Накопительный эффект","Дневник успехов","Мастермайнд","Принцип 80/20","Своя цель, своя дверь","Круг влияния","Боль + разбор = рост","Выбери свою борьбу","Говори меньше нужного","Начинай с конца"]],
+  ["Фокус и воля", "делает главное, а не срочное", ["Съешь лягушку","Метод ABCDE","Мозоль на разуме","Концентрируй силы","Правило 40%","Глубокая работа","Сила воли — мышца","Петля привычки"]],
+  ["Капитал", "заставляет деньги и время работать на себя", ["Сначала главное","Закон трёх","Одна бочка за раз","Деньги-работники","Актив или пассив","Ошибка планирования","Защищай капитал","Ловушка дефицита","Желай, но не нуждайся","Голос за себя","Время — главный процент","Найди потерянные часы","Пока не умею","Знай, где остановиться","Расти в цене","Накопительный эффект","Дневник успехов","Мастермайнд","Принцип 80/20","Своя цель, своя дверь","Круг влияния","Боль + разбор = рост","Выбери свою борьбу","Говори меньше нужного","Начинай с конца"]],
 ];
 // урок 2 — тот, что открывается в телефоне на первом экране
 const LESSON2 = ["Зеркало ответственности", "Меня не сломать", "Дэвид Гоггинс"];
@@ -1209,8 +1210,12 @@ function maToast(html) { const t = $("maToast"); t.innerHTML = html; t.classList
 function maToastOff() { $("maToast").classList.remove("on"); }
 async function maTap(i, st, tok) {
   const row = $("maList").children[i], f = $("maFinger"), r = maRect(row);
-  f.style.opacity = "1"; f.style.transform = `translate(${r.x + 38}px,${r.y + r.h / 2}px)`;
-  await maWait(520, tok);
+  // палец (11.10.2026, Артём: «курсор плавает»): скрытый — встаёт на строку без скольжения и
+  // проявляется, видимый — переезжает за 300 мс и сразу нажимает. Раньше полсекунды плыл из угла
+  // экрана и ещё полсекунды ждал над строкой
+  const to = `translate(${r.x + 38}px,${r.y + r.h / 2}px)`;
+  if (f.style.opacity !== "1") { f.classList.add("jump"); f.style.transform = to; void f.offsetWidth; f.classList.remove("jump"); f.style.opacity = "1"; await maWait(240, tok); }
+  else { f.style.transform = to; await maWait(320, tok); }
   f.classList.remove("tap"); void f.offsetWidth; f.classList.add("tap"); row.classList.add("press");
   await maWait(140, tok);
   row.classList.remove("press");

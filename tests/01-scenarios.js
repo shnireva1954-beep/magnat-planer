@@ -490,14 +490,14 @@ async function walkTabs(p, label) {
     const how = await p.$$eval('.how > div', e => e.map(x => x.textContent).join(' | '));
     /урок/.test(how) ? ok('приветствие говорит про уроки за уровни') : bad('приветствие: ' + how);
     await startClean(p);
-    // содержимое: 40 уроков (06.10.2026: книги владельца и психология), у каждого книга, автор, мысль и задание;
+    // содержимое: 43 урока (06.10.2026: книги владельца и психология; 11.10 — три метода Трейси), у каждого книга, автор, мысль и задание;
     // ступеней столько же, сколько званий
     const meta = await p.evaluate(() => ({ n: LESSONS.length, st: STAGES.length, rk: RANKS.length,
       bad: LESSONS.filter(l => !(l.t && l.b && l.a && l.i && l.p) || (l.go && !GOLBL[l.go])).map(l => l.t),
       // честность: урок пересказывает книгу, а не обещает результат
       promise: LESSONS.filter(l => /100\s*%|гарант/i.test(l.i + l.p)).map(l => l.t),
       lastStage: RANKS[RANKS.length - 1][2] <= LESSONS.length }));
-    (meta.n === 40 && meta.st === meta.rk && !meta.bad.length && !meta.promise.length && meta.lastStage)
+    (meta.n === 43 && meta.st === meta.rk && !meta.bad.length && !meta.promise.length && meta.lastStage)
       ? ok(`${meta.n} уроков по ${meta.st} ступеням, у каждого книга, автор, мысль и задание, обещаний «100%» нет`) : bad('уроки: ' + JSON.stringify(meta));
     // новичок: на Обзоре урок 1, в пути урок 1 открыт, урок 2 закрыт; вместо «+0%» — само правило
     const row = await p.$eval('#lesRow', e => ({ n: e.dataset.n, t: e.textContent }));
@@ -643,7 +643,7 @@ async function walkTabs(p, label) {
       sw: document.documentElement.scrollWidth, w: innerWidth }));
     (pt.bk.length === 4 && pt.bk.every(t => /^\d+ урок(а|ов)? из книг: «/.test(t)) && pt.bk.join().includes('«48\u00a0законов власти»'))
       ? ok('у закрытых ступеней — «N уроков из книг: …», среди них «48 законов власти»') : bad('книги ступеней: ' + JSON.stringify(pt.bk));
-    (pt.end.includes(`${c.n} уроков из ${pt.nb} книг`)) ? ok(`конец пути: «${c.n} уроков из ${pt.nb} книг»`) : bad('конец пути: ' + pt.end);
+    (pt.end.includes(`${c.n} ${(n => n % 10 === 1 && n % 100 !== 11 ? 'урок' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'урока' : 'уроков')(c.n)} из ${pt.nb} книг`))   // «43 урока», не «43 уроков» (11.10.2026) ? ok(`конец пути: «${c.n} уроков из ${pt.nb} книг»`) : bad('конец пути: ' + pt.end);
     pt.sw <= pt.w ? ok('путь без прокрутки вбок') : bad(`путь шире экрана: ${pt.sw}`);
     const moved = await p.evaluate(() => { const at = LESSONS.findIndex(l => l.id === 2) + 1, e = document.querySelector(`#v-path [data-les="${at}"]`);
       return { at, row: !!(e && e.classList.contains('done')), inv: !!document.querySelector('.obinapp') }; });

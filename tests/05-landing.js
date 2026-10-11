@@ -102,7 +102,8 @@ function serve() {
   ok(JSON.stringify(appBooks) === JSON.stringify(landBooks), `книги на странице = книги уроков (${appBooks.length})`);
   const txt = () => p.evaluate(() => document.body.innerText.replace(/ /g, " "));
   let t = await txt();
-  ok(t.includes(`${app.LESSONS.length} уроков из ${appBooks.length} книг`), `«${app.LESSONS.length} уроков из ${appBooks.length} книг» — число сходится с приложением`);
+  const lw = (n => n % 10 === 1 && n % 100 !== 11 ? 'урок' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'урока' : 'уроков')(app.LESSONS.length);   // склонение: «43 урока» (11.10.2026)
+  ok(t.includes(`${app.LESSONS.length} ${lw} из ${appBooks.length} книг`), `«${app.LESSONS.length} ${lw} из ${appBooks.length} книг» — число сходится с приложением`);
 
   // ── 2) цена ──────────────────────────────────────────────────────────────
   console.log("\n2) Цена из одного места и та же, что в тарифах");
