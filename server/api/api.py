@@ -2444,6 +2444,53 @@ class SelfTest:
         self.ok(r.obj.get('err') == 'auth' and not touched, 'sync без входа: отказ auth, тело не читалось')
         self.ok(app.sync_sem._value == 2, 'sync без входа очередь не занял')
 
+    # ── лимиты, которых не касались другие проверки (ревью R1, 11.10) ──
+
+    def t_limits_more(self):
+        ok = self.ok
+        app = self.app()
+        app.inflight = threading.BoundedSemaphore(64)
+        cl = self.login(app, 'lim@example.ru')
+        for path, n, name in (('/api/me', 60, 'me'), ('/api/sessions', 60, 'sessions'), ('/api/versions', 20, 'versions')):
+            rs = [cl.call(path, {}).obj for _ in range(n + 1)]
+            ok(all(x.get('err') != 'slow' for x in rs[:n]) and rs[n].get('err') == 'slow' and rs[n].get('retryIn', 0) > 0,
+               'сессия: %s — %d в минуту' % (name, n))
+        rs = [self.pull(cl, None) for _ in range(31)]
+        ok(all(x.get('err') != 'slow' for x in rs[:30]) and rs[30].get('err') == 'slow', 'сессия: sync — 30 в минуту')
+        rs = [cl.call('/api/delete', {'code': '000000'}).obj for _ in range(4)]
+        ok(all(x.get('err') != 'slow' for x in rs[:3]) and rs[3].get('err') == 'slow', 'сессия: удаление — 3 в сутки')
+        # угадывание кода: 30 неверных в час с одного IP, 100 — с одной подсети
+        app2 = self.app()
+        app2.inflight = threading.BoundedSemaphore(64)
+        TClient(app2, '192.0.2.200').call('/api/code', {'email': 'g@example.ru'})
+        good = app2.mailer.last_code('g@example.ru')
+        wrong = '%06d' % ((int(good) + 1) % 10 ** 6)
+        ip = TClient(app2, '198.51.100.7')
+        rs = [ip.call('/api/login', {'email': 'g%d@example.ru' % i, 'code': wrong, 'dev': 'd_' + '3' * 16, 'label': 'x'}).obj
+              for i in range(31)]
+        # без выданного кода ответ — expired, он тоже засчитывается как неверная попытка
+        ok(all(x.get('err') != 'slow' for x in rs[:30]) and rs[30].get('err') == 'slow', 'угадывание: 30 в час на IP')
+        rs = [TClient(app2, '203.0.113.%d' % (i % 200 + 1)).call(
+            '/api/login', {'email': 'n%d@example.ru' % i, 'code': wrong, 'dev': 'd_' + '4' * 16, 'label': 'x'}).obj
+            for i in range(101)]
+        ok(all(x.get('err') != 'slow' for x in rs[:100]) and rs[100].get('err') == 'slow', 'угадывание: 100 в час на подсеть')
+        # коды: 150 в сутки на подсеть (по 10 с IP — меньше лимитов IP)
+        app3 = self.app(MAGNAT_MAIL_MIN=1000)        # общий потолок 30 писем в минуту здесь не проверяется
+        app3.inflight = threading.BoundedSemaphore(64)
+        rs = []
+        for i in range(151):
+            rs.append(TClient(app3, '203.0.113.%d' % (i // 10 + 1)).call('/api/code', {'email': 's%d@example.ru' % i}).obj)
+        ok(all(x.get('ok') for x in rs[:150]) and rs[150].get('err') == 'slow', 'коды: 150 в сутки на подсеть')
+        # надгробия удалённых аккаунтов живут 45 дней
+        app4 = self.app()
+        with app4.store.tx() as c:
+            c.execute('INSERT INTO deletions(email_h, at) VALUES(?, ?)', ('old', app4.now() - 46 * DAY))
+            c.execute('INSERT INTO deletions(email_h, at) VALUES(?, ?)', ('new', app4.now() - 44 * DAY))
+        app4.maintain()
+        with app4.store.ro() as c:
+            left = sorted(r[0] for r in c.execute('SELECT email_h FROM deletions'))
+        ok(left == ['new'], 'надгробия: старше 45 дней чистятся, моложе — живут: %s' % left)
+
     # ── лимиты: память ограничена, поток новых ключей не обнуляет горячий ──
 
     def t_limiter_bounded(self):
