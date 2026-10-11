@@ -471,6 +471,7 @@ do_mail() {
     chmod 0600 "$MAIL_NEW"; mv -f "$MAIL_NEW" "$ETC/smtp.env"
     systemctl restart magnat-api >/dev/null 2>&1 || true      # служба берёт smtp.env только на старте
     echo "ПОЧТА РАБОТАЕТ — проверочное письмо ушло на $sup. Коды входа будут приходить с $box."
+    api_up "$(api_rel)" || echo "⚠ API после перезапуска пока не отвечает — через минуту набери magnat status."
     return 0
   fi
   rm -f "$MAIL_NEW"
@@ -493,7 +494,7 @@ do_restart() {
   rm -f "$STATE/api-skip"                     # снова попробовать выпуск, который не поднялся
   apply_api "$(current_sha)" || true
   systemctl restart magnat-api caddy || true
-  sleep 2
+  api_up "$(api_rel)" || true                 # ждём ответа API (до 15 с), потом показываем
   do_status
 }
 
