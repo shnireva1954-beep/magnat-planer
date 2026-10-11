@@ -289,7 +289,11 @@ apply_api() {
   if [ "$prev" != none ] && [ -s "$API_BASE/releases/$prev/api.py" ]; then
     api_switch "$prev"
     systemctl restart magnat-api || true
-    api_skip "$tree" "API из ${sha:0:7} не поднялся — вернул прежний ($prev)"
+    if api_up "$prev"; then
+      api_skip "$tree" "API из ${sha:0:7} не поднялся — вернул прежний ($prev)"
+    else
+      api_skip "$tree" "API из ${sha:0:7} не поднялся, прежний ($prev) тоже не отвечает — набери magnat restart"
+    fi
   else
     systemctl stop magnat-api || true
     api_skip "$tree" "API из ${sha:0:7} не поднялся, прежнего нет — API остановлен, сайт работает"
