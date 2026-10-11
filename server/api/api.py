@@ -845,6 +845,7 @@ class Ctx:
         self.ipk, self.netk = app.client_keys(peer, headers)
         self.cookies = []
         self.had_cookie = False
+        self.sess = None     # /api/sync: сессия, проверенная в handle() ещё до чтения тела
 
     def token(self):
         for h in self.headers.get_all('Cookie') or []:
@@ -866,7 +867,7 @@ class App:
         self.cfg, self.store, self.key, self.mailer = cfg, store, key, mailer
         self.lim = Limiter(cfg.limit_scale)
         self.inflight = threading.BoundedSemaphore(16)
-        self.sync_sem = threading.Semaphore(3)
+        self.sync_sem = threading.Semaphore(2)     # 366 МБ памяти на всю машину (замер 12.10)
         self.smtp_sem = threading.Semaphore(2)
         self.version = tree_version()
         self.hlock = threading.Lock()
@@ -1017,16 +1018,29 @@ class App:
         ct = (headers.get('Content-Type') or '').strip().lower()
         if not ct.startswith('application/x-www-form-urlencoded' if kind == 'form' else 'application/json'):
             return fail('type', 415)
-        # Тела sync ждут своей очереди (≤5 с), не занимая места «в работе»; остальное — без ожидания.
-        sem = self.sync_sem if path == '/api/sync' else None
-        if sem is not None and not sem.acquire(timeout=5):
-            return fail('busy', 503)
+        # Ревью R1 (11.10): место «в работе» (16 на всех) не держим, пока клиент шлёт тело.
+        # Малые тела (≤ 2 КБ) читаются заранее — медленный клиент держит только своё соединение.
+        # /api/sync — только со входом: сессию проверяем ДО тела, чужой без cookie не встаёт в
+        # очередь и не заставляет читать и разбирать полтора мегабайта.
+        ctx = Ctx(self, headers, peer)
+        sem = None
+        raw = None
+        if path == '/api/sync':
+            ctx.sess = self.session(ctx)
+            if ctx.sess is None:
+                return fail('auth')
+            sem = self.sync_sem
+            if not sem.acquire(timeout=5):
+                return fail('busy', 503)
+        else:
+            raw = read(n)
         if not self.inflight.acquire(blocking=False):
             if sem is not None:
                 sem.release()
             return fail('busy', 503)
         try:
-            raw = read(n)
+            if raw is None:
+                raw = read(n)
             try:
                 if kind == 'form':
                     body = {k: v[0] for k, v in urllib.parse.parse_qs(raw.decode('utf-8'), max_num_fields=50,
@@ -1037,7 +1051,6 @@ class App:
                 return fail('bad', 400)
             if not isinstance(body, dict):
                 return fail('bad', 400)
-            ctx = Ctx(self, headers, peer)
             try:
                 r = fn(ctx, body)
             except Bad:
@@ -1316,7 +1329,7 @@ class App:
             raise Bad()
         if doc is not None and seq is None:
             raise Bad()
-        s = self.session(ctx)
+        s = ctx.sess or self.session(ctx)
         if s is None:
             return fail('auth')
         r = self.srate(s.sid, 'sync')
@@ -2396,6 +2409,40 @@ class SelfTest:
             for d in self.dirs:
                 shutil.rmtree(d, ignore_errors=True)
         return not self.bad
+
+    # ── порядок в handle(): медленное тело не держит место, sync без входа не читает тело ──
+
+    def t_slow_body_holds_no_slot(self):
+        app = self.app()
+        go, entered = threading.Event(), threading.Event()
+        data = jdump({'email': 'slow@mail.ru', 'purpose': 'login'}).encode()
+
+        def slow(n):
+            entered.set()
+            go.wait(5)
+            return data[:n]
+        h = mkheaders({'Origin': app.cfg.origin, 'Content-Type': 'application/json', 'Content-Length': str(len(data)),
+                       'Sec-Fetch-Site': 'same-origin', 'X-Forwarded-For': '192.0.2.77'})
+        th = threading.Thread(target=lambda: app.handle('POST', '/api/code', h, slow, '127.0.0.1'))
+        th.start()
+        entered.wait(5)
+        free = app.inflight._value
+        go.set()
+        th.join(5)
+        self.ok(free == 16, 'пока тело идёт медленно, места «в работе» свободны: %s из 16' % free)
+
+    def t_sync_auth_before_body(self):
+        app = self.app()
+        touched = []
+
+        def boom(n):
+            touched.append(n)
+            return b'{}'
+        h = mkheaders({'Origin': app.cfg.origin, 'Content-Type': 'application/json', 'Content-Length': '1000000',
+                       'Sec-Fetch-Site': 'same-origin', 'X-Forwarded-For': '192.0.2.78'})
+        r = app.handle('POST', '/api/sync', h, boom, '127.0.0.1')
+        self.ok(r.obj.get('err') == 'auth' and not touched, 'sync без входа: отказ auth, тело не читалось')
+        self.ok(app.sync_sem._value == 2, 'sync без входа очередь не занял')
 
     # ── лимиты: память ограничена, поток новых ключей не обнуляет горячий ──
 
