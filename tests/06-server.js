@@ -317,23 +317,22 @@ exit 0
   const tmpLeft = () => fs.readdirSync(path.join(AB, "releases")).filter(x => x.startsWith("."));
   try {
     r = deploy();
-    !fs.existsSync(path.join(AB, "current")) && !restarts() ? ok("API ещё не поставлен (как на шаге 4 установки) — выкладка его не трогает")
-      : bad("без releases/ выкладка полезла в API: " + r.stdout + r.stderr);
+    const untouched = !fs.existsSync(path.join(AB, "current")) && !restarts();
     fs.mkdirSync(path.join(AB, "releases"), { recursive: true });
     r = deploy(); const t1 = treeOf(); let h = await health();
-    apiCur() === t1 && h.ok === true && h.v === t1 && mark("api-tree") === t1 && /API .* работает/.test(mark("api-last"))
-      ? ok(`API поставлен из выложенного коммита, без нового: current → ${t1}, /api/health отвечает этой версией`)
-      : bad(`API не встал: current=${apiCur()} health=${JSON.stringify(h)}\n    ` + (r.stdout + r.stderr).trim().slice(-400));
+    untouched && apiCur() === t1 && h.ok === true && h.v === t1 && mark("api-tree") === t1 && /API .* работает/.test(mark("api-last"))
+      ? ok(`API не поставлен (шаг 4 установки) — не тронут; поставлен — встаёт из выложенного коммита без нового: current → ${t1}, /api/health отвечает этой версией`)
+      : bad(`API не встал (до установки не тронут: ${untouched}): current=${apiCur()} health=${JSON.stringify(h)}\n    ` + (r.stdout + r.stderr).trim().slice(-400));
     h.open === false ? ok("API закрыт (open:false) — код получают только ящики владельца") : bad("API открыт: " + JSON.stringify(h));
 
     const apiPy = path.join(REPO, "server/api/api.py"), apiSrc = fs.readFileSync(apiPy, "utf8");
     // (б) синтаксическая ошибка — не переключать, сайт выложить
     fs.writeFileSync(apiPy, apiSrc + "\ndef broken(:\n"); git("commit -qam api-syntax");
     let n0 = restarts(); r = deploy(); const t2 = treeOf(); h = await health();
-    cur() === head() ? ok("сайт выложен, хотя API в коммите сломан") : bad("сайт не выложен из-за API: " + r.stdout + r.stderr);
-    apiCur() === t1 && h.v === t1 && restarts() === n0 && mark("api-skip") === t2 && /не прошёл проверку/.test(mark("api-last"))
-      ? ok("API с синтаксической ошибкой — не прошёл проверку, не переключён, отвечает прежний") : bad(`сломанный API: current=${apiCur()} v=${h.v} skip=${mark("api-skip")} last=${mark("api-last")}`);
-    !fs.existsSync(path.join(AB, "releases", t2)) && !tmpLeft().length ? ok("недоделанный выпуск убран") : bad("остался мусор: " + fs.readdirSync(path.join(AB, "releases")).join(" "));
+    cur() === head() && apiCur() === t1 && h.v === t1 && restarts() === n0 && mark("api-skip") === t2 && /не прошёл проверку/.test(mark("api-last"))
+      && !fs.existsSync(path.join(AB, "releases", t2)) && !tmpLeft().length
+      ? ok("API с синтаксической ошибкой — не прошёл проверку, не переключён, отвечает прежний, недоделанное убрано; сайт выложен")
+      : bad(`сломанный API: сайт ${cur() === head()} current=${apiCur()} v=${h.v} skip=${mark("api-skip")} last=${mark("api-last")} releases=${fs.readdirSync(path.join(AB, "releases")).join(" ")}`);
     r = deploy();
     restarts() === n0 && apiCur() === t1 ? ok("через минуту его не пробуют снова (api-skip)") : bad("не прошедший API пробуется каждую минуту");
 
@@ -380,10 +379,12 @@ exit 0
     au.length === 1 && au[0].user === "box@example.ru" && au[0].pass === PASS && smtp.to("support@example.ru").length === 1
       ? ok("ящик пустил по этому паролю, проверочное письмо — на адрес поддержки") : bad("SMTP: " + JSON.stringify(smtp.auths) + " писем " + smtp.mails.length);
     /^restart magnat-api$/m.test(slog().trim().split("\n").pop()) ? ok("после настройки API перезапущен (служба берёт smtp.env на старте)") : bad("API не перезапущен после magnat mail");
-    !(m.stdout + m.stderr).includes(PASS) ? ok("пароля нет в выводе magnat mail") : bad("ПАРОЛЬ В ВЫВОДЕ");
+    const mailed = /ПОЧТА РАБОТАЕТ/.test(m.stdout) && au.length === 1;
+    mailed && !(m.stdout + m.stderr).includes(PASS) ? ok("пароля нет в выводе magnat mail") : bad("пароль в выводе или почта не настроилась");
     const argv = ["runuser.log", "py.log", "systemctl.log"].map(f => { try { return fs.readFileSync(path.join(T, f), "utf8"); } catch (e) { return ""; } }).join("\n");
-    !argv.includes(PASS) ? ok("пароля нет в аргументах программ (runuser, python, systemctl) — только stdin") : bad("ПАРОЛЬ В АРГУМЕНТАХ");
-    !fs.existsSync(path.join(ETC, "smtp.env.new")) ? ok("временного файла с паролем не осталось") : bad("остался smtp.env.new");
+    mailed && /mailtest --creds - --to support@example\.ru/.test(argv) && !argv.includes(PASS)
+      ? ok("пароля нет в аргументах программ (runuser, python, systemctl) — проверка получила его через stdin") : bad("пароль в аргументах или проверки не было");
+    mailed && !fs.existsSync(path.join(ETC, "smtp.env.new")) ? ok("временного файла с паролем не осталось") : bad("остался smtp.env.new или почта не настроилась");
     st = deploy("status");
     /API входа:\s+работает ✅ версия \w{12}, вход закрыт/.test(st.stdout) && /Почта для кодов: настроена — box@example\.ru ✅/.test(st.stdout) && !st.stdout.includes(PASS)
       ? ok("magnat status: «API входа: работает ✅ … закрыт», «Почта для кодов: настроена» — и без пароля") : bad("status:\n    " + st.stdout.split("\n").filter(l => /API|Почта/.test(l)).join("\n    "));
@@ -405,10 +406,10 @@ exit 0
       ? ok("Mail.ru — сервер не спрашивает (smtp.mail.ru:465 сам)") : bad("mail.ru: " + m.stdout.slice(-300));
 
     // устаревший скрипт сервера
-    st = deploy("status");
-    !/устарел/.test(st.stdout) ? ok("скрипт сервера = выложенному — «устарел» не пишет") : bad("«устарел» без причины");
+    const same = !/устарел/.test(deploy("status").stdout);
     fs.appendFileSync(SELF, "\n# старая копия\n"); st = deploy("status");
-    /⚠ Скрипт сервера устарел — набери magnat upgrade/.test(st.stdout) ? ok("скрипт сервера отличается от выложенного — «⚠ Скрипт сервера устарел — набери magnat upgrade»") : bad("не видит устаревший скрипт");
+    same && /⚠ Скрипт сервера устарел — набери magnat upgrade/.test(st.stdout)
+      ? ok("«⚠ Скрипт сервера устарел — набери magnat upgrade» — только когда скрипт отличается от выложенного") : bad(`«устарел»: при равном скрипте ${!same}, при другом ${/устарел/.test(st.stdout)}`);
     fs.copyFileSync(path.join(ROOT, "server/magnat.sh"), SELF);
 
     // копия базы раз в сутки: свежая и семь последних
@@ -433,8 +434,8 @@ exit 0
 
     // (з) api.py — только через runuser
     if (process.getuid && process.getuid() === 0) {
-      const py = fs.readFileSync(path.join(T, "py.log"), "utf8").trim().split("\n").filter(Boolean);
-      const ru = fs.readFileSync(path.join(T, "runuser.log"), "utf8");
+      const rdT = (f) => { try { return fs.readFileSync(path.join(T, f), "utf8"); } catch (e) { return ""; } };
+      const py = rdT("py.log").trim().split("\n").filter(Boolean), ru = rdT("runuser.log");
       const kinds = new Set(py.map(c => (c.split(" ")[2] || "")));
       py.length >= 6 && ["check", "backup", "mailtest"].every(k => kinds.has(k)) && py.every(c => ru.includes("-u magnat-api -- env -i ") && ru.split("\n").some(l => l.startsWith("-u magnat-api -- env -i ") && l.endsWith(c)))
         ? ok(`api.py ни разу не запущен от root мимо runuser -u magnat-api (${py.length} вызовов: ${[...kinds].join(", ")})`) : bad("вызовы api.py мимо runuser:\n    " + py.filter(c => !ru.includes(c)).join("\n    "));
@@ -508,17 +509,19 @@ exit 0
         hit && hit.at - t0 >= 1300 && hit.n === body.length && / 200 /.test(sr.data.split("\r\n")[0])
           ? ok(`медленное тело Caddy дочитывает сам: API получил запрос через ${hit.at - t0} мс, сразу целиком`)
           : bad(`медленное тело ушло в API раньше, чем пришло: через ${hit ? hit.at - t0 : "-"} мс, байт ${hit ? hit.n : "-"}`);
-        const big = await L.request(C.port, { method: "POST", path: "/api/sync", body: Buffer.alloc(3 << 20, 97), headers: { "Content-Type": "application/json" } });
-        big.status === 413 && big.text === '{"ok":false,"err":"big"}' && /application\/json/.test(big.h["content-type"] || "") && !big.h.server
-          ? ok("тело 3 МБ → 413 {\"ok\":false,\"err\":\"big\"} (JSON, без Server)") : bad(`3 МБ → ${big.status} ${big.text.slice(0, 80)} server=${big.h.server}`);
-        const hid = await L.request(C.port, { path: "/server/api/api.py" });
-        hid.status === 404 ? ok("/server/api/api.py → 404") : bad("/server/api/api.py → " + hid.status);
+        const q = (o) => L.request(C.port, o).catch(e => ({ status: 0, text: String(e.message), h: {} }));
+        const big = await q({ method: "POST", path: "/api/sync", body: Buffer.alloc(3 << 20, 97), headers: { "Content-Type": "application/json" } });
+        const hid = await q({ path: "/server/api/api.py" });
+        big.status === 413 && big.text === '{"ok":false,"err":"big"}' && /application\/json/.test(big.h["content-type"] || "") && !big.h.server && hid.status === 404
+          ? ok("тело 3 МБ → 413 {\"ok\":false,\"err\":\"big\"} (JSON, без Server); /server/api/api.py — по-прежнему 404")
+          : bad(`3 МБ → ${big.status} ${big.text.slice(0, 80)} server=${big.h.server}; /server/api/api.py → ${hid.status}`);
         await C.restart({ api: null });
-        const dn = await L.request(C.port, { method: "POST", path: "/api/me", body: { a: 1 } });
+        const dn = await q({ method: "POST", path: "/api/me", body: { a: 1 } });
+        const miss = await q({ path: "/nety-takoy-stranicy" });
         dn.status === 503 && dn.text === '{"ok":false,"err":"down"}' && /application\/json/.test(dn.h["content-type"] || "") && !dn.h.server && !dn.h.location
-          ? ok("API не отвечает → 503 {\"ok\":false,\"err\":\"down\"} (JSON, не переадресация, без Server)") : bad(`API выключен → ${dn.status} ${dn.text.slice(0, 80)} ${dn.h.location || ""}`);
-        const miss = await L.request(C.port, { path: "/nety-takoy-stranicy" });
-        miss.status === 302 && miss.h.location === "/" ? ok("остальное как было: нет страницы → на главную") : bad("404 сайта → " + miss.status);
+          && miss.status === 302 && miss.h.location === "/"
+          ? ok("API не отвечает → 503 {\"ok\":false,\"err\":\"down\"} (JSON, не переадресация, без Server); пропавшая страница сайта — как была, на главную")
+          : bad(`API выключен → ${dn.status} ${dn.text.slice(0, 80)} ${dn.h.location || ""}; нет страницы → ${miss.status}`);
         // настоящий api.py за этим Caddy
         const AP = await freePort();
         await C.restart({ api: AP });
