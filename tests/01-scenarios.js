@@ -1233,6 +1233,72 @@ async function walkTabs(p, label) {
     await ctx.close();
   }
 
+  // ---------- 11. утренняя минута и разбор дня ----------
+  // 11.10.2026: до 18:00 в карточке «Сегодня» — «Что сегодня главное?», ответ становится задачей
+  // с галочкой прямо на «Обзоре»; с 18:00 — «Разбор дня» в две строки и история разборов.
+  console.log('\n11) Утренняя минута и разбор дня');
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 900 });
+    await ctx.clock.install({ time: new Date(2026, 10, 20, 9, 0) });   // утро
+    await p.goto(URL); await p.waitForTimeout(400);
+    await startClean(p);
+    await p.evaluate(() => document.querySelectorAll('.ovl').forEach(e => e.remove()));
+    const ask = await p.$('#mainF');
+    ask ? ok('утром в «Сегодня» — вопрос «Что сегодня главное?»') : bad('утром нет вопроса о главном');
+    (await p.$('#revF')) ? bad('разбор дня виден утром') : ok('утром разбора дня нет');
+    await p.click('#mainI'); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
+    (await p.evaluate(() => S.tasks.filter(t => t.main).length)) === 0 ? ok('пустое главное не сохраняется') : bad('сохранилось пустое главное');
+    await p.fill('#mainI', 'Позвонить <b>клиенту</b>'); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
+    const m = await p.evaluate(() => ({ t: S.tasks.find(t => t.main), row: (document.querySelector('#mainT') || {}).textContent || '',
+                                         bold: !!document.querySelector('#mainT .mt b b'), xp: totalXP(), tc: TASKCOIN }));
+    (m.t && m.t.due === '2026-11-20' && m.t.prio === 'hi' && m.row.includes('Позвонить <b>клиенту</b>') && !m.bold)
+      ? ok('главное стало задачей на сегодня, строка с галочкой, разметка из текста не исполняется')
+      : bad('главное: ' + JSON.stringify(m));
+    await p.evaluate(() => document.querySelector('#mainT').click()); await p.waitForTimeout(300);
+    const d = await p.evaluate(() => ({ done: S.tasks.find(t => t.main).done, xp: totalXP(), cls: document.querySelector('#mainT').className }));
+    (d.done && d.xp === m.xp + m.tc && d.cls.includes('done')) ? ok('галочка у главного: задача сделана, +' + m.tc + ' опыта')
+                                                                    : bad('отметка главного: ' + JSON.stringify(d));
+    await p.click('.tab[data-t="tasks"]'); await p.waitForTimeout(250);
+    (await p.$$eval('.q .tag', els => els.some(e => e.textContent === 'главное'))) ? ok('в «Задачах» — метка «главное»') : bad('нет метки «главное» в задачах');
+    errCheck(p, 'утренняя минута');
+    await ctx.close();
+  }
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 900 });
+    await ctx.clock.install({ time: new Date(2026, 10, 20, 19, 30) });   // вечер
+    await p.goto(URL); await p.waitForTimeout(400);
+    await startClean(p);
+    await p.evaluate(() => document.querySelectorAll('.ovl').forEach(e => e.remove()));
+    (!(await p.$('#mainF')) && (await p.$('#revF'))) ? ok('вечером вопроса о главном нет, есть «Разбор дня»') : bad('вечер: вопрос/разбор не на месте');
+    await p.click('#revF .ok2'); await p.waitForTimeout(200);
+    (await p.evaluate(() => Object.keys(S.rev).length)) === 0 ? ok('пустой разбор не сохраняется') : bad('сохранился пустой разбор');
+    await p.fill('#revG', 'Сделал отчёт'); await p.fill('#revB', 'Соцсети'); await p.click('#revF .ok2'); await p.waitForTimeout(300);
+    await p.reload(); await p.waitForTimeout(500);
+    await p.evaluate(() => document.querySelectorAll('.ovl').forEach(e => e.remove()));
+    const r = await p.evaluate(() => ({ rev: S.rev[TODAY], card: (document.querySelector('#revC') || {}).textContent || '' }));
+    (r.rev && r.rev.g === 'Сделал отчёт' && r.rev.b === 'Соцсети' && r.card.includes('Сделал отчёт'))
+      ? ok('разбор сохранён и пережил перезагрузку') : bad('разбор: ' + JSON.stringify(r));
+    await p.click('#revEd'); await p.waitForTimeout(200);
+    (await p.inputValue('#revG')) === 'Сделал отчёт' ? ok('«Изменить» открывает разбор с прежним текстом') : bad('«Изменить» потеряло текст');
+    await p.fill('#revB', 'Соцсети до обеда'); await p.click('#revF .ok2'); await p.waitForTimeout(300);
+    await p.click('#revAll'); await p.waitForTimeout(300);
+    const h = await p.$$eval('.revl .ri', els => els.map(e => e.textContent));
+    (h.length === 1 && h[0].includes('Соцсети до обеда')) ? ok('история разборов открывается, правка на месте') : bad('история: ' + JSON.stringify(h));
+    await p.click('.modal .ok'); await p.waitForTimeout(200);
+    // битые разборы в хранилище: не роняют приложение, лишнее отбрасывается, длинное режется
+    await p.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem('magnat_app_v2'));
+      raw.rev = { bad: { g: 'x' }, '2026-11-19': { g: 123, b: '  ok  ' }, '2026-11-18': 'строка', '2026-11-17': { g: 'а'.repeat(500) }, '2026-11-16': {} };
+      localStorage.setItem('magnat_app_v2', JSON.stringify(raw));
+    });
+    await p.reload(); await p.waitForTimeout(500);
+    const n = await p.evaluate(() => S.rev);
+    (Object.keys(n).sort().join() === '2026-11-17,2026-11-19' && n['2026-11-19'].b === 'ok' && n['2026-11-19'].g === '' && n['2026-11-17'].g.length === 160)
+      ? ok('битые разборы: лишнее отброшено, длинное обрезано до 160') : bad('битые разборы: ' + JSON.stringify(n).slice(0, 200));
+    errCheck(p, 'разбор дня');
+    await ctx.close();
+  }
+
   await b.close();
   console.log(fails ? `\n=== ПРОВАЛОВ: ${fails} ===` : '\n=== ВСЁ ЗЕЛЁНОЕ ===');
   process.exit(fails ? 1 : 0);

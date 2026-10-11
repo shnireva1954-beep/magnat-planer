@@ -417,6 +417,23 @@
   .chb button:disabled{opacity:.45; cursor:default;}
   .chal.done{border-color:#1c7a54; background:linear-gradient(168deg,rgba(14,47,34,.5),rgba(15,21,32,.62));} .chal.done>h3{color:var(--emerald);}
   .chal.done .chi{background:#0e2f22; border-color:#1c7a54; color:var(--emerald);}
+  /* утренняя минута и разбор дня (11.10): вопрос прямо в карточке, без всплывающих окон */
+  .mask{margin-top:13px;} .mask label{display:block; font-size:12.5px; font-weight:600; color:var(--ink); margin-bottom:7px;}
+  .mrow2{display:flex; gap:8px;}
+  .mrow2 input,.rev input{min-width:0; padding:11px 12px; border-radius:11px; background:var(--panel); border:1px solid var(--line2); color:var(--ink); font:inherit; font-size:16px; outline:none;}
+  .mrow2 input{flex:1;} .rev input{display:block; width:100%; margin-top:8px;}
+  .mrow2 input:focus,.rev input:focus{border-color:var(--emerald);}
+  .mrow2 button{flex:none; width:46px; border-radius:11px; border:none; cursor:pointer; background:linear-gradient(180deg,var(--emerald),#17a768); color:#04120b; display:grid; place-items:center;}
+  .mrow2 button .ic{width:20px; height:20px; stroke-width:2.2;}
+  .mrow{display:flex; gap:11px; align-items:center; margin-top:13px; padding:10px 12px; min-height:46px; border-radius:12px; background:var(--panel); border:1px solid var(--line); cursor:pointer;}
+  .mbox{flex:none; width:24px; height:24px; border-radius:8px; border:1.6px solid var(--line2); display:grid; place-items:center; color:#04120b;} .mbox .ic{width:15px; height:15px; stroke-width:2.6;}
+  .mrow.done .mbox{background:var(--emerald); border-color:var(--emerald);} .mrow.done .mt b{color:var(--mut2); text-decoration:line-through;}
+  .mt{min-width:0;} .mt small{display:block; font-size:10px; color:var(--gold); text-transform:uppercase; letter-spacing:.6px; font-weight:700;}
+  .mt b{display:block; font-size:14.5px; font-weight:600; color:var(--ink); overflow-wrap:anywhere;}
+  .rev{margin-top:13px;} .rev .chb{margin-top:11px;}
+  .rl{font-size:13.5px; color:var(--mut); line-height:1.5; margin-top:6px; overflow-wrap:anywhere;} .rl b{color:var(--ink); font-weight:600;}
+  .revl{max-height:60vh; overflow:auto; margin-top:6px;} .revl .ri{padding:10px 0; border-top:1px solid var(--line);}
+  .revl .rd{font-size:11px; color:var(--mut2); text-transform:uppercase; letter-spacing:.6px;} .revl .rl{margin-top:3px;}
   /* В КОНЦЕ намеренно — иначе свойства выше перебьют. Крупные цифры и заголовки: Manrope
      держит их весом 800 и плотной разрядкой; у Georgia крупность давала сама засечка */
   .brand b,.chip.lvl,.lvl-name,.stat .v,.donut-c .p,.calt,.modal h4,.amt-in,.tdp,.tdt b,.big{font-weight:800; letter-spacing:-.02em;}
@@ -855,7 +872,7 @@ function save(){ invalidate();
 }
 function freshStart(){  // чистый лист — без чужих данных
   let id=1; const habits=DEFHABITS.map(([ico,name])=>({id:id++,ico,name,since:""}));
-  return {habits, checks:{}, tasks:[], taskBank:0, finance:{income:0,entries:[]}, body:{goalW:0,calGoal:2400,waterGoal:2500,calManual:false,waterManual:false,sex:"",height:0,birth:0,act:"auto",log:[]}, rewards:defRewards(), rv:RV, boughtCnt:{}, spent:0, les:[], chal:{d:"",k:0,n:0}};
+  return {habits, checks:{}, tasks:[], taskBank:0, finance:{income:0,entries:[]}, body:{goalW:0,calGoal:2400,waterGoal:2500,calManual:false,waterManual:false,sex:"",height:0,birth:0,act:"auto",log:[]}, rewards:defRewards(), rv:RV, boughtCnt:{}, spent:0, les:[], chal:{d:"",k:0,n:0},rev:{}};
 }
 // приводим любые данные (старая версия, ручная правка, чужой файл) к рабочему виду —
 // иначе одно недостающее поле роняет всё приложение в белый экран
@@ -882,7 +899,8 @@ function normalize(d){
     id:Number.isFinite(+t.id)?+t.id:uid(), name:String(t.name||"Задача"),
     prio:["hi","md","lo"].includes(t.prio)?t.prio:"md",
     due:isYmd(t.due)?t.due:TODAY, done:!!t.done,
-    ...(t.chal?{chal:true}:{})})):[];            // chal — вызов дня, взятый в задачи
+    ...(t.chal?{chal:true}:{}),                  // chal — вызов дня, взятый в задачи
+    ...(t.main?{main:true}:{})})):[];            // main — «главное сегодня» из утренней минуты
   // монеты за выполненные задачи, которые потом убрали из списка — заработанное не сгорает
   o.taskBank=Math.max(0,Math.round(num(d.taskBank)));
   const fin=(d.finance&&typeof d.finance==="object")?d.finance:{};
@@ -945,10 +963,17 @@ function normalize(d){
   // вызов дня (11.10.2026): d — день, в который нажимали «Другой», k — сколько раз, n — сделано всего
   const ch=(d.chal&&typeof d.chal==='object')?d.chal:{};
   o.chal={d:isYmd(ch.d)?ch.d:'', k:Math.min(2,Math.max(0,Math.round(num(ch.k)))), n:Math.max(0,Math.round(num(ch.n)))};
+  // разбор дня (11.10.2026): по датам, две строки, не длиннее 160 знаков
+  o.rev={};
+  if(d.rev&&typeof d.rev==='object') for(const k in d.rev){
+    const v=d.rev[k]; if(!isYmd(k)||!v||typeof v!=='object') continue;
+    const g=typeof v.g==='string'?v.g.trim().slice(0,160):'', b=typeof v.b==='string'?v.b.trim().slice(0,160):'';
+    if(g||b) o.rev[k]={g,b};
+  }
   // порядок полей — как у freshStart(): копия данных должна проходить круг
   // «выгрузил → загрузил» байт в байт, это проверяют тесты сайта
   const r={habits:o.habits, checks:o.checks, tasks:o.tasks, taskBank:o.taskBank, finance:o.finance,
-           body:o.body, rewards:o.rewards, rv:o.rv, boughtCnt:o.boughtCnt, spent:o.spent, les:o.les, chal:o.chal};
+           body:o.body, rewards:o.rewards, rv:o.rv, boughtCnt:o.boughtCnt, spent:o.spent, les:o.les, chal:o.chal, rev:o.rev};
   if(d.demoData) r.demoData=true;
   // уровень, который уже отпраздновали. Старое поле lastLvl считало пять званий, а не уровни —
   // его не переносим, иначе первый же запуск показал бы ложное «новый уровень»
@@ -988,7 +1013,7 @@ function seed(){
     log:[["-56",84],["-49",83.2],["-42",82.5],["-35",81.9],["-28",81.1],["-21",80.4],["-14",79.8],["-7",79.3],["0",78.9]].map(([k,w])=>({date:addDays(TODAY,+k),w}))};
   // пройдены уроки 1–11 пути, кроме 8-го: живой человек что-то пропускает, свежие ещё впереди
   const les=LESSONS.slice(0,11).filter((_,i)=>i!==7).map(l=>l.id);
-  return {habits,checks,tasks,taskBank:0,finance,body,rewards:defRewards(),rv:RV,boughtCnt:{},spent:0,les,chal:{d:"",k:0,n:0}};
+  return {habits,checks,tasks,taskBank:0,finance,body,rewards:defRewards(),rv:RV,boughtCnt:{},spent:0,les,chal:{d:"",k:0,n:0},rev:{}};
 }
 
 // ---- gamification ----
@@ -1107,6 +1132,62 @@ function streakNote(ds,was){
   const st=curStreak();
   if(stats().chargedOn===TODAY) toast(`${ic("shield","or")} День в серии: ${st} · щит готов — один пропуск серию не порвёт`);
   else toast(`${ic("flame","or")} День в серии: ${st} · завтра монеты ×${dcm(mult(st).toFixed(1))}`);
+}
+// «Утренняя минута» (11.10.2026): одно главное дело на день. Пока не задано и до 18:00 — вопрос
+// прямо в карточке «Сегодня», без всплывающих окон: окно на входе мешает отметить привычку.
+// Задано — строка с галочкой. Это обычная задача (+20 монет), в «Задачах» — с меткой «главное»
+const EVENING=18, hourNow=()=>new Date().getHours();
+const mainTask=()=>S.tasks.find(t=>t.main&&t.due===TODAY);
+function mainRow(){
+  const t=mainTask();
+  if(t) return `<div class="mrow${t.done?" done":""}" id="mainT" role="button" tabindex="0"><span class="mbox">${t.done?ic("check"):""}</span><span class="mt"><small>главное сегодня</small><b>${esc(t.name)}</b></span></div>`;
+  if(hourNow()>=EVENING) return "";
+  return `<form class="mask" id="mainF"><label for="mainI">Что сегодня главное?</label><div class="mrow2"><input id="mainI" type="text" maxlength="80" placeholder="Одно дело на сегодня" autocomplete="off"><button type="submit" aria-label="Готово">${ic("check")}</button></div></form>`;
+}
+// «Разбор дня»: с 18:00 две строки — что получилось и что мешало. Ничего не оцениваем и не
+// считаем, только записанное самим человеком; история — окном «все разборы»
+const revs=()=>S.rev||(S.rev={});
+let REVEDIT=false;
+function revCard(){
+  const r=revs()[TODAY];
+  const all=Object.keys(revs()).length?`<span class="go" id="revAll" role="button" tabindex="0">история ›</span>`:"";
+  if(r&&!REVEDIT) return `<div class="glass card rev" id="revC"><h3>Разбор дня ${all}</h3>
+    ${r.g?`<p class="rl"><b>Получилось:</b> ${esc(r.g)}</p>`:""}${r.b?`<p class="rl"><b>Мешало:</b> ${esc(r.b)}</p>`:""}
+    <div class="chb"><button id="revEd">${ic("pen")} Изменить</button></div></div>`;
+  if(!r&&hourNow()<EVENING) return "";
+  return `<form class="glass card rev" id="revF"><h3>Разбор дня ${all}</h3>
+    <input id="revG" type="text" maxlength="160" placeholder="Что сегодня получилось" autocomplete="off" value="${r?esc(r.g):""}">
+    <input id="revB" type="text" maxlength="160" placeholder="Что мешало" autocomplete="off" value="${r?esc(r.b):""}">
+    <div class="chb"><button class="ok2" type="submit">Сохранить</button></div></form>`;
+}
+function openRevs(){
+  const ks=Object.keys(revs()).sort().reverse();
+  const ovl=el(`<div class="ovl"><div class="modal" style="max-width:380px"><h4>${ic("pen")} Разборы дней</h4>
+    <div class="revl">${ks.map(k=>`<div class="ri"><div class="rd">${dayShort(k)}</div>${revs()[k].g?`<p class="rl"><b>Получилось:</b> ${esc(revs()[k].g)}</p>`:""}${revs()[k].b?`<p class="rl"><b>Мешало:</b> ${esc(revs()[k].b)}</p>`:""}</div>`).join("")}</div>
+    <div class="btns"><button class="ok">Закрыть</button></div></div></div>`);
+  document.body.appendChild(ovl);
+  const close=()=>ovl.remove();
+  ovl.querySelector(".ok").onclick=close;
+  ovl.onclick=e=>{ if(e.target===ovl) close(); };
+}
+function homeDayBind(root){
+  const mf=root.querySelector("#mainF");
+  if(mf) mf.addEventListener("submit",e=>{ e.preventDefault();
+    const v=root.querySelector("#mainI").value.trim(); if(!v){ toast("Впиши одно дело"); return; }
+    S.tasks.push({id:uid(),name:v.slice(0,80),prio:"hi",due:TODAY,done:false,main:true}); save(); render();
+    toast(`Главное на сегодня есть. Сделаешь — +${TASKCOIN} ${C}`); });
+  const mt=root.querySelector("#mainT");
+  if(mt){ const f=()=>{ const t=mainTask(); if(!t) return; t.done=!t.done;
+      if(t.done){ flyCoinToWallet(mt.querySelector(".mbox")); toast(`Главное сделано · +${TASKCOIN} ${C}`); }
+      save(); render(); };
+    mt.addEventListener("click",f); onKeys(mt,f); }
+  const rf=root.querySelector("#revF");
+  if(rf) rf.addEventListener("submit",e=>{ e.preventDefault();
+    const g=root.querySelector("#revG").value.trim().slice(0,160), b=root.querySelector("#revB").value.trim().slice(0,160);
+    if(!g&&!b){ toast("Впиши хоть одну строку"); return; }
+    revs()[TODAY]={g,b}; REVEDIT=false; save(); render(); toast("День разобран — завтра будет легче"); });
+  const re=root.querySelector("#revEd"); if(re) re.addEventListener("click",()=>{ REVEDIT=true; render(); });
+  const ra=root.querySelector("#revAll"); if(ra){ ra.addEventListener("click",e=>{ e.preventDefault(); openRevs(); }); onKeys(ra,openRevs); }
 }
 // строка щита под плитками серии: что он даёт и когда будет. Вчера сгорел — сказать прямо,
 // что второй пропуск подряд серию порвёт: ради этой минуты щит и придуман
@@ -1433,8 +1514,10 @@ function vHome(root){
          <div class="tdt" id="todayCnt"></div>
          <div class="tds">каждая +${COIN} ${C} · в серию ${ic("flame","or")} от ${dayGoal(TODAY)} ${pl(dayGoal(TODAY),"отметки","отметок","отметок")}</div></div>
      </div>
+     ${mainRow()}
      <div class="tchips tlist" id="todayChips"></div>
    </div>
+   ${revCard()}
    <div class="glass hero" style="margin-top:13px">
      <div class="hero-row pgo" id="heroPath" role="button" tabindex="0">
        <div><div class="lvl-tag">◆ путь магната <span class="go">›</span></div><div class="lvl-name">Уровень ${L}</div><div class="lvl-rank">${rankName(r)}</div></div>
@@ -1507,6 +1590,7 @@ function vHome(root){
     cw.appendChild(chip);
   });
   if(!S.habits.length) cw.innerHTML='<span style="font-size:12.5px;color:var(--mut2)">Привычек нет — добавь первую во вкладке «Привычки»</span>';
+  homeDayBind(root);
   const hp=root.querySelector("#heroPath"); hp.addEventListener("click",()=>goPath()); onKeys(hp,goPath);
   const lr=root.querySelector("#lesRow"); const lrGo=()=>{ const n=+lr.dataset.n; if(n) openLesson(n); else goPath(); };
   lr.addEventListener("click",lrGo); onKeys(lr,lrGo);
@@ -1671,7 +1755,7 @@ function vTasks(root){
   sorted.forEach(t=>{
     const late=!t.done&&t.due<TODAY;
     const q=el(`<div class="q${t.done?" done":""}"><div class="box">${t.done?"✓":""}</div>
-      <div class="nm">${esc(t.name)}<div class="meta">${t.chal?'<span class="tag md">вызов</span> ':""}<span class="tag ${tg[t.prio][0]}">${tg[t.prio][1]}</span> ${ic("calendar")} ${relD(t.due)}${late?' · <span style="color:var(--danger)">просрочено</span>':''} · <span class="g">+${TASKCOIN} ${C}${t.done?" получено":""}</span></div></div>
+      <div class="nm">${esc(t.name)}<div class="meta">${t.chal?'<span class="tag md">вызов</span> ':""}${t.main?'<span class="tag md">главное</span> ':""}<span class="tag ${tg[t.prio][0]}">${tg[t.prio][1]}</span> ${ic("calendar")} ${relD(t.due)}${late?' · <span style="color:var(--danger)">просрочено</span>':''} · <span class="g">+${TASKCOIN} ${C}${t.done?" получено":""}</span></div></div>
       <span class="ted" title="изменить">${ic("pen")}</span><span class="del" title="удалить">✕</span></div>`);
     q.addEventListener("click",e=>{
       // выполненную убираем без потери монет: они уходят в копилку задач
