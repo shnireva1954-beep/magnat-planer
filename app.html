@@ -464,6 +464,12 @@
 /* при обновлении страницы открывать сверху, а не с прошлой позиции скролла */
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 const KEY="magnat_app_v2", DAYOK=3;
+// Версия формата данных (SV) и вложенные поля, которых не было в прежних версиях (FIELD_SV):
+// путь поля → SV, с которой оно есть, например "tasks[].main" или "chal.n". Сторона слияния
+// со старой версией такого поля не знает — merge3() берёт его этой стороне из базы, иначе
+// незнание выглядело бы как удаление. Новые поля верхнего уровня лучше заводить новыми ключами:
+// normalize() сохраняет незнакомые ключи и без этого списка
+const SV=1, FIELD_SV={};
 // Шрифт графиков и картинки для сторис — тот же, что у страницы (canvas не берёт его из CSS сам)
 const CF="Manrope,system-ui,sans-serif";
 // Уровни империи: номер растёт часто (первые — за пару дней), звание меняется реже.
@@ -836,8 +842,24 @@ const isYmd=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
 let TODAY=ymd(new Date());
 let CURMONTH=TODAY.slice(0,7);
 function refreshToday(){ const t=ymd(new Date()); if(t===TODAY) return false; TODAY=t; CURMONTH=t.slice(0,7); return true; }
-// уникальные id, которые не столкнутся при добавлении двух записей в одну миллисекунду
-let uidN=0; const uid=()=>Date.now()*1000+(uidN=(uidN+1)%1000);
+// id задачи, записи, награды: миллисекунды × 1000 + случайное 0..999. До 11.10.2026 вместо
+// случайного был счётчик, и два устройства выдавали одинаковые id в одну миллисекунду.
+// Внутри одной страницы id не повторяется: занятые в эту миллисекунду пропускаем
+let uidT=0; const uidSeen=new Set();
+function uid(){
+  let t=Math.max(Date.now(),uidT);
+  if(t!==uidT){ uidT=t; uidSeen.clear(); }
+  if(uidSeen.size>=1000){ uidT=++t; uidSeen.clear(); }
+  let r; do r=Math.floor(Math.random()*1000); while(uidSeen.has(r));
+  uidSeen.add(r); return t*1000+r;
+}
+// id новой привычки — случайное 100000..999999, которого ещё нет. Маленькие 1, 2, 3… у двух
+// устройств совпадали бы, а слияние сводит привычки по id. Старые маленькие id остаются валидными
+function newHabitId(taken){
+  const has=taken||new Set(S.habits.map(h=>h.id));
+  let id; do id=100000+Math.floor(Math.random()*900000); while(has.has(id));
+  return id;
+}
 // «82,4», «2 400», «1 500 ₽» — всё это должно превращаться в число, а не в 0
 const num=v=>{ if(typeof v==="number") return Number.isFinite(v)?v:0;
   const n=parseFloat(String(v??"").replace(/[\s  ]/g,"").replace(",","."));
@@ -861,14 +883,54 @@ function defRewards(){
   return DEFREWARDS.map(([ico,name,n])=>({id:id++,ico,name,n}));
 }
 
-let FIRST_RUN=false;
+// FIRST_RUN — в хранилище ничего не было. PRISTINE — на экране подсеянный пример, а человек
+// ещё ничего не выбрал: пока он стоит, draw() не сохраняет. До 11.10.2026 первая же отрисовка
+// записывала пример, и после перезагрузки вместо приветствия открывался чужой пример.
+// Снимают его «Начать своё» (startFresh), «Посмотреть пример» и вход по ?start / ?demo
+let FIRST_RUN=false, PRISTINE=false;
+// RAW — строка хранилища, которую эта вкладка последней прочитала или записала: save() сверяет
+// с ней хранилище и, если другая вкладка успела записать своё, сначала сливает (merge3).
+// _sync — служебная часть синхронизации, живёт в той же строке последним ключом, в S не входит.
+// SAVED_OK=false — последняя запись не удалась, отправлять такое нельзя.
+// NEWIDS — normalize() раздал новые id: такие данные load() сразу сохраняет, иначе после
+// каждой перезагрузки id были бы другими
+let RAW=null, _sync=null, SAVED_OK=true, NEWIDS=false;
+function parseStore(raw){
+  let d; try{ d=JSON.parse(raw); }catch(e){ return null; }
+  const sync=d&&typeof d==="object"&&!Array.isArray(d)&&d._sync&&typeof d._sync==="object"&&!Array.isArray(d._sync)?d._sync:null;
+  return {S:normalize(d), sync};
+}
 function load(){
-  try{const r=localStorage.getItem(KEY); if(r) return normalize(JSON.parse(r));}catch(e){}
-  FIRST_RUN=true; return seed();
+  try{
+    const r=localStorage.getItem(KEY);
+    if(r){ RAW=r; NEWIDS=false; const st=parseStore(r); if(st){ _sync=st.sync; return st.S; } }
+  }catch(e){}
+  FIRST_RUN=true; PRISTINE=true; return seed();
+}
+// другая вкладка записала своё (cur — строка из хранилища): сливаем с тем, что видим здесь.
+// База слияния — RAW, то, что эта вкладка видела последним. Пример с настоящими данными не
+// смешиваем: у кого пример — тот принимает настоящие. «Тело» в синхронизацию не уходит,
+// а между вкладками сливается целиком: менялось здесь — здесь, иначе из хранилища
+function casMerge(cur){
+  const R=parseStore(cur); if(!R) return;
+  _sync=R.sync;
+  const demoL=PRISTINE||!!S.demoData, demoR=!!R.S.demoData;
+  if(demoL&&!demoR){ S=R.S; PRISTINE=false; }
+  else if(demoL||!demoR){
+    const B=RAW==null?null:parseStore(RAW), b=B&&B.S;
+    const M=merge3(b,S,R.S);
+    M.body=b&&JSON.stringify(S.body)===JSON.stringify(b.body)?R.S.body:S.body;
+    if(demoL&&demoR) M.demoData=true;
+    S=normalize(M);
+  }
+  RAW=cur; invalidate();
 }
 function save(){ invalidate();
-  try{ localStorage.setItem(KEY,JSON.stringify(S)); }
-  catch(e){ toast("Не удалось сохранить — освободи место в браузере"); }  // молчать тут нельзя
+  let cur=null; try{ cur=localStorage.getItem(KEY); }catch(e){}
+  if(cur!=null&&cur!==RAW) casMerge(cur);
+  const str=JSON.stringify(_sync?{...S,_sync}:S);
+  try{ localStorage.setItem(KEY,str); RAW=str; SAVED_OK=true; }
+  catch(e){ SAVED_OK=false; toast("Не удалось сохранить — освободи место в браузере"); }  // молчать тут нельзя
 }
 function freshStart(){  // чистый лист — без чужих данных
   let id=1; const habits=DEFHABITS.map(([ico,name])=>({id:id++,ico,name,since:""}));
@@ -879,9 +941,11 @@ function freshStart(){  // чистый лист — без чужих данн�
 function normalize(d){
   if(!d||typeof d!=="object"||Array.isArray(d)) return freshStart();
   const def=freshStart(), o={};
+  // id нет или он кривой — выдаём новый и поднимаем NEWIDS: load() сразу сохранит
+  const idOr=(v,mk)=>{ if(Number.isFinite(+v)) return +v; NEWIDS=true; return mk(); };
   o.habits=Array.isArray(d.habits)
     ? d.habits.filter(h=>h&&typeof h==="object").map((h,i)=>({
-        id:Number.isFinite(+h.id)?+h.id:i+1,
+        id:idOr(h.id,()=>i+1),
         ico:typeof h.ico==="string"?h.ico:"",       // пустая иконка — законное состояние
         name:String(h.name||"Привычка"),
         since:isYmd(h.since)?h.since:"",            // "" — привычка была всегда
@@ -896,7 +960,7 @@ function normalize(d){
     if(a.length) o.checks[k]=a;
   }
   o.tasks=Array.isArray(d.tasks)?d.tasks.filter(t=>t&&typeof t==="object").map(t=>({
-    id:Number.isFinite(+t.id)?+t.id:uid(), name:String(t.name||"Задача"),
+    id:idOr(t.id,uid), name:String(t.name||"Задача"),
     prio:["hi","md","lo"].includes(t.prio)?t.prio:"md",
     due:isYmd(t.due)?t.due:TODAY, done:!!t.done,
     ...(t.chal?{chal:true}:{}),                  // chal — вызов дня, взятый в задачи
@@ -906,7 +970,7 @@ function normalize(d){
   const fin=(d.finance&&typeof d.finance==="object")?d.finance:{};
   o.finance={income:Math.max(0,num(fin.income)), entries:Array.isArray(fin.entries)?fin.entries
     .filter(e=>e&&typeof e==="object").map(e=>({
-      id:Number.isFinite(+e.id)?+e.id:uid(), type:e.type==="in"?"in":"out",
+      id:idOr(e.id,uid), type:e.type==="in"?"in":"out",
       cat:String(e.cat||"💸 Прочее"), amount:Math.round(Math.abs(num(e.amount))),
       date:isYmd(e.date)?e.date:TODAY})).filter(e=>e.amount>0):[]};
   const b=(d.body&&typeof d.body==="object")?d.body:{};
@@ -929,7 +993,7 @@ function normalize(d){
     const n=SIZES.some(x=>x[0]===+r.n)?+r.n
            :OLDDAYS[+r.days]?OLDDAYS[+r.days]
            :nearestSize(Math.max(1,num(r.cost))/COIN);
-    return {id:Number.isFinite(+r.id)?+r.id:fallbackId, ico:typeof r.ico==="string"?r.ico:"🎁",
+    return {id:idOr(r.id,()=>fallbackId), ico:typeof r.ico==="string"?r.ico:"🎁",
             name:String(r.name||"Награда"), n};
   };
   if(Array.isArray(d.rewards)){
@@ -942,7 +1006,7 @@ function normalize(d){
       .forEach((r,i)=>o.rewards.push(mkRw(r,1000+i)));
   }
   o.boughtCnt={};
-  const addCnt=(k,n)=>{ if(n>0) o.boughtCnt[k]=(o.boughtCnt[k]||0)+n; };
+  const addCnt=(k,n)=>{ if(n>0) o.boughtCnt[k]=(own(o.boughtCnt,k)?o.boughtCnt[k]:0)+n; };
   if(d.boughtCnt&&typeof d.boughtCnt==="object") for(const k in d.boughtCnt) addCnt(k,Math.round(num(d.boughtCnt[k])));
   if(Array.isArray(d.bought)) d.bought.forEach(i=>{ const r=o.rewards[Math.round(num(i))]; if(r) addCnt(r.id,1); });
   if(d.boughtMy&&typeof d.boughtMy==="object") for(const k in d.boughtMy) addCnt(k,Math.round(num(d.boughtMy[k])));
@@ -953,7 +1017,7 @@ function normalize(d){
     const rest=o.rewards.find(r=>r.name==="Выходной");
     if(rest){ o.rewards=o.rewards.filter(r=>r!==rest); delete o.boughtCnt[rest.id]; }
     if(!o.rewards.some(r=>/tik\s*tok|тик\s*ток/i.test(r.name)))
-      o.rewards.unshift({id:uid(),ico:"📱",name:"30 минут TikTok",n:5});
+      { NEWIDS=true; o.rewards.unshift({id:uid(),ico:"📱",name:"30 минут TikTok",n:5}); }
     o.rv=RV;
   }
   o.spent=Math.max(0,Math.round(num(d.spent)));
@@ -978,7 +1042,297 @@ function normalize(d){
   // уровень, который уже отпраздновали. Старое поле lastLvl считало пять званий, а не уровни —
   // его не переносим, иначе первый же запуск показал бы ложное «новый уровень»
   if(Number.isInteger(d.lastLv)) r.lastLv=d.lastLv;
+  // Незнакомые ключи верхнего уровня — поля более новой версии приложения (другая вкладка,
+  // другое устройство). Не выбрасываем, а ставим следом в их порядке: иначе старая версия
+  // молча стирала бы новое. Только простые имена: не служебные (_sync), не старые поля,
+  // которые normalize сам сворачивает, и не больше 64 КБ
+  for(const k in d){
+    if(KNOWN_KEYS.has(k)||!/^[a-z][A-Za-z0-9]{0,30}$/.test(k)) continue;
+    let js; try{ js=JSON.stringify(d[k]); }catch(e){ continue; }
+    if(js!==undefined&&js.length<=65536) r[k]=JSON.parse(js);
+  }
   return r;
+}
+// поля, которые normalize знает; последние четыре — старые, он их сворачивает или отбрасывает
+const KNOWN_KEYS=new Set(["habits","checks","tasks","taskBank","finance","body","rewards","rv","boughtCnt","spent","les","chal","rev","demoData","lastLv",
+  "bought","boughtMy","myRewards","lastLvl"]);
+
+// ---- слияние двух версий данных: merge3(база, своё, чужое) (11.10.2026) ----
+// Чистая синхронная функция: две вкладки сейчас, два устройства потом. base — то, от чего
+// обе стороны начали; null — база неизвестна (тогда объединение, ничего не удаляется).
+// Вход и выход — через normalize. lsv/rsv — версия формата каждой стороны (по умолчанию SV).
+// Общее правило для значения: одинаково — оно; своё не менялось — чужое; иначе своё.
+// Правила по полям — в комментариях ниже; проверяет tests/10-merge.js
+const own=(o,k)=>!!o&&Object.prototype.hasOwnProperty.call(o,k);
+const ownV=(o,k)=>own(o,k)?o[k]:undefined;                 // своё поле, не унаследованное («constructor»)
+const jsq=v=>v===undefined?"\u0000":JSON.stringify(v);
+const jeq=(a,c)=>jsq(a)===jsq(c);
+const pick3=(b,l,r)=>jeq(b,l)?r:l;
+const nameKey=s=>String(s==null?"":s).trim().toLowerCase().replace(/\s+/g," ");
+const earlier=(a,c)=>!a||!c?"":a<c?a:c;                  // "" — «было всегда», раньше всего
+const byId=a=>{ const m=new Map(); for(const x of a) if(!m.has(x.id)) m.set(x.id,x); return m; };
+const unknownKeys=o=>Object.keys(o).filter(k=>!KNOWN_KEYS.has(k));
+const keysR_L=(r,l)=>{ const ks=Object.keys(r); for(const k of Object.keys(l)) if(!own(r,k)) ks.push(k); return ks; };
+// поле из FIELD_SV: стороне старой версии берём его значение из базы ("tasks[].main", "chal.n")
+function fsvTake(dst,src,parts){
+  if(!dst||typeof dst!=="object") return;
+  const p=parts[0], rest=parts.slice(1), so=src&&typeof src==="object"?src:{};
+  if(p.endsWith("[]")){
+    const k=p.slice(0,-2), arr=dst[k];
+    if(!Array.isArray(arr)) return;
+    const m=byId((Array.isArray(so[k])?so[k]:[]).filter(x=>x&&typeof x==="object"));
+    for(const it of arr) if(it&&typeof it==="object") fsvTake(it,m.get(it.id),rest);
+    return;
+  }
+  if(!rest.length){ if(own(so,p)) dst[p]=JSON.parse(JSON.stringify(so[p])); else delete dst[p]; return; }
+  fsvTake(dst[p],so[p],rest);
+}
+// 3-стороннее множество: снятое одной стороной уходит, добавленное любой остаётся.
+// Порядок — чужой, затем свои добавления
+function set3(ba,la,ra){
+  const bs=new Set(ba), ls=new Set(la), rs=new Set(ra), out=[];
+  for(const x of ra) if((!bs.has(x)||ls.has(x))&&!out.includes(x)) out.push(x);
+  for(const x of la) if(!rs.has(x)&&!bs.has(x)&&!out.includes(x)) out.push(x);
+  return out;
+}
+const setU=(la,ra)=>{ const out=[...ra]; for(const x of la) if(!out.includes(x)) out.push(x); return out; };
+function checksAlive(c,alive){
+  const o={};
+  for(const k of Object.keys(c)){ const a=c[k].filter(id=>alive.has(id)); if(a.length) o[k]=a; }
+  return o;
+}
+const remapChecks=(c,m)=>{ const o={}; for(const k of Object.keys(c)) o[k]=[...new Set(c[k].map(id=>m.has(id)?m.get(id):id))]; return o; };
+// после слияния задач: один вызов дня на дату (выполненный, иначе из базы, иначе с меньшим id)
+// и одно «главное» на дату (из базы, иначе своё) — второе становится обычной задачей
+function taskDupes(tasks,inB,inL){
+  const drop=new Set(); let doneDrop=0;
+  const groups=f=>{ const g=new Map(); for(const t of tasks) if(t[f]&&!drop.has(t)){ const a=g.get(t.due); a?a.push(t):g.set(t.due,[t]); } return [...g.values()].filter(a=>a.length>1); };
+  for(const g of groups("chal")){
+    const rk=t=>[t.done?0:1,inB.has(t.id)?0:1,t.id];
+    g.sort((a,c)=>{ const x=rk(a),y=rk(c); for(let i=0;i<3;i++) if(x[i]!==y[i]) return x[i]<y[i]?-1:1; return 0; });
+    g.slice(1).forEach(t=>{ drop.add(t); if(t.done) doneDrop++; });
+  }
+  const demote=new Set();
+  for(const g of groups("main")){
+    const keep=g.find(t=>inB.has(t.id))||g.find(t=>inL.has(t.id))||g[0];
+    g.forEach(t=>{ if(t!==keep) demote.add(t); });
+  }
+  const out=tasks.filter(t=>!drop.has(t)).map(t=>{ if(!demote.has(t)) return t; const c={...t}; delete c.main; return c; });
+  return {tasks:out, doneDrop};
+}
+function merge3(b0,l0,r0,lsv,rsv){
+  const keep=NEWIDS;
+  let l=normalize(l0), r=normalize(r0), b=b0?normalize(b0):null;
+  if(b){
+    let lt=false, rt=false;
+    for(const p of Object.keys(FIELD_SV)){
+      const parts=p.split(".");
+      if(FIELD_SV[p]>(lsv==null?SV:lsv)){ fsvTake(l,b,parts); lt=true; }
+      if(FIELD_SV[p]>(rsv==null?SV:rsv)){ fsvTake(r,b,parts); rt=true; }
+    }
+    if(lt) l=normalize(l); if(rt) r=normalize(r);
+  }
+  // целиком одинаково или одна сторона не менялась — без разбора по полям («Тело» не в счёт)
+  const doc=x=>{ const o={...x}; delete o.body; delete o.demoData; return o; };
+  const L=doc(l), R=doc(r), B=b&&doc(b);
+  const M=jeq(L,R)?L:B&&jeq(B,L)?R:B&&jeq(B,R)?L:b?mergeBase(b,l,r):mergeNoBase(l,r);
+  M.body=l.body;                                          // «Тело» всегда своё: в синхронизацию не уходит
+  delete M.demoData;                                      // пример никуда не сливается
+  const out=normalize(M); NEWIDS=keep; return out;
+}
+// ---- слияние с известной базой ----
+function mergeBase(b,l,r){
+  const M={};
+  const F=(f,detail)=>jeq(l[f],r[f])?l[f]:jeq(b[f],l[f])?r[f]:jeq(b[f],r[f])?l[f]:detail();
+  const add3=(bv,lv,rv)=>Math.max(0,(rv||0)+(lv||0)-(bv||0));           // b + Δl + Δr
+  const taken=new Set();
+  // привычки: по id; удаление побеждает (даже переименование и новые отметки); ico/name/sport —
+  // общее правило, since — более раннее; один id добавлен обеими с разным именем — своя
+  // получает новый id и уносит свои отметки
+  const bH=byId(b.habits), lH=byId(l.habits), rH=byId(r.habits), reH=new Map();
+  [bH,lH,rH].forEach(m=>m.forEach((_,id)=>taken.add(id)));
+  const habit3=(bh,lh,rh)=>{ const o=bh||{}, h={id:rh.id, ico:pick3(o.ico,lh.ico,rh.ico), name:pick3(o.name,lh.name,rh.name), since:earlier(lh.since,rh.since)};
+    const sp=pick3(o.sport,lh.sport,rh.sport); if(sp!==undefined) h.sport=sp; return h; };
+  M.habits=F("habits",()=>{
+    const out=[], have=new Set();
+    for(const h of r.habits){ if(have.has(h.id)) continue;
+      const bh=bH.get(h.id), lh=lH.get(h.id);
+      if(bh){ if(lh){ out.push(habit3(bh,lh,h)); have.add(h.id); } continue; }
+      if(lh&&nameKey(lh.name)!==nameKey(h.name)){ const id=newHabitId(taken); taken.add(id); reH.set(lh.id,id); }
+      out.push(lh&&!reH.has(lh.id)?habit3(null,lh,h):h); have.add(h.id);
+    }
+    for(const h of l.habits){
+      const id=reH.has(h.id)?reH.get(h.id):h.id;
+      if(have.has(id)||(!reH.has(h.id)&&(bH.has(h.id)||rH.has(h.id)))) continue;
+      out.push({...h,id}); have.add(id);
+    }
+    return out;
+  });
+  // отметки: ячейка (дата, привычка) — 3-стороннее множество; затем без удалённых привычек и пустых дней
+  const lc=reH.size?remapChecks(l.checks,reH):l.checks;
+  const C=jeq(lc,r.checks)?lc:jeq(b.checks,lc)?r.checks:jeq(b.checks,r.checks)?lc:(()=>{
+    const o={};
+    for(const k of keysR_L(r.checks,lc)) o[k]=set3(b.checks[k]||[],lc[k]||[],r.checks[k]||[]);
+    return o; })();
+  M.checks=checksAlive(C,new Set(M.habits.map(h=>h.id)));
+  // задачи: по id, поля по общему правилу, chal/main — ИЛИ; удаление побеждает, кроме случая,
+  // когда другая сторона задачу выполнила; коллизия id — своей новый uid()
+  const bT=byId(b.tasks), lT=byId(l.tasks), rT=byId(r.tasks);
+  [bT,lT,rT].forEach(m=>m.forEach((_,id)=>taken.add(id)));
+  const newUid=()=>{ let id; do id=uid(); while(taken.has(id)); taken.add(id); return id; };
+  // выполненные в базе и удалённые обеими: каждая сторона положила 20 в копилку — одно лишнее
+  let bankFix=0, chalBoth=0, doneDrop=0;
+  for(const t of b.tasks){
+    const lt=lT.get(t.id), rt=rT.get(t.id);
+    if(t.done&&!lt&&!rt) bankFix++;
+    if(t.chal&&!t.done&&lt&&lt.done&&rt&&rt.done) chalBoth++;   // один вызов отмечен на обеих — n выросло дважды
+  }
+  const task3=(bt,lt,rt)=>{ const o=bt||{}, t={id:rt.id, name:pick3(o.name,lt.name,rt.name), prio:pick3(o.prio,lt.prio,rt.prio),
+      due:pick3(o.due,lt.due,rt.due), done:pick3(o.done,lt.done,rt.done)};
+    if(lt.chal||rt.chal) t.chal=true; if(lt.main||rt.main) t.main=true; return t; };
+  M.tasks=F("tasks",()=>{
+    const out=[], have=new Set(), reT=new Map();
+    for(const t of r.tasks){ if(have.has(t.id)) continue;
+      const bt=bT.get(t.id), lt=lT.get(t.id);
+      if(bt){
+        if(lt) out.push(task3(bt,lt,t));
+        else if(!bt.done&&t.done) out.push(t);            // здесь удалили, там выполнили — выполнение сильнее
+        else continue;
+        have.add(t.id); continue;
+      }
+      if(lt&&!jeq(lt,t)) reT.set(lt.id,newUid());
+      out.push(t); have.add(t.id);
+    }
+    for(const t of l.tasks){
+      const id=reT.has(t.id)?reT.get(t.id):t.id;
+      if(have.has(id)) continue;
+      const bt=!reT.has(t.id)&&bT.get(t.id);
+      if(bt&&!(!bt.done&&t.done)) continue;                 // там удалили, а здесь не выполняли
+      out.push(id===t.id?t:{...t,id}); have.add(id);
+    }
+    const d=taskDupes(out,bT,lT); doneDrop=d.doneDrop; return d.tasks;
+  });
+  M.taskBank=Math.max(0,add3(b.taskBank,l.taskBank,r.taskBank)-TASKCOIN*bankFix);
+  // финансы: по id, добавления объединяются, удаление с любой стороны побеждает, расхождение —
+  // по полю; коллизия id — своей новый uid()
+  const fin=(bf,lf,rf)=>{
+    const bE=byId(bf.entries), lE=byId(lf.entries), rE=byId(rf.entries);
+    [bE,lE,rE].forEach(m=>m.forEach((_,id)=>taken.add(id)));
+    const ent=jeq(lf.entries,rf.entries)?lf.entries:jeq(bf.entries,lf.entries)?rf.entries:jeq(bf.entries,rf.entries)?lf.entries:(()=>{
+      const out=[], have=new Set(), re=new Map();
+      for(const e of rf.entries){ if(have.has(e.id)) continue;
+        const be=bE.get(e.id), le=lE.get(e.id);
+        if(be){ if(le){ const o={id:e.id}; for(const f of ["type","cat","amount","date"]) o[f]=pick3(be[f],le[f],e[f]); out.push(o); have.add(e.id); } continue; }
+        if(le&&!jeq(le,e)) re.set(le.id,newUid());
+        out.push(e); have.add(e.id);
+      }
+      for(const e of lf.entries){
+        const id=re.has(e.id)?re.get(e.id):e.id;
+        if(have.has(id)||(!re.has(e.id)&&bE.has(e.id))) continue;
+        out.push(id===e.id?e:{...e,id}); have.add(id);
+      }
+      return out; })();
+    return {income:pick3(bf.income,lf.income,rf.income), entries:ent};
+  };
+  M.finance=F("finance",()=>fin(b.finance,l.finance,r.finance));
+  // награды: по id, ico/name/n по полю, удаление побеждает (потраченное остаётся в spent);
+  // коллизия — своей новый id, и её счётчик покупок переезжает с ней
+  const bR=byId(b.rewards), lR=byId(l.rewards), rR=byId(r.rewards), reR=new Map();
+  [bR,lR,rR].forEach(m=>m.forEach((_,id)=>taken.add(id)));
+  M.rewards=F("rewards",()=>{
+    const out=[], have=new Set();
+    for(const w of r.rewards){ if(have.has(w.id)) continue;
+      const bw=bR.get(w.id), lw=lR.get(w.id);
+      if(bw){ if(lw){ out.push({id:w.id, ico:pick3(bw.ico,lw.ico,w.ico), name:pick3(bw.name,lw.name,w.name), n:pick3(bw.n,lw.n,w.n)}); have.add(w.id); } continue; }
+      if(lw&&!jeq(lw,w)) reR.set(lw.id,newUid());
+      out.push(w); have.add(w.id);
+    }
+    for(const w of l.rewards){
+      const id=reR.has(w.id)?reR.get(w.id):w.id;
+      if(have.has(id)||(!reR.has(w.id)&&(bR.has(w.id)||rR.has(w.id)))) continue;
+      out.push(id===w.id?w:{...w,id}); have.add(id);
+    }
+    return out;
+  });
+  M.rv=Math.max(l.rv,r.rv);
+  // покупки по id наград: b + Δl + Δr, не меньше 0; счётчики удалённых наград выбрасываются
+  const lb={}; for(const k of Object.keys(l.boughtCnt)){ const w=lR.get(+k), nk=w&&reR.has(w.id)?String(reR.get(w.id)):k; lb[nk]=l.boughtCnt[k]; }
+  const gone=new Set(); const alive=new Set(M.rewards.map(w=>String(w.id)));
+  [bR,lR,rR].forEach(m=>m.forEach((_,id)=>{ if(!alive.has(String(id))) gone.add(String(id)); }));
+  M.boughtCnt={};
+  for(const k of keysR_L(r.boughtCnt,lb)){ if(gone.has(k)) continue; const n=add3(ownV(b.boughtCnt,k),ownV(lb,k),ownV(r.boughtCnt,k)); if(n>0) M.boughtCnt[k]=n; }
+  M.spent=add3(b.spent,l.spent,r.spent);
+  M.les=F("les",()=>set3(b.les,l.les,r.les));
+  // вызов дня: d/k — общее правило, при расхождении более поздний d, при равном — больший k;
+  // n — b + Δl + Δr минус вызовы, отмеченные на обеих, и минус выброшенные выполненные дубли
+  const cdk=c=>({d:c.d,k:c.k});
+  let dk=jeq(cdk(b.chal),cdk(l.chal))?cdk(r.chal):jeq(cdk(b.chal),cdk(r.chal))?cdk(l.chal)
+        :l.chal.d!==r.chal.d?cdk(l.chal.d>r.chal.d?l.chal:r.chal):{d:l.chal.d,k:Math.max(l.chal.k,r.chal.k)};
+  M.chal={d:dk.d, k:dk.k, n:Math.max(0,add3(b.chal.n,l.chal.n,r.chal.n)-chalBoth-doneDrop)};
+  // разбор дня: по дате и полю (g, b) общее правило; правка сильнее удаления
+  M.rev=F("rev",()=>{
+    const o={};
+    for(const k of keysR_L(r.rev,l.rev)){
+      const bv=b.rev[k], lv=l.rev[k], rv=r.rev[k];
+      if(!bv) o[k]=lv||rv;
+      else if(!lv){ if(!jeq(rv,bv)) o[k]=rv; }
+      else if(!rv){ if(!jeq(lv,bv)) o[k]=lv; }
+      else o[k]={g:pick3(bv.g,lv.g,rv.g), b:pick3(bv.b,lv.b,rv.b)};
+    }
+    return o; });
+  const lv=[l.lastLv,r.lastLv].filter(Number.isInteger); if(lv.length) M.lastLv=Math.max(...lv);
+  // незнакомые ключи верхнего уровня — общее правило по JSON-равенству, нет ключа = undefined
+  for(const k of keysR_L(r,l).concat(unknownKeys(b).filter(k=>!own(r,k)&&!own(l,k)))){
+    if(KNOWN_KEYS.has(k)) continue;
+    const v=pick3(ownV(b,k),ownV(l,k),ownV(r,k)); if(v!==undefined) M[k]=v;
+  }
+  return M;
+}
+// ---- слияние без базы: первый вход «Объединить», неизвестная родословная ----
+// Объединение с сопоставлением по сути: привычки по id и имени, затем по имени; награды так же;
+// задачи по id, имени и сроку, затем по имени и сроку; финансы по id и содержимому. Счётчики —
+// максимум, скаляры — непустая сторона, иначе своя. Ничего не удаляется: ошибиться можно
+// только в пользу человека
+function mergeNoBase(l,r){
+  const M={}, taken=new Set();
+  for(const a of [l.habits,r.habits,l.tasks,r.tasks,l.finance.entries,r.finance.entries,l.rewards,r.rewards]) for(const x of a) taken.add(x.id);
+  const newUid=()=>{ let id; do id=uid(); while(taken.has(id)); taken.add(id); return id; };
+  // сопоставление: own — свой элемент к чужому (тот же id и ключ, иначе тот же ключ), иначе новый
+  const unite=(la,ra,key,join,fresh)=>{
+    const out=ra.map(x=>({...x})), rId=new Map(), rKey=new Map(), used=new Set(), map=new Map(), have=new Set(out.map(x=>x.id));
+    out.forEach((x,i)=>{ if(!rId.has(x.id)) rId.set(x.id,i); const k=key(x); if(!rKey.has(k)) rKey.set(k,i); });
+    for(const x of la){
+      let i=rId.get(x.id);
+      if(i===undefined||used.has(i)||key(out[i])!==key(x)) i=rKey.get(key(x));
+      if(i!==undefined&&!used.has(i)){ used.add(i); join(out[i],x); map.set(x.id,out[i].id); continue; }
+      const id=have.has(x.id)?fresh():x.id;
+      out.push({...x,id}); have.add(id); map.set(x.id,id);
+    }
+    return {out,map};
+  };
+  const H=unite(l.habits,r.habits,h=>nameKey(h.name),(o,x)=>{ o.name=x.name; o.ico=x.ico||o.ico; o.since=earlier(x.since,o.since);
+    if(x.sport!==undefined) o.sport=x.sport; },()=>{ const id=newHabitId(taken); taken.add(id); return id; });
+  M.habits=H.out;
+  const lc=remapChecks(l.checks,H.map);
+  M.checks={}; for(const k of keysR_L(r.checks,lc)) M.checks[k]=setU(lc[k]||[],r.checks[k]||[]);
+  const T=unite(l.tasks,r.tasks,t=>nameKey(t.name)+"\u0000"+t.due,(o,x)=>{ o.name=x.name; o.prio=x.prio; o.done=o.done||x.done;
+    if(x.chal) o.chal=true; if(x.main) o.main=true; },newUid);
+  M.tasks=taskDupes(T.out,new Set(),new Set(T.map.values())).tasks;
+  M.taskBank=Math.max(l.taskBank,r.taskBank);
+  const E=unite(l.finance.entries,r.finance.entries,e=>e.id+"\u0000"+jsq([e.type,e.cat,e.amount,e.date]),()=>{},newUid);
+  M.finance={income:l.finance.income||r.finance.income, entries:E.out};
+  const W=unite(l.rewards,r.rewards,w=>nameKey(w.name),(o,x)=>{ o.name=x.name; o.ico=x.ico||o.ico; o.n=x.n; },newUid);
+  M.rewards=W.out; M.rv=Math.max(l.rv,r.rv);
+  const lb={}; for(const k of Object.keys(l.boughtCnt)){ const nk=W.map.has(+k)?String(W.map.get(+k)):k; lb[nk]=Math.max(ownV(lb,nk)||0,l.boughtCnt[k]); }
+  M.boughtCnt={}; for(const k of keysR_L(r.boughtCnt,lb)) M.boughtCnt[k]=Math.max(ownV(lb,k)||0,ownV(r.boughtCnt,k)||0);
+  M.spent=Math.max(l.spent,r.spent);
+  M.les=setU(l.les,r.les);
+  const c=l.chal.d!==r.chal.d?(l.chal.d>r.chal.d?l.chal:r.chal):{d:l.chal.d,k:Math.max(l.chal.k,r.chal.k)};
+  M.chal={d:c.d, k:c.k, n:Math.max(l.chal.n,r.chal.n)};
+  M.rev={}; for(const k of keysR_L(r.rev,l.rev)){ const lv=l.rev[k]||{}, rv=r.rev[k]||{}; M.rev[k]={g:lv.g||rv.g||"", b:lv.b||rv.b||""}; }
+  const lv=[l.lastLv,r.lastLv].filter(Number.isInteger); if(lv.length) M.lastLv=Math.max(...lv);
+  for(const k of keysR_L(r,l)) if(!KNOWN_KEYS.has(k)) M[k]=own(l,k)?l[k]:r[k];
+  return M;
 }
 let S=load();
 function seed(){
@@ -2184,8 +2538,7 @@ async function addHabit(){
   // готовые из набора (которых ещё нет) или своя — одним окном (11.10.2026); раньше — пустое поле
   const picked=await pickHabits({add:true});
   if(!picked) return;
-  let id=Math.max(0,...S.habits.map(h=>h.id));
-  picked.forEach(([ico,name])=>S.habits.push({id:++id,ico,name,since:TODAY}));
+  picked.forEach(([ico,name])=>S.habits.push({id:newHabitId(),ico,name,since:TODAY}));
   save(); render(); toast(`${picked.length>1?"Привычки добавлены":"Привычка добавлена"} · +${COIN} ${C} за отметку`);
 }
 // ---- календарь: названия месяцев и дней, что сейчас показано ----
@@ -2436,12 +2789,13 @@ function draw(){
   const xp=totalXP(),L=levelOf(xp);
   // празднуем новый уровень. Запоминаем самый высокий: снял галочку и поставил снова —
   // второго праздника за тот же уровень не будет
+  // пока на экране нетронутый пример (PRISTINE) — ничего не записываем: см. load()
   if(S.lastLv==null){
-    S.lastLv=L; save();
+    S.lastLv=L; if(!PRISTINE) save();
     // уже играющему один раз показать, что в империи появились уровни; новичку — ни к чему
     if(!FIRST_RUN && L>1) celebrateLevel(L,1,true);
   }
-  else if(L>S.lastLv){ const p=S.lastLv; S.lastLv=L; save(); celebrateLevel(L,p); }
+  else if(L>S.lastLv){ const p=S.lastLv; S.lastLv=L; if(!PRISTINE) save(); celebrateLevel(L,p); }
   showWallet();
   document.getElementById("lvlChip").innerHTML=`Ур. ${L}<span class="rk"> · ${rankName(rankOf(L))}</span>`;
   document.querySelectorAll(".tab").forEach(t=>{ const on=t.dataset.t===(cur==="path"?"home":cur); t.classList.toggle("on",on); t.setAttribute("aria-current",on?"page":"false"); });
@@ -2624,10 +2978,12 @@ function pickHabits(opts){
 async function startFresh(){
   const picked=await pickHabits();
   if(!picked) return false;
-  S=freshStart();
+  S=freshStart(); PRISTINE=false;
   // привычки считаются с сегодняшнего дня: до 30.09.2026 они были «всегда», и новичок,
-  // сделавший в первый день всё, видел «Месяц выполнен 3%» — месяц делился на 30 дней
-  S.habits=picked.map(([ico,name],i)=>({id:i+1,ico,name,since:TODAY}));
+  // сделавший в первый день всё, видел «Месяц выполнен 3%» — месяц делился на 30 дней.
+  // id — newHabitId(): у двух устройств «1, 2, 3» совпали бы, а слияние сводит по id
+  const ids=new Set();
+  S.habits=picked.map(([ico,name])=>{ const id=newHabitId(ids); ids.add(id); return {id,ico,name,since:TODAY}; });
   save(); render(); window.scrollTo(0,0);
   openLesson(1,true);
   return true;
@@ -2652,9 +3008,12 @@ function showOnboarding(){
     </div>${legalLinks()}</div>`);
   ovl.appendChild(m); document.body.appendChild(ovl);
   m.querySelector("#obFresh").onclick=async()=>{ if(await startFresh()) ovl.remove(); };
-  m.querySelector("#obDemo").onclick=()=>{ S.demoData=true; save(); ovl.remove(); render(); };
+  m.querySelector("#obDemo").onclick=()=>{ PRISTINE=false; S.demoData=true; save(); ovl.remove(); render(); };
 }
 
+// normalize() раздал при загрузке новые id (старые данные без id) — сохраняем сразу,
+// иначе после каждой перезагрузки у тех же задач были бы другие id
+if(NEWIDS&&!PRISTINE){ NEWIDS=false; save(); }
 render();
 // С продающей страницы (главная сайта, 08.10.2026): «Начать бесплатно» ведёт сюда с ?start —
 // сразу выбор привычек, «Посмотреть пример» с ?demo — сразу пример. Только у нового человека:
@@ -2663,7 +3022,7 @@ const ENTRY=/[?&]start\b/.test(location.search)?"start":/[?&]demo\b/.test(locati
 if(ENTRY&&!FRAMED) try{ history.replaceState(null,"",location.pathname+location.hash); }catch(e){}
 if(FIRST_RUN){
   if(ENTRY==="start") startFresh().then(ok=>{ if(!ok) showOnboarding(); });
-  else if(ENTRY==="demo"){ S.demoData=true; save(); render(); }
+  else if(ENTRY==="demo"){ PRISTINE=false; S.demoData=true; save(); render(); }
   else showOnboarding();
 }
 // графики рисуются холстом, и если встроенный шрифт ещё разворачивался на первой отрисовке,
@@ -2672,6 +3031,23 @@ if(document.fonts&&document.fonts.status!=="loaded") document.fonts.ready.then((
 // просим браузер не вытеснять данные; не умеет или отказал — ничего не меняется.
 // Только iPhone/iPad: Safari не спрашивает, а Firefox на компьютере показал бы окно-вопрос
 if(IOS) try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{}); }catch(e){}
+// Две вкладки (11.10.2026): другая вкладка записала своё — показываем сразу. Пока открыто окно
+// или курсор в поле, не трогаем: человек что-то набирает, а его save() сам сольёт. Отложенное
+// проверяем раз в полторы секунды, пока окно не закроют
+let storeT=0;
+function takeStore(){
+  storeT=0;
+  let cur=null; try{ cur=localStorage.getItem(KEY); }catch(e){ return; }
+  if(cur==null||cur===RAW) return;
+  const a=document.activeElement;
+  if(document.querySelector(".ovl")||(a&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable))){
+    storeT=setTimeout(takeStore,1500); return;
+  }
+  if(SAVED_OK){ const R=parseStore(cur); if(!R) return; S=R.S; _sync=R.sync; RAW=cur; PRISTINE=false; invalidate(); }
+  else save();     // своё здесь не записалось — сливаем и пробуем записать ещё раз
+  render();
+}
+addEventListener("storage",e=>{ if((e.key===KEY||e.key===null)&&!storeT) takeStore(); });
 
 // офлайн: с домашнего экрана приложение должно открываться и без сети
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){

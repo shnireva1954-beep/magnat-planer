@@ -2,8 +2,9 @@
    Стратегия «сначала сеть, кэш как запаска»: свежая версия приезжает сама,
    а без интернета приложение всё равно открывается.
    С 08.10.2026 на «/» — продающая страница, приложение — app.html. Старые значки
-   ведут на «/», а она сразу отправляет в приложение, поэтому в запасе обе. */
-const CACHE = "magnat-app-v3";
+   ведут на «/», а она сразу отправляет в приложение, поэтому в запасе обе.
+   /api/ (вход и синхронизация) воркер не трогает вовсе: ни кэша, ни подмены ответа. */
+const CACHE = "magnat-app-v4";
 const ASSETS = ["./", "./index.html", "./app.html", "./manifest.json", "./icon.png", "./icon-512.png", "./fonts/manrope.woff2"];
 
 self.addEventListener("install", e => {
@@ -28,6 +29,7 @@ self.addEventListener("fetch", e => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api/")) return;
 
   e.respondWith(
     fetch(req)

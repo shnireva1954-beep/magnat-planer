@@ -81,7 +81,9 @@ async function walkTabs(p, label) {
     const names = st.hs.map(h => h[2]).join('|');
     names === 'Тренировка|Лента не больше 30 минут|Без мата|Чтение' ? ok('привычки ровно выбранные: ' + names) : bad('привычки: ' + JSON.stringify(st.hs));
     // с 30.09.2026 привычки чистого листа считаются с сегодняшнего дня, а не «всегда»
-    (st.hs[2][1] === '🤐' && st.hs.every((h, i) => h[0] === i + 1 && h[3] === st.today)) ? ok('своя с эмодзи, id по порядку, считаются с сегодня') : bad('поля: ' + JSON.stringify(st.hs));
+    // с 11.10.2026 id привычки — случайное 100000..999999 (newHabitId): у двух устройств «1, 2, 3» совпали бы
+    (st.hs[2][1] === '🤐' && st.hs.every(h => Number.isInteger(h[0]) && h[0] >= 100000 && h[0] <= 999999 && h[3] === st.today) && new Set(st.hs.map(h => h[0])).size === st.hs.length)
+      ? ok('своя с эмодзи, id ≥ 100000 и разные, считаются с сегодня') : bad('поля: ' + JSON.stringify(st.hs));
     (st.gone && st.cnt.trim() === '0 из 4 привычек' && st.w === 0) ? ok('окна закрыты, «0 из 4», кошелёк 0') : bad('после старта: ' + JSON.stringify(st));
     st.sport.join() === 'Тренировка' ? ok('тренировкой считается только «Тренировка»') : bad('тренировки: ' + st.sport);
     label.trim() === 'Начать (4)' ? ok('на кнопке число выбранных: ' + label.trim()) : bad('кнопка: ' + label);   // с 11.10 ракета — SVG, в тексте только слова
@@ -400,7 +402,8 @@ async function walkTabs(p, label) {
     const focusedTab = await p.evaluate(() => document.activeElement && document.activeElement.dataset.t);
     await p.keyboard.press('Enter'); await p.waitForTimeout(300);
     const onTab = await p.evaluate(() => ({ cur, aria: document.querySelector('.tab[data-t="habits"]').getAttribute('aria-current') }));
-    await p.focus('.fchip[data-f="1"]').catch(() => {});
+    const hid1 = await p.evaluate(() => S.habits[0].id);
+    await p.focus(`.fchip[data-f="${hid1}"]`).catch(() => {});
     await p.keyboard.press(' '); await p.waitForTimeout(300);
     const fil = await p.evaluate(() => calH);
     await p.evaluate(() => { cur = 'home'; render(); });
@@ -409,7 +412,7 @@ async function walkTabs(p, label) {
     const st = await p.evaluate(() => ({ n: (S.checks[TODAY] || []).length, aria: document.querySelector('#todayChips .tchip').getAttribute('aria-checked'), y: scrollY }));
     (focusedTab === 'habits' && onTab.cur === 'habits' && onTab.aria === 'page')
       ? ok('вкладка: фокус клавиатурой, Enter открыл «Привычки», отмечена для экранного чтеца') : bad('вкладка с клавиатуры: ' + JSON.stringify({ focusedTab, onTab }));
-    fil === 1 ? ok('фильтр календаря: пробел выбрал привычку') : bad('фильтр календаря с клавиатуры: calH=' + fil);
+    fil === hid1 ? ok('фильтр календаря: пробел выбрал привычку') : bad('фильтр календаря с клавиатуры: calH=' + fil);
     (st.n === 1 && st.aria === 'true' && st.y === 0) ? ok('галочка «Сегодня»: пробел отметил, страница не прыгнула') : bad('галочка с клавиатуры: ' + JSON.stringify(st));
     errCheck(p, 'клавиатура');
     await ctx.close();
@@ -1296,6 +1299,154 @@ async function walkTabs(p, label) {
     (Object.keys(n).sort().join() === '2026-11-17,2026-11-19' && n['2026-11-19'].b === 'ok' && n['2026-11-19'].g === '' && n['2026-11-17'].g.length === 160)
       ? ok('битые разборы: лишнее отброшено, длинное обрезано до 160') : bad('битые разборы: ' + JSON.stringify(n).slice(0, 200));
     errCheck(p, 'разбор дня');
+    await ctx.close();
+  }
+
+  // ---------- 12. данные перед синхронизацией (11.10.2026, выпуск R0) ----------
+  // Первый визит не пишет пример; id привычек случайные и большие, uid — случайный; данные
+  // без id после двух перезагрузок с теми же id; незнакомые ключи живут; две вкладки не теряют
+  // правки друг друга; служебного _sync нет в файле копии
+  console.log('\n12) Данные: первый визит, id, незнакомые ключи, две вкладки, файл копии');
+  const KEYS = 'magnat_app_v2';
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 900 });
+    await p.goto(URL); await p.waitForTimeout(500);
+    const st0 = await p.evaluate(k => localStorage.getItem(k), KEYS);
+    await p.reload(); await p.waitForTimeout(500);
+    const r1 = await p.evaluate(k => ({ st: localStorage.getItem(k), ob: !!document.querySelector('#obFresh') }), KEYS);
+    (st0 === null && r1.st === null && r1.ob) ? ok('первый визит без выбора → перезагрузка: снова приветствие, в хранилище пусто')
+      : bad('первый визит записал пример: ' + JSON.stringify({ st0: st0 && st0.length, st1: r1.st && r1.st.length, ob: r1.ob }));
+    // «Посмотреть пример» — пример записан и после перезагрузки остаётся, приветствия нет
+    if (await p.$('#obDemo')) { await p.click('#obDemo'); await p.waitForTimeout(300); }
+    await p.reload(); await p.waitForTimeout(500);
+    const r2 = await p.evaluate(k => ({ demo: (JSON.parse(localStorage.getItem(k) || '{}')).demoData, ob: !!document.querySelector('#obFresh') }), KEYS);
+    (r2.demo === true && !r2.ob) ? ok('«Посмотреть пример» записывает пример, перезагрузка — без приветствия') : bad('пример после выбора: ' + JSON.stringify(r2));
+    errCheck(p, 'первый визит');
+    await ctx.close();
+  }
+  {
+    const { ctx, p } = await newPage(b, { width: 390, height: 900 });
+    await p.goto(URL); await p.waitForTimeout(400);
+    await startClean(p);
+    // своя привычка через «Добавить привычку» — тоже большой случайный id
+    await p.evaluate(() => { cur = 'habits'; render(); document.querySelector('#addHabit').click(); }); await p.waitForTimeout(300);
+    await p.fill('#hpOwn', 'Бег по утрам'); await p.press('#hpOwn', 'Enter'); await p.waitForTimeout(100);
+    await p.click('#hpGo'); await p.waitForTimeout(400);
+    const h = await p.evaluate(() => S.habits.map(x => x.id));
+    (h.length === 4 && h.every(id => Number.isInteger(id) && id >= 100000 && id <= 999999) && new Set(h).size === 4)
+      ? ok('id привычек — 100000..999999 и разные (выбор на старте и «Добавить»): ' + h.join(', ')) : bad('id привычек: ' + JSON.stringify(h));
+    const u = await p.evaluate(() => {
+      const a = []; for (let i = 0; i < 300; i++) a.push(uid());
+      const low = a.map(x => x % 1000), steps = low.slice(1).filter((x, i) => x === low[i] + 1).length;
+      return { uniq: new Set(a).size, safe: a.every(Number.isSafeInteger), ms: Math.abs(Math.floor(a[0] / 1000) - Date.now()) < 5000, steps };
+    });
+    (u.uniq === 300 && u.safe && u.ms && u.steps < 30) ? ok(`uid(): миллисекунды × 1000 + случайное, 300 подряд — разные (соседних по счётчику ${u.steps})`)
+      : bad('uid: ' + JSON.stringify(u));
+    errCheck(p, 'новые id');
+    await ctx.close();
+  }
+  {
+    // старые данные без id: две перезагрузки — те же id (normalize раздал их, load() сразу сохранил).
+    // lastLv есть, иначе draw() сохранил бы и без этого
+    const { ctx, p } = await newPage(b, { width: 390, height: 900 });
+    await p.goto(URL); await p.waitForTimeout(300);
+    await p.evaluate(k => localStorage.setItem(k, JSON.stringify({
+      habits: [{ ico: '', name: 'Бег' }, { ico: '', name: 'Чтение' }], checks: {},
+      tasks: [{ name: 'Первая', prio: 'md', due: '2026-10-01', done: false }, { name: 'Вторая', prio: 'hi', due: '2026-10-02', done: true }],
+      finance: { income: 0, entries: [{ type: 'out', cat: '🍔 Еда', amount: 300, date: '2026-10-01' }] },
+      rewards: [{ ico: '🎮', name: 'Игры', n: 5 }], rv: 2, lastLv: 1 })), KEYS);
+    const ids = () => p.evaluate(() => JSON.stringify([S.habits.map(h => h.id), S.tasks.map(t => t.id), S.finance.entries.map(e => e.id), S.rewards.map(r => r.id)]));
+    await p.reload(); await p.waitForTimeout(400); const a = await ids();
+    await p.reload(); await p.waitForTimeout(400); const c = await ids();
+    const stored = await p.evaluate(k => JSON.parse(localStorage.getItem(k)).tasks.every(t => Number.isFinite(t.id)), KEYS);
+    (a === c && stored) ? ok('данные без id: после двух перезагрузок те же id, в хранилище они записаны') : bad('id плывут: ' + a + ' → ' + c);
+    errCheck(p, 'старые данные без id');
+    await ctx.close();
+  }
+  {
+    // незнакомый ключ верхнего уровня (поле более новой версии) живёт; старые поля сворачиваются
+    const { ctx, p } = await newPage(b, { width: 390, height: 900 });
+    await p.goto(URL); await p.waitForTimeout(300);
+    await startClean(p);
+    const n = await p.evaluate(() => {
+      const base = JSON.parse(JSON.stringify(S));
+      const d = { ...base, goals: [{ id: 1, t: 'Квартира' }], zNew: { a: 1 }, Bad: 1, _x: 2, 'with-dash': 3, huge: 'ж'.repeat(70000), bought: [0], boughtMy: { 555: 2 }, lastLvl: 3 };
+      const m = normalize(d), s1 = JSON.stringify(m), s2 = JSON.stringify(normalize(JSON.parse(s1)));
+      const ks = Object.keys(m);
+      return { tail: ks.slice(ks.indexOf('rev') + 1), round: s1 === s2, goals: JSON.stringify(m.goals), cnt: m.boughtCnt,
+               nosync: !('_sync' in normalize({ ...base, _sync: { v: 1 } })) };
+    });
+    (JSON.stringify(n.tail) === JSON.stringify(['lastLv', 'goals', 'zNew']) && n.goals === '[{"id":1,"t":"Квартира"}]' && n.round && n.nosync)
+      ? ok('незнакомые ключи — после известных, в своём порядке; круг normalize байт в байт; кривые имена, _sync и больше 64 КБ не берутся')
+      : bad('незнакомые ключи: ' + JSON.stringify(n).slice(0, 300));
+    (n.cnt['1'] === 1 && n.cnt['555'] === 2 && !n.tail.some(k => ['bought', 'boughtMy', 'lastLvl'].includes(k)))
+      ? ok('bought/boughtMy по-прежнему сворачиваются в boughtCnt и не остаются, lastLvl не переносится') : bad('старые поля: ' + JSON.stringify(n));
+    // через хранилище: ключ переживает загрузку и правку
+    await p.evaluate(k => { const d = JSON.parse(localStorage.getItem(k)); d.goals = ['x']; localStorage.setItem(k, JSON.stringify(d)); }, KEYS);
+    await p.reload(); await p.waitForTimeout(400);
+    await p.click('#todayChips .tchip'); await p.waitForTimeout(300);
+    const kept = await p.evaluate(k => JSON.parse(localStorage.getItem(k)).goals, KEYS);
+    JSON.stringify(kept) === '["x"]' ? ok('незнакомый ключ пережил перезагрузку и правку') : bad('незнакомый ключ потерян: ' + JSON.stringify(kept));
+    errCheck(p, 'незнакомые ключи');
+    await ctx.close();
+  }
+  {
+    // служебная часть синхронизации лежит в той же строке последним ключом, но в S и в файл копии не попадает
+    const { ctx, p } = await newPage(b, { width: 390, height: 900 });
+    await p.goto(URL); await p.waitForTimeout(300);
+    await startClean(p);
+    await p.evaluate(k => { const d = JSON.parse(localStorage.getItem(k)); d._sync = { v: 1, acct: 'a1', dev: 'd1', seq: 3 }; localStorage.setItem(k, JSON.stringify(d)); }, KEYS);
+    await p.reload(); await p.waitForTimeout(400);
+    const dl = await Promise.all([p.waitForEvent('download'), p.evaluate(() => downloadBackup())]);
+    const file = require('fs').readFileSync(await dl[0].path(), 'utf8');
+    await p.click('#todayChips .tchip'); await p.waitForTimeout(300);
+    const r = await p.evaluate(k => { const d = JSON.parse(localStorage.getItem(k)); return { inS: '_sync' in S, last: Object.keys(d).slice(-1)[0], seq: d._sync && d._sync.seq }; }, KEYS);
+    (!file.includes('_sync') && file.startsWith('{"habits"') && !r.inS && r.last === '_sync' && r.seq === 3)
+      ? ok('_sync: нет в S и в файле копии, в хранилище после правки — последним ключом и целый') : bad('_sync: ' + JSON.stringify({ file: file.includes('_sync'), ...r }));
+    errCheck(p, '_sync');
+    await ctx.close();
+  }
+  {
+    // две вкладки: правки по очереди без перезагрузки — обе на месте
+    const ctx = await b.newContext({ viewport: { width: 390, height: 900 } });
+    const mk = async () => { const p = await ctx.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('dialog', d => d.accept()); return p; };
+    const p1 = await mk(), p2 = await mk();
+    await p1.goto(URL); await p1.waitForTimeout(400); await startClean(p1);
+    await p2.goto(URL); await p2.waitForTimeout(500);
+    const ids = await p1.evaluate(() => S.habits.map(h => h.id));
+    // 1) первая вкладка отмечает — вторая видит без перезагрузки (слушатель storage)
+    await p1.bringToFront(); await p1.click('#todayChips .tchip'); await p1.waitForTimeout(500);
+    const seen = await p2.evaluate(() => checksOf(TODAY).slice());
+    JSON.stringify(seen) === JSON.stringify([ids[0]]) ? ok('вторая вкладка видит отметку первой без перезагрузки') : bad('вторая вкладка: ' + JSON.stringify(seen));
+    // 2) во второй открыто окно новой задачи (слушатель ждёт), первая отмечает ещё одну; вторая сохраняет
+    //    задачу — save() сверяет хранилище и сливает: и отметка, и задача на месте
+    await p2.bringToFront(); await p2.evaluate(() => { cur = 'tasks'; render(); }); await p2.click('#addTask'); await p2.waitForTimeout(300);
+    await p1.bringToFront(); await p1.evaluate(() => document.querySelectorAll('#todayChips .tchip')[1].click()); await p1.waitForTimeout(400);
+    await p2.bringToFront(); await p2.fill('.modal input[type=text]', 'Задача из второй вкладки'); await p2.click('.modal .ok'); await p2.waitForTimeout(500);
+    const want = JSON.stringify([ids[0], ids[1]]);
+    const got = await Promise.all([p1, p2].map(p => p.evaluate(k => {
+      const d = JSON.parse(localStorage.getItem(k));
+      return { s: JSON.stringify(checksOf(TODAY)), t: S.tasks.map(t => t.name).join(), st: JSON.stringify(d.checks[TODAY]), stt: d.tasks.map(t => t.name).join() };
+    }, KEYS)));
+    (got.every(g => g.s === want && g.t === 'Задача из второй вкладки') && got[0].st === want && got[0].stt === 'Задача из второй вкладки')
+      ? ok('правки двух вкладок по очереди: обе отметки и задача — в хранилище и в обеих вкладках') : bad('две вкладки: ' + JSON.stringify(got));
+    [p1, p2].forEach(p => { if (p.errs.length) bad('ошибки во вкладках: ' + p.errs.join(' | ')); });
+    await ctx.close();
+  }
+  {
+    // пример не смешивается с настоящими данными: вкладка на приветствии жмёт «Посмотреть пример»,
+    // а другая вкладка тем временем начала своё — первая показывает настоящие, пример не записан
+    const ctx = await b.newContext({ viewport: { width: 390, height: 900 } });
+    const mk = async () => { const p = await ctx.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('dialog', d => d.accept()); return p; };
+    const p1 = await mk(), p2 = await mk();
+    await p1.goto(URL); await p1.waitForTimeout(400);
+    await p2.goto(URL); await p2.waitForTimeout(400); await startClean(p2);
+    const real = await p2.evaluate(() => S.habits.map(h => h.name).join());
+    await p1.bringToFront(); await p1.click('#obDemo', { timeout: 3000 }).catch(() => bad('у первой вкладки нет приветствия')); await p1.waitForTimeout(400);
+    const d1 = await p1.evaluate(k => ({ demo: !!S.demoData, st: JSON.parse(localStorage.getItem(k)).demoData, h: S.habits.map(h => h.name).join() }), KEYS);
+    (!d1.demo && d1.st === undefined && d1.h === real) ? ok('«Посмотреть пример», когда другая вкладка уже начала своё: показаны настоящие данные, пример не записан')
+      : bad('пример смешался с настоящими: ' + JSON.stringify(d1));
+    [p1, p2].forEach(p => { if (p.errs.length) bad('ошибки во вкладках: ' + p.errs.join(' | ')); });
     await ctx.close();
   }
 
