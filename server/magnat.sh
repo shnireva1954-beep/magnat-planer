@@ -433,7 +433,7 @@ do_mail() {
   fi
   local box host port pass sup res kind cls hint
   echo "Почта для кодов входа. Пароль вводится только здесь — в чат его не присылай."
-  read -rp "1) Адрес ящика для кодов (например magnat.kod@mail.ru): " box || true
+  read -rp "1) Адрес ящика для кодов (например имя@mail.ru): " box || true
   box="$(lower_trim "$box")"
   is_email "$box" || { echo "НЕ УШЛО: «$box» не похоже на адрес почты. Прежние настройки не тронуты."; exit 1; }
   case "${box#*@}" in

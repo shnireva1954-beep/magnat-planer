@@ -166,6 +166,7 @@ remove_relay() {
 
 if [ -n "${MAGNAT_GUARD_ONLY:-}" ]; then guard; exit $?; fi   # только проверка, без установки
 if [ -n "${MAGNAT_RELAY_PARSE:-}" ]; then relay_rules; exit 0; fi  # только разбор (для проверки)
+# shellcheck disable=SC2086  # слова команды apt — нарочно по отдельности
 if [ -n "${MAGNAT_APT_TRY:-}" ]; then apt_get $MAGNAT_APT_TRY; exit $?; fi  # только apt с ожиданием (для проверки)
 [ "$(id -u)" -eq 0 ] || fail "Запускать от root."
 guard || exit 1
