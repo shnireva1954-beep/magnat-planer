@@ -198,12 +198,18 @@ function spawnLogged(cmd, args, { env = process.env, cwd } = {}) {
   LIVE.add(h);
   return h;
 }
-// Ждём HTTP-ответ (любой) от только что запущенного процесса.
+// Ждём HTTP-ответ от только что запущенного процесса. Ответ сам по себе не доказывает, что
+// отвечает НАШ процесс: порт мог держать чужой сервер, а наш уже упал с «адрес занят». Поэтому
+// после ответа ещё 200 мс смотрим, жив ли наш и нет ли в его stderr «адрес занят» (ревью R1)
 async function waitUp(port, p, ms, proc) {
   const t = Date.now();
   while (Date.now() - t < ms) {
     if (!proc.alive()) return { ok: false, why: `процесс вышел (код ${proc.code}, сигнал ${proc.signal})` };
-    try { return { ok: true, res: await request(port, { path: p, timeout: 2000 }) }; } catch (e) { await sleep(100); }
+    let res;
+    try { res = await request(port, { path: p, timeout: 2000 }); } catch (e) { await sleep(100); continue; }
+    await sleep(200);
+    if (!proc.alive() || BUSY.test(proc.err || "")) return { ok: false, why: `порт ${port} занят чужим процессом` };
+    return { ok: true, res };
   }
   return { ok: false, why: `нет ответа за ${Math.round(ms / 1000)} с` };
 }
@@ -519,9 +525,11 @@ function parseMail(raw) {
   return mail;
 }
 // Последний код, ушедший на email (из темы, иначе из текста). kind: login | delete.
-function lastCode(smtp, email, kind) {
+// from — смотреть только письма с этого номера (новее запроса): иначе при письме другого вида
+// или без кода находился старый код (ревью R1)
+function lastCode(smtp, email, kind, from = 0) {
   const list = smtp.to(email);
-  for (let i = list.length - 1; i >= 0; i--) {
+  for (let i = list.length - 1; i >= from; i--) {
     const p = parseMail(list[i].raw);
     if (kind === "login" && !/код входа/i.test(p.subject)) continue;
     if (kind === "delete" && !/удален/i.test(p.subject)) continue;
@@ -534,7 +542,7 @@ function lastCode(smtp, email, kind) {
 async function waitCode(smtp, email, { kind, after = 0, ms = 10000 } = {}) {
   const t = Date.now();
   for (;;) {
-    if (smtp.to(email).length > after) { const c = lastCode(smtp, email, kind); if (c) return c; }
+    if (smtp.to(email).length > after) { const c = lastCode(smtp, email, kind, after); if (c) return c; }
     if (Date.now() - t > ms) return null;
     await sleep(50);
   }

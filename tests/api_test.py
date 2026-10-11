@@ -5,7 +5,7 @@
 Служба запускается как в бою (`python3 -I api.py serve`) на свободном порту
 127.0.0.1, со своей временной БД; почта — поддельный SMTP на 127.0.0.1
 (stdlib smtpd в 3.12 нет — свой маленький на socketserver). Сеть наружу
-не нужна. Запуск: `python3 -I server/api/test_api.py` (код выхода 0 — зелёное).
+не нужна. Запуск: `python3 -I tests/api_test.py` (код выхода 0 — зелёное).
 """
 
 import base64
@@ -28,7 +28,7 @@ import time
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-API = os.path.join(HERE, 'api.py')
+API = os.path.join(HERE, '..', 'server', 'api', 'api.py')   # тесты живут в tests/: на сервер едет только api.py
 PY = sys.executable
 ORIGIN = 'https://magnat.test'
 BOX, SUPPORT = 'box@example.ru', 'support@example.ru'
