@@ -492,14 +492,20 @@ def rm_db(path):
 # ═══════════════════════════ Limits ═══════════════════════════
 
 class Limiter:
-    """Скользящие окна только в памяти. Ключи — HMAC с солью процесса: IP в открытом виде не хранится."""
+    """Скользящие окна только в памяти. Ключи — HMAC с солью процесса: IP в открытом виде не хранится.
 
-    MAX_KEYS = 200000
+    Память ограничена: MAX_KEYS ключей (~0,9 КБ каждый — около 18 МБ при MemoryMax=150M). Ключ
+    живёт не дольше своего окна. Сверх предела вытесняются самые давно не тронутые ключи, а не все
+    сразу: сброс всего дал бы атакующему обнулить лимиты потоком новых адресов (ревью R1, 11.10).
+    """
+
+    MAX_KEYS = 20000
 
     def __init__(self, scale=1.0):
         self.scale = scale
         self.lock = threading.Lock()
-        self.d = {}
+        self.d = {}      # ключ → deque моментов; порядок словаря — от давно не тронутых к свежим
+        self.w = {}      # ключ → самое длинное окно, с которым ключ проверялся
         self.salt = secrets.token_bytes(16)
 
     def key(self, kind, value):
@@ -523,28 +529,39 @@ class Limiter:
                         worst = max(worst, int(q[-lim] + w - now) + 1)
             if worst or not add:
                 return worst
-            if len(self.d) > self.MAX_KEYS:
-                self._purge(now)
-                if len(self.d) > self.MAX_KEYS:
-                    self.d.clear()
-            for k, lim, w in rules:
-                self.d.setdefault(k, deque()).append(now)
+            self._put([(k, self.win(w)) for k, _, w in rules], now)
             return 0
 
     def add(self, keys, now=None):
         now = time.monotonic() if now is None else now
         with self.lock:
-            for k in keys:
-                self.d.setdefault(k, deque()).append(now)
+            self._put([(k, 0.0) for k in keys], now)
+
+    def _put(self, items, now):
+        for k, w in items:
+            q = self.d.pop(k, None)          # pop + вставка = ключ становится самым свежим
+            if q is None:
+                q = deque()
+            q.append(now)
+            self.d[k] = q
+            if w > self.w.get(k, 0.0):
+                self.w[k] = w
+        if len(self.d) > self.MAX_KEYS:
+            self._purge(now)
+            while len(self.d) > self.MAX_KEYS:
+                k = next(iter(self.d))
+                del self.d[k]
+                self.w.pop(k, None)
 
     def _purge(self, now):
-        cut = now - self.win(DAY)
         for k in list(self.d):
             q = self.d[k]
+            cut = now - (self.w.get(k) or self.win(DAY))
             while q and q[0] <= cut:
                 q.popleft()
             if not q:
                 del self.d[k]
+                self.w.pop(k, None)
 
     def purge(self, now=None):
         with self.lock:
@@ -2379,6 +2396,28 @@ class SelfTest:
             for d in self.dirs:
                 shutil.rmtree(d, ignore_errors=True)
         return not self.bad
+
+    # ── лимиты: память ограничена, поток новых ключей не обнуляет горячий ──
+
+    def t_limiter_bounded(self):
+        L = Limiter()
+        L.MAX_KEYS = 500
+        hot = L.key('ip', '203.0.113.7')
+        for _ in range(3):
+            L.hit([(hot, 3, 600)])
+        self.ok(L.hit([(hot, 3, 600)]) > 0, 'горячий ключ упёрся в предел')
+        for i in range(5000):                         # поток новых адресов
+            L.hit([(L.key('ip', '198.51.%d.%d' % (i // 250, i % 250)), 3, 600)])
+            if i % 100 == 0:
+                L.hit([(hot, 3, 600)], add=False)
+                L.add([hot])                          # горячий ключ трогают — он свежий
+        self.ok(len(L.d) <= 500 and len(L.w) <= 500, 'ключей не больше предела: %d' % len(L.d))
+        self.ok(L.hit([(hot, 3, 600)]) > 0, 'поток новых ключей не снял предел с горячего')
+        L2 = Limiter()
+        k = L2.key('em', 'a@b.ru')
+        L2.hit([(k, 5, 60)], now=1000.0)
+        L2.purge(now=1000.0 + 61)
+        self.ok(k not in L2.d, 'ключ с окном 60 с вычищен через минуту, а не через сутки')
 
     # ── адреса, HMAC ──
 
