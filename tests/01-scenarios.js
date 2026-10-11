@@ -1434,6 +1434,32 @@ async function walkTabs(p, label) {
     await ctx.close();
   }
   {
+    // системное окно подтверждения (на сайте askConfirm = confirm()) держит вторую вкладку, первая
+    // тем временем отмечает день; вторая подтверждает удаление операции. До правки 11.10 ответ
+    // отдавался сразу, save() читал старое хранилище и затирал отметки первой вкладки
+    const ctx = await b.newContext({ viewport: { width: 390, height: 900 } });
+    const p1 = await ctx.newPage(); p1.errs = []; p1.on('pageerror', e => p1.errs.push(e.message)); p1.on('dialog', d => d.accept());
+    await p1.goto(URL); await p1.waitForTimeout(400); await startClean(p1);
+    await p1.evaluate(() => { document.querySelectorAll('.ovl').forEach(o => o.remove());
+      S.finance.entries.push({ id: 777, type: 'out', cat: '🍔 Еда', amount: 500, date: TODAY }); save(); });
+    const p2 = await ctx.newPage(); p2.errs = []; p2.on('pageerror', e => p2.errs.push(e.message));
+    let dlg = null; p2.on('dialog', d => { dlg = d; });
+    await p2.goto(URL); await p2.waitForTimeout(500);
+    await p2.evaluate(() => { document.querySelectorAll('.ovl').forEach(o => o.remove()); cur = 'money'; render(); });
+    await p2.evaluate(() => setTimeout(() => document.querySelector('#v-money .del').click(), 0));
+    for (let i = 0; i < 20 && !dlg; i++) await p1.waitForTimeout(100);
+    await p1.evaluate(() => { S.checks[TODAY] = S.habits.map(h => h.id); save(); render(); });
+    await p1.waitForTimeout(300);
+    if (dlg) await dlg.accept();
+    await p2.waitForTimeout(800); await p1.waitForTimeout(300);
+    const fin = await p1.evaluate(k => { const d = JSON.parse(localStorage.getItem(k)); return { st: (d.checks[TODAY] || []).length, e: d.finance.entries.length, tab: checksOf(TODAY).length, n: S.habits.length }; }, KEYS);
+    (dlg && fin.st === fin.n && fin.tab === fin.n && fin.e === 0)
+      ? ok('пока во второй вкладке висит confirm(), первая отметила день — после «ОК» обе правки на месте')
+      : bad('confirm() во второй вкладке затёр правку первой: ' + JSON.stringify({ dlg: !!dlg, ...fin }));
+    [p1, p2].forEach(p => { if (p.errs.length) bad('ошибки во вкладках: ' + p.errs.join(' | ')); });
+    await ctx.close();
+  }
+  {
     // пример не смешивается с настоящими данными: вкладка на приветствии жмёт «Посмотреть пример»,
     // а другая вкладка тем временем начала своё — первая показывает настоящие, пример не записан
     const ctx = await b.newContext({ viewport: { width: 390, height: 900 } });

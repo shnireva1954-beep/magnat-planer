@@ -154,7 +154,7 @@ const kill = async p => { const c = await p.$('.ovl .ok'); if (c) { await c.clic
   { const { ctx, p } = await fresh(b);
     const r = await p.evaluate(() => {
       S.tasks = [{ id: 7, name: 'Проверка', prio: 'lo', due: TODAY, done: true }];
-      S.checks[addDays(TODAY, -1)] = [1, 2, 3];
+      S.checks[addDays(TODAY, -1)] = S.habits.slice(0, 3).map(h => h.id);   // id привычек случайные с 11.10
       S.body.log = [{ date: TODAY, w: 81.4 }]; S.body.height = 180; S.body.birth = 1990; S.body.sex = 'm';
       S.spent = 300; S.boughtCnt = { 1: 2 };
       save();

@@ -1676,7 +1676,10 @@ function legalLinks(){
   return `<nav class="legal" aria-label="Тарифы и документы"><a href="${SITE}pricing.html" target="_blank" rel="noopener">Тарифы</a><a href="${SITE}terms.html" target="_blank" rel="noopener">Соглашение</a><a href="${SITE}privacy.html" target="_blank" rel="noopener">Конфиденциальность</a><a href="${SITE}pricing.html#support" target="_blank" rel="noopener">Поддержка</a></nav>`;
 }
 function askConfirm(text,okLabel,danger){
-  if(!FRAMED) return Promise.resolve(confirm(text));
+  // ответ системного окна отдаём через 30 мс, а не сразу: пока окно висело, вкладка стояла, и
+  // запись другой вкладки до неё ещё не дошла — save() прочитал бы старое хранилище и затёр
+  // чужую правку (ревью R0, 11.10). За эти 30 мс браузер успевает доставить отложенное
+  if(!FRAMED) return new Promise(res=>{ const r=confirm(text); setTimeout(()=>res(r),30); });
   return new Promise(resolve=>{
     const ovl=el(`<div class="ovl" style="z-index:75"><div class="modal">
       <p class="mtxt" style="margin-top:0;color:var(--ink);font-size:15px"></p>
