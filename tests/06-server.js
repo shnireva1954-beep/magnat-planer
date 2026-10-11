@@ -11,10 +11,15 @@
 //      01-scenarios и ловит);
 //   5. продающая страница на «/» под той же CSP: без ошибок; кто уже
 //      пользуется (есть данные) — сразу в приложение (app.html).
+// Плюс API входа (server/api): шаг установки и службы (1д), выкладка API за
+// сайтом с проверкой и откатом (2б), magnat mail / status / upgrade и копия
+// базы (2в), /api через Caddy — прокси, заголовки, 413 и 503 JSON (3б).
 // Caddy берётся из PATH, из CADDY= или скачивается с официального
-// репозитория в node_modules/.cache (он в .gitignore).
+// репозитория в node_modules/.cache (он в .gitignore) — tests/lib.js.
 const { spawn, spawnSync } = require("child_process");
-const fs = require("fs"), path = require("path"), os = require("os"), http = require("http"), net = require("net");
+const fs = require("fs"), path = require("path"), os = require("os"), http = require("http"), zlib = require("zlib");
+const L = require("./lib");
+const { findCaddy, freePort, get, waitPort } = L;
 
 const ROOT = path.join(__dirname, "..");
 let fails = 0;
@@ -22,40 +27,54 @@ const ok = (m) => console.log("  ✓", m);
 const bad = (m) => { fails++; console.log("  ✗ FAIL:", m); };
 const sh = (cmd, opts = {}) => spawnSync("bash", ["-c", cmd], { encoding: "utf8", ...opts });
 
-function findCaddy() {
-  if (process.env.CADDY) return process.env.CADDY;
-  const w = sh("command -v caddy"); if (w.status === 0) return w.stdout.trim();
-  const cache = path.join(ROOT, "node_modules", ".cache", "caddy");
-  const bin = path.join(cache, "usr", "bin", "caddy");
-  if (fs.existsSync(bin)) return bin;
-  fs.mkdirSync(cache, { recursive: true });
-  const base = "https://dl.cloudsmith.io/public/caddy/stable/deb/debian";
-  const r = sh(`set -e; cd "${cache}"
-    f=$(curl -fsS ${base}/dists/any-version/main/binary-amd64/Packages | awk '/^Version: /{v=$2} /^Filename: /{print v, $2}' | sort -V | tail -1 | cut -d' ' -f2)
-    curl -fsS -o caddy.deb "${base}/$f"; dpkg-deb -x caddy.deb .; rm -f caddy.deb`);
-  if (r.status !== 0 || !fs.existsSync(bin)) throw new Error("Caddy не нашёлся и не скачался: " + r.stderr);
-  return bin;
-}
-
-const freePort = () => new Promise(res => { const s = net.createServer(); s.listen(0, "127.0.0.1", () => { const p = s.address().port; s.close(() => res(p)); }); });
-const get = (port, p, headers = {}) => new Promise((res, rej) => {
-  const req = http.get({ host: "127.0.0.1", port, path: p, headers }, r => { let b = []; r.on("data", d => b.push(d)); r.on("end", () => res({ status: r.statusCode, h: r.headers, body: Buffer.concat(b) })); });
-  req.on("error", rej); req.setTimeout(5000, () => req.destroy(new Error("timeout")));
-});
-async function waitPort(port, ms = 8000) {
-  const t = Date.now();
-  while (Date.now() - t < ms) { try { await get(port, "/"); return true; } catch (e) { await new Promise(r => setTimeout(r, 150)); } }
-  return false;
-}
-
 (async () => {
   const CADDY = findCaddy();
   const caddyVer = sh(`"${CADDY}" version`).stdout.split(" ")[0];
   console.log("  Caddy:", caddyVer);
   const T = fs.mkdtempSync(path.join(os.tmpdir(), "magnat-srv-"));
   const bin = path.join(T, "bin"); fs.mkdirSync(bin);
-  // systemctl здесь нет — подставляем двойника, который пишет, что его звали.
-  fs.writeFileSync(path.join(bin, "systemctl"), `#!/bin/sh\necho "$@" >> "${T}/systemctl.log"\nexit 0\n`, { mode: 0o755 });
+  // API входа в проверке: код — AB/releases, база — AS, секреты — ETC, копии — BK.
+  const AB = path.join(T, "api-srv"), AS = path.join(T, "api-state"), ETC = path.join(T, "etc"), BK = path.join(T, "backups");
+  fs.mkdirSync(AS, { mode: 0o700 }); fs.mkdirSync(ETC, { mode: 0o700 });
+  fs.writeFileSync(path.join(ETC, "smtp.env"), "", { mode: 0o600 });       // как после install.sh: пустой
+  const APORT = await freePort(), PIDF = path.join(T, "api.pid");
+  const killApi = () => { try { process.kill(+fs.readFileSync(PIDF, "utf8"), "SIGKILL"); } catch (e) {} };
+  process.on("exit", killApi);
+  // systemctl здесь нет — двойник пишет, что его звали, а magnat-api — правда
+  // запускает и гасит (как служба: python3 -I …/current/api.py serve, окружение юнита).
+  fs.writeFileSync(path.join(bin, "systemctl"), `#!/bin/bash
+echo "$@" >> "${T}/systemctl.log"
+pidf="${PIDF}"
+stop_api() {
+  [ -s "$pidf" ] || return 0
+  local p; p="$(cat "$pidf")"; kill "$p" 2>/dev/null
+  for _ in $(seq 50); do kill -0 "$p" 2>/dev/null || break; sleep 0.1; done
+  kill -9 "$p" 2>/dev/null; rm -f "$pidf"
+}
+start_api() {
+  env -i PATH=/usr/bin:/bin MAGNAT_LISTEN=127.0.0.1:${APORT} MAGNAT_STATE="${AS}" MAGNAT_DB="${AS}/magnat.db" \\
+    MAGNAT_SMTP_FILE="${ETC}/smtp.env" MAGNAT_DISK_MIN_MB=0 setsid python3 -I "${AB}/current/api.py" serve \\
+    >>"${T}/api.log" 2>&1 </dev/null 9>&- &
+  echo $! > "$pidf"
+}
+cmd="$1"; shift
+case " $* " in *" magnat-api "*|*" magnat-api.service "*) api=1 ;; *) api= ;; esac
+case "$cmd" in
+  restart|start) [ -z "$api" ] || { stop_api; start_api; } ;;
+  stop) [ -z "$api" ] || stop_api ;;
+esac
+exit 0
+`, { mode: 0o755 });
+  // runuser и python — двойники-самописцы: по их журналам видно, что api.py
+  // ни разу не запущен мимо runuser (root код из репозитория не запускает).
+  fs.writeFileSync(path.join(bin, "runuser"), `#!/bin/bash
+printf '%s\\n' "$*" >> "${T}/runuser.log"
+[ "$1" = "-u" ] && [ "$3" = "--" ] || exit 99
+shift 3; exec "$@"
+`, { mode: 0o755 });
+  const PYW = path.join(T, "py-wrap");
+  fs.writeFileSync(PYW, `#!/bin/sh\nprintf '%s\\n' "$*" >> "${T}/py.log"\nexec python3 "$@"\n`, { mode: 0o755 });
+  const SELF = path.join(T, "self-magnat"); fs.copyFileSync(path.join(ROOT, "server/magnat.sh"), SELF);
   fs.symlinkSync(CADDY, path.join(bin, "caddy"));
 
   // ---- 1. Caddyfile --------------------------------------------------------
@@ -64,6 +83,13 @@ async function waitPort(port, ms = 8000) {
   v.status === 0 ? ok("caddy validate — без ошибок") : bad("caddy validate: " + v.stderr.slice(-400));
   const f = sh(`"${CADDY}" fmt server/Caddyfile | diff -q - server/Caddyfile`, { cwd: ROOT });
   f.status === 0 ? ok("caddy fmt — отформатирован") : bad("Caddyfile не отформатирован: caddy fmt --overwrite server/Caddyfile");
+  {
+    const cft = fs.readFileSync(path.join(ROOT, "server/Caddyfile"), "utf8");
+    const mb = (re) => { const m = re.exec(cft); return m ? parseFloat(m[1]) * ({ KB: 1 / 1024, MB: 1, GB: 1024 }[m[2].toUpperCase()]) : 0; };
+    const maxB = mb(/max_size\s+([\d.]+)\s*(KB|MB|GB)/i), bufB = mb(/request_buffers\s+([\d.]+)\s*(KB|MB|GB)/i);
+    maxB >= 1.5 && bufB >= maxB ? ok(`/api: тело до ${maxB} МБ, Caddy дочитывает его сам (request_buffers ${bufB} МБ) — медленный клиент не держит API`)
+      : bad(`/api: max_size ${maxB} МБ, request_buffers ${bufB} МБ — буфер должен быть не меньше предела тела (≥ 1,5 МБ)`);
+  }
   const sc = sh("command -v shellcheck >/dev/null && shellcheck -S style server/install.sh server/magnat.sh", { cwd: ROOT });
   if (sh("command -v shellcheck").status === 0) sc.status === 0 ? ok("shellcheck — чисто") : bad("shellcheck:\n" + sc.stdout);
 
@@ -165,6 +191,47 @@ exit 0
     .split("\n").filter(l => /\bapt-get\b/.test(l));
   bare.length === 0 ? ok("все вызовы apt в установке — через ожидание") : bad("apt-get мимо ожидания:\n    " + bare.join("\n    "));
 
+  // ---- 1д. API входа: шаг установки и службы ---------------------------------
+  console.log("\n1д. server/install.sh — шаг «API входа» и его службы");
+  {
+    const at = (x) => inst.indexOf(x);
+    const steps = [...inst.matchAll(/^echo; echo "--- (\d)\/(\d) /gm)].map(m => m[1] + "/" + m[2]);
+    JSON.stringify(steps) === JSON.stringify(["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]) && /--- 5\/8 API входа/.test(inst)
+      ? ok("шаги 1/8…8/8, «API входа» — пятый (после выкладки, до Caddy)") : bad("шаги установки: " + steps.join(" "));
+    const ua = at("useradd --system --home-dir /var/lib/magnat-api");
+    ua > at("guard || exit 1") && at("guard || exit 1") > 0 && ua > at("--- 4/8") && ua < at("--- 6/8")
+      ? ok("пользователь magnat-api и всё API — после замка «не тот сервер»") : bad("шаг API стоит не там: useradd на " + ua);
+    /install -d -o magnat-api -g magnat-api -m 0700 \/var\/lib\/magnat-api/.test(inst) && /\[ -e \/etc\/magnat\/smtp\.env \] \|\| install -o root -g root -m 0600 \/dev\/null \/etc\/magnat\/smtp\.env/.test(inst)
+      && /install -d -o root -g root -m 0700 \/etc\/magnat/.test(inst)
+      ? ok("/var/lib/magnat-api 0700 magnat-api, /etc/magnat 0700 root, пустой smtp.env 0600 — служба стартует и без почты") : bad("папки и smtp.env API не те");
+    const unit = (name) => { const m = new RegExp(`cat > /etc/systemd/system/${name.replace(/\./g, "\\.")} <<'EOF'\\n([\\s\\S]*?)\\nEOF`).exec(inst); return m ? m[1] : ""; };
+    const svc = unit("magnat-api.service"), bsvc = unit("magnat-api-backup.service"), btim = unit("magnat-api-backup.timer");
+    const has = (u, lines) => lines.filter(l => !u.split("\n").includes(l));
+    const miss = has(svc, ["User=magnat-api", "Group=magnat-api", "ExecStart=/usr/bin/python3 -I /srv/magnat-api/current/api.py serve",
+      "LoadCredential=smtp:/etc/magnat/smtp.env", "Restart=on-failure", "MemoryMax=96M", "MemoryHigh=72M", "NoNewPrivileges=yes",
+      "ProtectSystem=strict", "ReadWritePaths=/var/lib/magnat-api", "ProtectHome=yes", "PrivateTmp=yes", "PrivateDevices=yes",
+      "ProtectKernelTunables=yes", "ProtectKernelModules=yes", "ProtectControlGroups=yes", "RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX"]);
+    !miss.length ? ok("magnat-api.service: magnat-api, песочница, память ≤ 96 МБ, почта через LoadCredential") : bad("в magnat-api.service нет: " + miss.join(", "));
+    const env = (svc.match(/^Environment=(.*)$/m) || ["", ""])[1].split(/\s+/).filter(Boolean);
+    JSON.stringify(env) === JSON.stringify(["MAGNAT_LISTEN=127.0.0.1:8787", "MAGNAT_DB=/var/lib/magnat-api/magnat.db", "MAGNAT_STATE=/var/lib/magnat-api", "MAGNAT_ORIGIN=https://magnat-planer.ru"])
+      && (svc.match(/^Environment/gm) || []).length === 1
+      ? ok("окружение службы — только адрес 127.0.0.1:8787, база, папка и сайт; ни одной ручки проверки") : bad("окружение службы: " + env.join(" "));
+    const rw = [svc, bsvc].map(u => (u.match(/^ReadWritePaths=.*$/gm) || []).join("|"));
+    rw.every(x => x === "ReadWritePaths=/var/lib/magnat-api") ? ok("писать службам можно только в /var/lib/magnat-api") : bad("ReadWritePaths: " + rw.join(" ; "));
+    has(bsvc, ["User=magnat-api", "ExecStart=/usr/local/sbin/magnat api-backup", "PrivateNetwork=yes", "ProtectSystem=strict"]).length === 0
+      && !/runuser/.test(bsvc) && /^OnCalendar=/m.test(btim) && /^Persistent=true$/m.test(btim) && /systemctl enable --now magnat-api-backup\.timer/.test(inst)
+      ? ok("копия базы раз в сутки — служба от magnat-api без сети и без runuser, таймер включён") : bad("служба/таймер копии базы не те");
+    if (sh("command -v systemd-analyze").status === 0) {
+      const UD = path.join(T, "units"); fs.mkdirSync(UD);
+      fs.writeFileSync(path.join(UD, "magnat-api.service"), svc);
+      fs.writeFileSync(path.join(UD, "magnat-api-backup.service"), bsvc.replace("/usr/local/sbin/magnat api-backup", "/bin/true"));
+      fs.writeFileSync(path.join(UD, "magnat-api-backup.timer"), btim);
+      const va = sh("systemd-analyze verify --man=no ./magnat-api.service ./magnat-api-backup.service ./magnat-api-backup.timer", { cwd: UD });
+      va.status === 0 && !(va.stdout + va.stderr).trim() ? ok("systemd-analyze verify — службы и таймер без замечаний")
+        : bad("systemd-analyze verify:\n    " + (va.stdout + va.stderr).trim().split("\n").slice(0, 6).join("\n    "));
+    } else console.log("  ⚠ пропуск systemd-analyze verify: его здесь нет (тексты служб проверены выше)");
+  }
+
   // ---- 2. выкладка --------------------------------------------------------
   console.log("\n2. server/magnat.sh — выкладка");
   // Репозиторий-образец из ТЕКУЩЕГО рабочего дерева (с несохранёнными правками).
@@ -180,7 +247,9 @@ exit 0
   const CF = path.join(T, "Caddyfile"); fs.copyFileSync(path.join(ROOT, "server/Caddyfile"), CF);
   const env = { ...process.env, PATH: bin + ":" + process.env.PATH, MAGNAT_BASE: BASE, MAGNAT_STATE: STATE,
     MAGNAT_USER: os.userInfo().username, MAGNAT_URL_SSH: "file:///nonexistent", MAGNAT_URL_HTTPS: "file://" + REPO,
-    MAGNAT_CADDYFILE: CF, MAGNAT_DOMAIN: "magnat-test.invalid" };
+    MAGNAT_CADDYFILE: CF, MAGNAT_DOMAIN: "magnat-test.invalid",
+    MAGNAT_API_BASE: AB, MAGNAT_API_STATE: AS, MAGNAT_API_PORT: String(APORT), MAGNAT_API_WAIT: "8", MAGNAT_ETC: ETC,
+    MAGNAT_BACKUPS: BK, MAGNAT_PY: PYW, MAGNAT_SELF: SELF, MAGNAT_SETUP: path.join(T, "setup") };
   const deploy = (mode = "deploy", extra = {}) => spawnSync("bash", [path.join(ROOT, "server/magnat.sh"), mode], { encoding: "utf8", env: { ...env, ...extra } });
   const cur = () => { try { return path.basename(fs.readlinkSync(path.join(BASE, "current"))); } catch (e) { return ""; } };
   const live = (p) => fs.existsSync(path.join(BASE, "current", p));
@@ -236,6 +305,144 @@ exit 0
   r = deploy("deploy", { MAGNAT_HTTP_PORT: String(await freePort()) });
   fs.readFileSync(CF, "utf8") === cf0 && /возвращаю прежний/.test(r.stdout + r.stderr) ? ok("новый Caddyfile, а сайт не ответил — вернул прежний") : bad("Caddyfile не откатился: " + r.stdout + r.stderr);
 
+  // ---- 2б. API входа: выкладка за сайтом -------------------------------------
+  // Настоящий api.py из этого дерева, «служба» — двойник systemctl выше.
+  console.log("\n2б. server/magnat.sh — API входа следует за выложенным коммитом");
+  const health = async () => { try { return (await L.request(APORT, { path: "/api/health", timeout: 3000 })).json || {}; } catch (e) { return {}; } };
+  const treeOf = (rev = "HEAD") => git(`rev-parse ${rev}:server/api`).stdout.trim().slice(0, 12);
+  const apiCur = () => { try { return path.basename(fs.readlinkSync(path.join(AB, "current"))); } catch (e) { return ""; } };
+  const mark = (f) => { try { return fs.readFileSync(path.join(STATE, f), "utf8").trim(); } catch (e) { return ""; } };
+  const slog = () => { try { return fs.readFileSync(path.join(T, "systemctl.log"), "utf8"); } catch (e) { return ""; } };
+  const restarts = () => (slog().match(/^restart magnat-api/gm) || []).length;
+  const tmpLeft = () => fs.readdirSync(path.join(AB, "releases")).filter(x => x.startsWith("."));
+  try {
+    r = deploy();
+    const untouched = !fs.existsSync(path.join(AB, "current")) && !restarts();
+    fs.mkdirSync(path.join(AB, "releases"), { recursive: true });
+    r = deploy(); const t1 = treeOf(); let h = await health();
+    untouched && apiCur() === t1 && h.ok === true && h.v === t1 && mark("api-tree") === t1 && /API .* работает/.test(mark("api-last"))
+      ? ok(`API не поставлен (шаг 4 установки) — не тронут; поставлен — встаёт из выложенного коммита без нового: current → ${t1}, /api/health отвечает этой версией`)
+      : bad(`API не встал (до установки не тронут: ${untouched}): current=${apiCur()} health=${JSON.stringify(h)}\n    ` + (r.stdout + r.stderr).trim().slice(-400));
+    h.open === false ? ok("API закрыт (open:false) — код получают только ящики владельца") : bad("API открыт: " + JSON.stringify(h));
+
+    const apiPy = path.join(REPO, "server/api/api.py"), apiSrc = fs.readFileSync(apiPy, "utf8");
+    // (б) синтаксическая ошибка — не переключать, сайт выложить
+    fs.writeFileSync(apiPy, apiSrc + "\ndef broken(:\n"); git("commit -qam api-syntax");
+    let n0 = restarts(); r = deploy(); const t2 = treeOf(); h = await health();
+    cur() === head() && apiCur() === t1 && h.v === t1 && restarts() === n0 && mark("api-skip") === t2 && /не прошёл проверку/.test(mark("api-last"))
+      && !fs.existsSync(path.join(AB, "releases", t2)) && !tmpLeft().length
+      ? ok("API с синтаксической ошибкой — не прошёл проверку, не переключён, отвечает прежний, недоделанное убрано; сайт выложен")
+      : bad(`сломанный API: сайт ${cur() === head()} current=${apiCur()} v=${h.v} skip=${mark("api-skip")} last=${mark("api-last")} releases=${fs.readdirSync(path.join(AB, "releases")).join(" ")}`);
+    r = deploy();
+    restarts() === n0 && apiCur() === t1 ? ok("через минуту его не пробуют снова (api-skip)") : bad("не прошедший API пробуется каждую минуту");
+
+    // (в) проверку прошёл, но служба не поднимается — вернуть прежний
+    fs.writeFileSync(apiPy, apiSrc.replace("def cmd_serve(pos, opts):\n", "def cmd_serve(pos, opts):\n    return 3\n")); git("commit -qam api-dead");
+    n0 = restarts(); r = deploy(); const t3 = treeOf(); h = await health();
+    cur() === head() && restarts() === n0 + 2 && apiCur() === t1 && h.v === t1 && mark("api-skip") === t3 && /не поднялся — вернул прежний/.test(mark("api-last"))
+      ? ok("API прошёл проверку, но не поднялся — переключил, увидел, вернул прежний; сайт выложен")
+      : bad(`мёртвый API: перезапусков ${restarts() - n0}, current=${apiCur()} v=${h.v} skip=${mark("api-skip")} last=${mark("api-last")}`);
+
+    // (г) следующий хороший — применяется, перед ним копия базы
+    fs.writeFileSync(apiPy, apiSrc + "\n# следующая версия\n"); git("commit -qam api-next");
+    r = deploy(); const t4 = treeOf(); h = await health();
+    apiCur() === t4 && h.v === t4 && mark("api-tree") === t4 && !mark("api-skip") ? ok("следующий хороший API — выложен, отметка «не прошёл» снята")
+      : bad(`хороший API после плохого: current=${apiCur()} v=${h.v} skip=${mark("api-skip")}\n    ` + (r.stdout + r.stderr).trim().slice(-300));
+    const pre = path.join(BK, "deploy", `pre-${t4}.db.gz`);
+    let preOk = false; try { preOk = (fs.statSync(pre).mode & 0o777) === 0o600 && zlib.gunzipSync(fs.readFileSync(pre)).slice(0, 15).toString() === "SQLite format 3"; } catch (e) {}
+    preOk ? ok("перед переключением — копия базы (gzip, 0600, настоящая SQLite)") : bad("нет копии базы перед переключением: " + pre);
+    const rels = fs.readdirSync(path.join(AB, "releases"));
+    rels.includes(t1) && rels.includes(t4) && rels.includes(t3) ? ok("прежние выпуски лежат — есть куда вернуться") : bad("выпуски: " + rels.join(" "));
+
+    // (е) коммит без server/api — API не трогать
+    git("rm -rq server/api"); git("commit -qm no-api");
+    n0 = restarts(); r = deploy(); h = await health();
+    cur() === head() && apiCur() === t4 && h.v === t4 && restarts() === n0 ? ok("коммит без server/api — сайт выложен, API не тронут") : bad("коммит без API тронул API: " + apiCur());
+    git("checkout -q HEAD~1 -- server/api"); git("commit -qm api-back"); deploy();
+  } catch (e) { bad("2б упал: " + (e.stack || e)); }
+
+  // ---- 2в. почта для кодов, состояние, переустановка, копия базы -------------
+  console.log("\n2в. magnat mail, magnat status, magnat upgrade, копия базы");
+  const PASS = "Ab1xYz9QrT5uVw2sKp4L";   // как пароль приложения Mail.ru
+  const smtp = await L.fakeSmtp(); smtp.allow("box@example.ru", PASS);
+  const mail = (input) => spawnSync("bash", [path.join(ROOT, "server/magnat.sh"), "mail"], { input, encoding: "utf8", env, timeout: 60000 });
+  const smtpEnv = () => fs.readFileSync(path.join(ETC, "smtp.env"));
+  try {
+    st = deploy("status");
+    /Почта для кодов: не настроена → набери magnat mail/.test(st.stdout) ? ok("magnat status до настройки: «Почта для кодов: не настроена → набери magnat mail»")
+      : bad("status без почты: " + (st.stdout.match(/Почта.*/) || ["нет строки"])[0]);
+    let m = mail(`box@example.ru\n127.0.0.1\n${smtp.port}\n${PASS}\nsupport@example.ru\n`);
+    const se = smtpEnv().toString(), mode = fs.statSync(path.join(ETC, "smtp.env")).mode & 0o777;
+    m.status === 0 && /ПОЧТА РАБОТАЕТ — проверочное письмо ушло на support@example\.ru/.test(m.stdout) && mode === 0o600 && se.includes(`\nSMTP_PASS=${PASS}\n`) && se.includes("SMTP_USER=box@example.ru")
+      ? ok("magnat mail: письмо ушло → ПОЧТА РАБОТАЕТ, smtp.env 0600 с паролем") : bad(`magnat mail (код ${m.status}, права ${mode.toString(8)}):\n    ` + (m.stdout + m.stderr).trim().slice(-500));
+    const au = smtp.auths.filter(a => a.ok);
+    au.length === 1 && au[0].user === "box@example.ru" && au[0].pass === PASS && smtp.to("support@example.ru").length === 1
+      ? ok("ящик пустил по этому паролю, проверочное письмо — на адрес поддержки") : bad("SMTP: " + JSON.stringify(smtp.auths) + " писем " + smtp.mails.length);
+    /^restart magnat-api$/m.test(slog().trim().split("\n").pop()) ? ok("после настройки API перезапущен (служба берёт smtp.env на старте)") : bad("API не перезапущен после magnat mail");
+    const mailed = /ПОЧТА РАБОТАЕТ/.test(m.stdout) && au.length === 1;
+    mailed && !(m.stdout + m.stderr).includes(PASS) ? ok("пароля нет в выводе magnat mail") : bad("пароль в выводе или почта не настроилась");
+    const argv = ["runuser.log", "py.log", "systemctl.log"].map(f => { try { return fs.readFileSync(path.join(T, f), "utf8"); } catch (e) { return ""; } }).join("\n");
+    mailed && /mailtest --creds - --to support@example\.ru/.test(argv) && !argv.includes(PASS)
+      ? ok("пароля нет в аргументах программ (runuser, python, systemctl) — проверка получила его через stdin") : bad("пароль в аргументах или проверки не было");
+    mailed && !fs.existsSync(path.join(ETC, "smtp.env.new")) ? ok("временного файла с паролем не осталось") : bad("остался smtp.env.new или почта не настроилась");
+    st = deploy("status");
+    /API входа:\s+работает ✅ версия \w{12}, вход закрыт/.test(st.stdout) && /Почта для кодов: настроена — box@example\.ru ✅/.test(st.stdout) && !st.stdout.includes(PASS)
+      ? ok("magnat status: «API входа: работает ✅ … закрыт», «Почта для кодов: настроена» — и без пароля") : bad("status:\n    " + st.stdout.split("\n").filter(l => /API|Почта/.test(l)).join("\n    "));
+
+    // не ушло — прежний smtp.env байт в байт
+    const good = smtpEnv(); smtp.mode = "535";
+    m = mail(`box@example.ru\n127.0.0.1\n${smtp.port}\nWrongPass12345\nsupport@example.ru\n`);
+    m.status === 1 && /НЕ УШЛО: ящик не пустил: неверный пароль/.test(m.stdout) && /Прежние настройки не тронуты/.test(m.stdout) && smtpEnv().equals(good) && !fs.existsSync(path.join(ETC, "smtp.env.new"))
+      ? ok("ящик не пустил (535) → «НЕ УШЛО: ящик не пустил…», прежний smtp.env байт в байт") : bad(`535: код ${m.status}\n    ` + (m.stdout + m.stderr).trim().slice(-300));
+    smtp.mode = "ok";
+    m = mail(`box@example.ru\n127.0.0.1\n${await freePort()}\n${PASS}\nsupport@example.ru\n`);
+    m.status === 1 && /НЕ УШЛО: сервер не достучался до 127\.0\.0\.1:\d+ \(сеть\)/.test(m.stdout) && smtpEnv().equals(good)
+      ? ok("сеть не пускает → «НЕ УШЛО: сервер не достучался…», прежний не тронут") : bad("сеть: " + (m.stdout + m.stderr).trim().slice(-300));
+    m = mail("kod@yandex.ru\nпароль с пробелом\n");
+    /не достучится до почты Яндекса/.test(m.stdout) && /НЕ УШЛО: это не похоже на пароль приложения/.test(m.stdout) && smtpEnv().equals(good)
+      ? ok("ящик на Яндексе — честное предупреждение; не пароль приложения — не пробует, прежний не тронут") : bad("яндекс/пароль: " + m.stdout.slice(-300));
+    m = mail("box@mail.ru\n");
+    /НЕ УШЛО: это не похоже на пароль приложения/.test(m.stdout) && !/Сервер исходящей почты/.test(m.stdout) && smtpEnv().equals(good)
+      ? ok("Mail.ru — сервер не спрашивает (smtp.mail.ru:465 сам)") : bad("mail.ru: " + m.stdout.slice(-300));
+
+    // устаревший скрипт сервера
+    const same = !/устарел/.test(deploy("status").stdout);
+    fs.appendFileSync(SELF, "\n# старая копия\n"); st = deploy("status");
+    same && /⚠ Скрипт сервера устарел — набери magnat upgrade/.test(st.stdout)
+      ? ok("«⚠ Скрипт сервера устарел — набери magnat upgrade» — только когда скрипт отличается от выложенного") : bad(`«устарел»: при равном скрипте ${!same}, при другом ${/устарел/.test(st.stdout)}`);
+    fs.copyFileSync(path.join(ROOT, "server/magnat.sh"), SELF);
+
+    // копия базы раз в сутки: свежая и семь последних
+    const BD = path.join(AS, "backup"); fs.mkdirSync(BD, { recursive: true });
+    for (let i = 1; i <= 9; i++) { const f = path.join(BD, `magnat-2026-01-0${i}.db.gz`); fs.writeFileSync(f, "old"); fs.utimesSync(f, new Date(2026, 0, i), new Date(2026, 0, i)); }
+    r = deploy("api-backup");
+    const today = `magnat-${new Date().toISOString().slice(0, 10)}.db.gz`, left = fs.readdirSync(BD).sort();
+    let bOk = false; try { bOk = (fs.statSync(path.join(BD, today)).mode & 0o777) === 0o600 && zlib.gunzipSync(fs.readFileSync(path.join(BD, today))).slice(0, 15).toString() === "SQLite format 3"; } catch (e) {}
+    bOk && left.length === 7 && left.includes(today) && !left.includes("magnat-2026-01-03.db.gz") && left.includes("magnat-2026-01-04.db.gz")
+      ? ok("копия базы раз в сутки: свежая (gzip, 0600, SQLite), хранится семь последних") : bad(`копия базы: ${left.join(" ")}\n    ` + (r.stdout + r.stderr).trim().slice(-300));
+    st = deploy("status");
+    /Копия базы:\s+\d\d\.\d\d \d\d:\d\d UTC ✅ \(всего 7/.test(st.stdout) ? ok("magnat status: «Копия базы: … ✅ (всего 7…)»") : bad("status копии: " + (st.stdout.match(/Копия базы.*/) || ["нет"])[0]);
+
+    // переустановка — из ВЫЛОЖЕННОЙ версии, не из main
+    if (process.getuid && process.getuid() === 0) {
+      fs.appendFileSync(path.join(REPO, "server/install.sh"), "\n# новее выложенного\n"); git("commit -qam newer-install");
+      const up = deploy("upgrade", { MAGNAT_MY_IP: "0.0.0.1" });
+      let got = ""; try { got = fs.readFileSync(path.join(T, "setup/server/install.sh"), "utf8"); } catch (e) {}
+      got && got === git(`show ${cur()}:server/install.sh`).stdout && !got.includes("новее выложенного") && /Не тот сервер/.test(up.stderr)
+        ? ok("magnat upgrade — install.sh из выложенной версии, а не из main; замок «не тот сервер» — первым") : bad("upgrade:\n    " + (up.stdout + up.stderr).trim().slice(-300));
+    } else console.log("  ⚠ пропуск magnat upgrade: нужен root");
+
+    // (з) api.py — только через runuser
+    if (process.getuid && process.getuid() === 0) {
+      const rdT = (f) => { try { return fs.readFileSync(path.join(T, f), "utf8"); } catch (e) { return ""; } };
+      const py = rdT("py.log").trim().split("\n").filter(Boolean), ru = rdT("runuser.log");
+      const kinds = new Set(py.map(c => (c.split(" ")[2] || "")));
+      py.length >= 6 && ["check", "backup", "mailtest"].every(k => kinds.has(k)) && py.every(c => ru.includes("-u magnat-api -- env -i ") && ru.split("\n").some(l => l.startsWith("-u magnat-api -- env -i ") && l.endsWith(c)))
+        ? ok(`api.py ни разу не запущен от root мимо runuser -u magnat-api (${py.length} вызовов: ${[...kinds].join(", ")})`) : bad("вызовы api.py мимо runuser:\n    " + py.filter(c => !ru.includes(c)).join("\n    "));
+    } else console.log("  ⚠ пропуск проверки runuser: тест не от root — runuser не нужен");
+  } catch (e) { bad("2в упал: " + (e.stack || e)); }
+  await smtp.close();
+
   // ---- 3. Caddy ------------------------------------------------------------
   console.log("\n3. Caddy с server/Caddyfile");
   const P = await freePort(), PW = await freePort(), PA = await freePort();
@@ -277,6 +484,57 @@ exit 0
     const www = await get(PW, "/app.html?x=1");
     www.status === 301 && www.h.location === "https://magnat-planer.ru/app.html?x=1" ? ok("www → https://magnat-planer.ru с тем же путём") : bad("www → " + www.status + " " + www.h.location);
 
+    // ---- 3б. /api через Caddy ------------------------------------------------
+    console.log("\n3б. /api через Caddy: прокси, заголовки, медленное тело, 413 и 503 ответом JSON");
+    {
+      const seen = [];
+      const stub = http.createServer((q, s) => { const at = Date.now(); let n = 0; q.on("data", d => n += d.length);
+        q.on("end", () => { seen.push({ url: q.url, at, xff: q.headers["x-forwarded-for"], n });
+          s.writeHead(200, { "Content-Type": "application/json", "Server": "stub-api", "Cache-Control": "no-store" }); s.end('{"ok":true,"stub":1}'); }); });
+      await new Promise(res => stub.listen(0, "127.0.0.1", res));
+      let C;
+      try {
+        C = await L.startCaddy({ root: path.join(BASE, "current"), api: stub.address().port });
+        const pr = await L.request(C.port, { method: "POST", path: "/api/me", body: { a: 1 }, headers: { "X-Forwarded-For": "6.6.6.6" } });
+        const missH = Object.entries(need).filter(([k, re]) => !["cache-control", "content-encoding"].includes(k) && !re.test(pr.h[k] || ""));
+        pr.status === 200 && pr.json && pr.json.stub === 1 && !missH.length && !pr.h.server && pr.h["cache-control"] === "no-store"
+          ? ok("POST /api/me → API: заголовки безопасности (HSTS, CSP…) на месте, Server нет, Cache-Control: no-store")
+          : bad(`/api через Caddy: ${pr.status} server=${pr.h.server} cache=${pr.h["cache-control"]} нет: ${missH.map(([k]) => k).join(",")}`);
+        seen.length && seen[seen.length - 1].xff === "127.0.0.1" ? ok("подделанный X-Forwarded-For до API не доходит — Caddy пишет настоящий адрес")
+          : bad("X-Forwarded-For у API: " + (seen[seen.length - 1] || {}).xff);
+        const body = '{"doc":"' + "x".repeat(4000) + '"}', n0 = seen.length, t0 = Date.now();
+        const head = `POST /api/sync HTTP/1.1\r\nHost: 127.0.0.1:${C.port}\r\nContent-Type: application/json\r\nContent-Length: ${body.length}\r\nConnection: close\r\n\r\n`;
+        const sr = await L.rawHttp(C.port, [head + body.slice(0, 100), body.slice(100)], { gap: 1500, timeout: 15000 });
+        const hit = seen[n0];
+        hit && hit.at - t0 >= 1300 && hit.n === body.length && / 200 /.test(sr.data.split("\r\n")[0])
+          ? ok(`медленное тело Caddy дочитывает сам: API получил запрос через ${hit.at - t0} мс, сразу целиком`)
+          : bad(`медленное тело ушло в API раньше, чем пришло: через ${hit ? hit.at - t0 : "-"} мс, байт ${hit ? hit.n : "-"}`);
+        const q = (o) => L.request(C.port, o).catch(e => ({ status: 0, text: String(e.message), h: {} }));
+        const big = await q({ method: "POST", path: "/api/sync", body: Buffer.alloc(3 << 20, 97), headers: { "Content-Type": "application/json" } });
+        const hid = await q({ path: "/server/api/api.py" });
+        big.status === 413 && big.text === '{"ok":false,"err":"big"}' && /application\/json/.test(big.h["content-type"] || "") && !big.h.server && hid.status === 404
+          ? ok("тело 3 МБ → 413 {\"ok\":false,\"err\":\"big\"} (JSON, без Server); /server/api/api.py — по-прежнему 404")
+          : bad(`3 МБ → ${big.status} ${big.text.slice(0, 80)} server=${big.h.server}; /server/api/api.py → ${hid.status}`);
+        await C.restart({ api: null });
+        const dn = await q({ method: "POST", path: "/api/me", body: { a: 1 } });
+        const miss = await q({ path: "/nety-takoy-stranicy" });
+        dn.status === 503 && dn.text === '{"ok":false,"err":"down"}' && /application\/json/.test(dn.h["content-type"] || "") && !dn.h.server && !dn.h.location
+          && miss.status === 302 && miss.h.location === "/"
+          ? ok("API не отвечает → 503 {\"ok\":false,\"err\":\"down\"} (JSON, не переадресация, без Server); пропавшая страница сайта — как была, на главную")
+          : bad(`API выключен → ${dn.status} ${dn.text.slice(0, 80)} ${dn.h.location || ""}; нет страницы → ${miss.status}`);
+        // настоящий api.py за этим Caddy
+        const AP = await freePort();
+        await C.restart({ api: AP });
+        await L.startApi({ port: AP, origin: C.origin, smtp: null });
+        const me = await L.postJson(C.port, "/api/me", {}, { origin: C.origin });
+        me.status === 200 && me.json && me.json.ok === true && /max-age=63072000/.test(me.h["strict-transport-security"] || "") && /connect-src 'self'/.test(me.h["content-security-policy"] || "") && !me.h.server
+          ? ok("настоящий api.py за Caddy: POST /api/me → 200 JSON с HSTS и CSP, без Server") : bad(`api.py за Caddy: ${me.status} ${me.text.slice(0, 120)}`);
+        const hh = await L.request(C.port, { path: "/api/health" });
+        hh.status === 404 ? ok("/api/health снаружи — 404 (видно только с самой машины)") : bad("/api/health через Caddy → " + hh.status);
+      } catch (e) { bad("3б упал: " + (e.stack || e)); }
+      finally { await L.cleanup(); stub.close(); }
+    }
+
     // ---- 4. приложение целиком под этими заголовками ------------------------
     console.log("\n4. 01-scenarios на этом Caddy (CSP не должна ломать ни одной кнопки)");
     const s = spawnSync(process.execPath, [path.join(__dirname, "01-scenarios.js")], { encoding: "utf8", timeout: 600000, env: { ...process.env, MAGNAT_URL: `http://127.0.0.1:${P}/app.html` } });
@@ -312,6 +570,8 @@ exit 0
       } finally { await br.close(); }
     }
   } finally {
+    killApi();
+    await L.cleanup();
     caddy.kill("SIGTERM");
     await new Promise(r => setTimeout(r, 300));
     fs.rmSync(T, { recursive: true, force: true });
