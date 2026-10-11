@@ -369,6 +369,7 @@ systemctl daemon-reload
 systemctl enable magnat-api.service >/dev/null 2>&1
 systemctl enable --now magnat-api-backup.timer >/dev/null 2>&1
 systemctl try-restart magnat-api.service || true     # повторный запуск: новые настройки службы
+rm -f "$STATE/api-skip"                               # повторная установка — снова попробовать API, что не встал
 /usr/local/sbin/magnat deploy || true                 # apply_api ставит API из выложенной версии и запускает
 for _ in $(seq 20); do
   curl --noproxy '*' -fsS --max-time 2 http://127.0.0.1:8787/api/health 2>/dev/null | grep -q '"ok":true' && break
