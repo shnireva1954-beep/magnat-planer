@@ -4,3 +4,5 @@ package-lock.json
 
 # снимки экрана из тестов
 tests/__snapshots/
+__pycache__/
+*.pyc
