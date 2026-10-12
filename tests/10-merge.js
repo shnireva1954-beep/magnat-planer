@@ -112,6 +112,14 @@ const mod = (src, fn) => { const s = clone(src); fn(s); return s; };
     M = await m3(b3, mod(b3, s => { s.tasks = []; s.taskBank = 40; }), mod(b3, s => { s.tasks[0].done = true; }));
     (M.tasks.length === 1 && M.tasks[0].id === 10 && M.taskBank === 20) ? ok('копилка удалившей: 20 за выполненную в базе остаются, лишние 20 за вернувшуюся сняты')
       : bad('копилка с выполненной в базе: ' + J({ t: M.tasks, bank: M.taskBank }));
+    // удалившая выполнила и удалила ДРУГУЮ задачу базы, а вернувшуюся удалила не выполняя:
+    // её +20 в копилке — за другую, с вернувшейся не снимаем ничего (ревью R2), в обе стороны
+    const b4 = mod(B, s => { s.tasks = [T, { id: 11, name: 'Купить X', prio: 'md', due: D, done: false }]; s.taskBank = 0; });
+    const delOther = mod(b4, s => { s.tasks = []; s.taskBank = 20; }), doneT = mod(b4, s => { s.tasks[0].done = true; });
+    const ob = [await m3(b4, delOther, doneT), await m3(b4, doneT, delOther)];
+    ob.every(x => x.tasks.length === 1 && x.tasks[0].id === 10 && x.tasks[0].done && paid(x) === 40)
+      ? ok('выполнил и удалил другую задачу, эту удалил не выполняя, там её выполнили: монеты за обе — 40, ничего не снято, в обе стороны')
+      : bad('копилка за другую задачу снята с вернувшейся: ' + J(ob.map(x => ({ t: x.tasks, bank: x.taskBank, paid: paid(x) }))));
     const cb = mod(B, s => { s.tasks = [{ ...T, chal: true }]; s.chal = { d: D, k: 0, n: 2 }; });
     M = await m3(cb, mod(cb, s => { s.tasks = []; s.taskBank = 20; s.chal.n = 3; }), mod(cb, s => { s.tasks[0].done = true; s.chal.n = 3; }));
     (M.tasks.length === 1 && paid(M) === 20 && M.chal.n === 3) ? ok('то же с вызовом дня: монеты один раз и chal.n +1, а не +2')
