@@ -6,10 +6,11 @@
 // API — dropProxy из lib.js: он видит каждый запрос к API и умеет «проглотить» ответ.
 // В выпуске R2 вход выключен (ACCOUNT_ON=false): посетитель — ни карточки, ни запроса, ни куки.
 // Включает его только предпросмотр владельца (?account), в рамке Claude и на file:// — никогда.
-// Порядок блоков важен: посетитель идёт первым, пока к API не ушёл ни один запрос.
+// Порядок блоков важен: посетитель идёт первым, пока к API не ушёл ни один запрос. В конце — «Версии»
+// и удаление аккаунта на B: настоящие ревизии, письмо «Код для удаления», БД без следа.
 const path = require('path'), { spawnSync } = require('child_process');
 const { chromium, chromePath, APP_DIR, APP_FILE, startClean, startCaddy, startApi, fakeSmtp, dropProxy, frameServer,
-  waitCode, freePort, cleanup } = require('./lib');
+  waitCode, parseMail, freePort, cleanup } = require('./lib');
 
 let fails = 0;
 const ok = (m) => console.log('  ✓', m);
@@ -77,6 +78,12 @@ function db(sql) {
 }
 // запросы к API, дошедшие до сервера (через Caddy → dropProxy), с номера from
 const srv = (from = 0) => proxy.log.slice(from);
+// документ ревизии — из БД (блоб сжат zlib)
+function dbDoc(rid) {
+  const r = spawnSync('python3', ['-I', '-c', 'import sqlite3,zlib,sys\nc=sqlite3.connect(sys.argv[1],timeout=5)\nr=c.execute("SELECT blob FROM revisions WHERE rid=?",(sys.argv[2],)).fetchone()\nsys.stdout.write(zlib.decompress(r[0]).decode() if r and r[0] else "")', api.db, rid], { encoding: 'utf8' });
+  if (r.status !== 0) throw new Error('sqlite: ' + r.stderr);
+  return r.stdout;
+}
 
 // вход через интерфейс: почта → «Получить код» → код из письма (неверный, если wrong) → «Войти»
 async function login(p, mail, { from = '#acLogin', wrong = false } = {}) {
@@ -352,6 +359,67 @@ async function login(p, mail, { from = '#acLogin', wrong = false } = {}) {
         (!vf.on && !vf.obLogin && !fapi.length) ? ok('file:// с ?account: аккаунта нет') : bad('file://: ' + J({ vf, fapi }));
         await ctx.close();
       } finally { await F.close(); }
+    });
+
+    // ───────────── 9. «Версии» на настоящем сервере ─────────────
+    await step('9) «Версии» на B: список — все ревизии с блобом из БД, нынешняя «сейчас»; «Вернуть» первую: записи как тогда, ревизия restore, прежняя голова закреплена', async () => {
+      const bb = B.p; await home(bb);
+      if (!await settled(bb)) throw new Error('B не синхронизирован перед «Версиями»');
+      const b0 = await snap(bb), acct = b0.sync.acct;
+      const revs = db(`SELECT rid, rev, reason FROM revisions WHERE account_id='${acct}' AND blob IS NOT NULL ORDER BY at DESC, rowid DESC`);
+      await bb.click('#acVer'); await bb.waitForSelector('.verrow', { timeout: 10000 });
+      const l = await bb.evaluate(() => [...document.querySelectorAll('.verrow')].map(r => { const b = r.querySelector('button[data-rid]'); return { t: r.innerText.replace(/\s+/g, ' ').trim(), rid: b ? b.dataset.rid : null, now: !!r.querySelector('.vernow') }; }));
+      (revs.length >= 2 && l.length === revs.length && l[0].now && l[0].rid === null && l.slice(1).every((x, i) => x.rid === revs[i + 1][0]) && l.every(x => /привыч/.test(x.t) && /с отметками/.test(x.t)))
+        ? ok(`список: ${l.length} версий — ровно ревизии с блобом из БД, в том же порядке, нынешняя — «сейчас»: «${l[0].t}»`) : bad('список версий: ' + J({ l, revs }));
+      const first = revs[revs.length - 1][0];
+      const want = await bb.evaluate((d) => JSON.stringify(docOf(JSON.parse(d))), dbDoc(first));
+      const headRid = revs[0][0];
+      await bb.click(`.verrow button[data-rid="${first}"]`);                 // «Вернуть записи к версии от …?» → да
+      const closed = await until(bb, () => !document.querySelector('.accovl'), null, 5000);
+      const set = await settled(bb, 20000);
+      const s = await snap(bb);
+      const nr = db(`SELECT rid, reason, pin_until FROM revisions WHERE account_id='${acct}' ORDER BY rev DESC LIMIT 1`)[0];
+      const pin = db(`SELECT pin_until FROM revisions WHERE rid='${headRid}'`)[0][0];
+      (closed && set && s.doc === want && s.body === b0.body && nr[1] === 'restore' && s.sync.rid === nr[0] && pin && pin > Math.floor(Date.now() / 1000) + 80 * 86400 && s.toasts.some(t => /возвращены к версии/.test(t)))
+        ? ok('вернули первую версию: записи как тогда, «Тело» не тронуто, на сервере ревизия restore, прежняя голова закреплена на 90 дней')
+        : bad('возврат версии: ' + J({ closed, set, same: s.doc === want, body: s.body, nr, pin, rid: s.sync.rid, toasts: s.toasts.slice(-2) }));
+      errCheck(bb, 'B, версии');
+    });
+
+    // ───────────── 10. удаление аккаунта на B ─────────────
+    await step('10) Удаление на B: письмо «Код для удаления», неверный код понятен, верный — в БД ни аккаунта, ни сессий, ни ревизий, надгробие есть, кука снята, записи на телефоне целы', async () => {
+      const bb = B.p; await home(bb);
+      const before = await snap(bb), acct = before.sync.acct;
+      const n0 = smtp.to(OWNER).length, mark = proxy.log.length;
+      await bb.click('#acDel'); await bb.waitForSelector('#acDlGo', { timeout: 5000 });
+      await bb.click('#acDlGo'); await bb.waitForSelector('#acDlCode', { timeout: 10000 });
+      const code = await waitCode(smtp, OWNER, { kind: 'delete', after: n0 });
+      if (!code) throw new Error('код удаления не пришёл на ' + OWNER);
+      const m = parseMail(smtp.to(OWNER).slice(-1)[0].raw);
+      const creq = srv(mark).find(e => e.path === '/api/code');
+      (/удален/i.test(m.subject) && creq && creq.json && creq.json.purpose === 'delete' && !('email' in creq.json))
+        ? ok(`письмо «${m.subject}»; запрос кода — purpose delete, без адреса`) : bad('код удаления: ' + J({ subject: m.subject, req: creq && creq.json }));
+      const bad6 = code.split('').map(d => (+d + 1) % 10).join('');
+      await bb.fill('#acDlCode', bad6); await bb.click('#acDlGo');
+      await until(bb, () => /\S/.test(document.querySelector('#acErr').textContent), null, 10000);
+      const e1 = await bb.evaluate(() => ({ err: document.querySelector('#acErr').textContent, logged: LOGGED(), open: !!document.querySelector('#acDlCode') }));
+      (e1.err === 'Код не подходит. Осталось попыток: 4' && e1.logged && e1.open && db(`SELECT COUNT(*) FROM accounts WHERE id='${acct}'`)[0][0] === 1)
+        ? ok(`неверный код: «${e1.err}», аккаунт на месте`) : bad('неверный код удаления: ' + J(e1));
+      await bb.fill('#acDlCode', code); await bb.click('#acDlGo');
+      const gone = await until(bb, () => !LOGGED() && !document.querySelector('.accovl'), null, 10000);
+      await bb.waitForTimeout(500);
+      const s = await snap(bb), ck = await B.ctx.cookies();
+      const rows = { acc: db(`SELECT COUNT(*) FROM accounts WHERE id='${acct}'`)[0][0], ses: db(`SELECT COUNT(*) FROM sessions WHERE account_id='${acct}'`)[0][0],
+        rev: db(`SELECT COUNT(*) FROM revisions WHERE account_id='${acct}'`)[0][0], tomb: db('SELECT COUNT(*) FROM deletions')[0][0] };
+      (gone && rows.acc === 0 && rows.ses === 0 && rows.rev === 0 && rows.tomb === 1 && !ck.length && s.login && !s.logged && !s.sync && s.doc === before.doc && s.body === before.body && s.toasts.some(t => /Аккаунт удалён/.test(t)))
+        ? ok('удалён: в БД 0 аккаунтов, 0 сессий, 0 ревизий, 1 надгробие; кука снята; на телефоне записи и «Тело» целы, «Войти по почте»')
+        : bad('после удаления: ' + J({ gone, rows, ck: ck.length, login: s.login, logged: s.logged, sync: s.sync, same: s.doc === before.doc, body: s.body, toasts: s.toasts.slice(-2) }));
+      const m2 = bb.api.length, sm2 = proxy.log.length;
+      await bb.click('#todayChips .tchip >> nth=0'); await bb.waitForTimeout(2600);
+      await bb.evaluate(() => { lastSync = 0; dispatchEvent(new Event('online')); dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange')); });
+      await bb.waitForTimeout(1200);
+      (bb.api.length === m2 && srv(sm2).length === 0) ? ok('дальше — 0 запросов к /api (браузер и сервер)') : bad('после удаления запросы: ' + J({ browser: bb.api.slice(m2), server: srv(sm2).map(e => e.path) }));
+      errCheck(bb, 'B, удаление');
     });
   } finally {
     try { await browser.close(); } catch (e) {}

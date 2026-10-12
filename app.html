@@ -311,6 +311,11 @@
   .modal .aclinks{gap:0 16px;}
   .obacc{display:flex; justify-content:center; margin-top:4px;}
   .acc h3 .tag{margin-left:8px; vertical-align:2px; font-weight:700; letter-spacing:0; text-transform:none;}
+  .acc .acdel{color:var(--danger); font-size:11.5px; min-height:36px; margin-top:4px; opacity:.85;}
+  .aclist{margin-top:10px;} .verrow,.devrow{display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--line); font-size:13.5px; color:var(--ink); line-height:1.4;}
+  .verrow:first-child,.devrow:first-child{border-top:none;} .verm,.devm{flex:1; min-width:0;} .verrow .linkbtn,.devrow .linkbtn{flex:none;}
+  .versub{font-size:11.5px; color:var(--mut2); margin-top:2px;} .versub .tag{margin-left:6px; vertical-align:1px;} .vernow{font-size:11.5px; color:var(--mut2); flex:none;}
+  .modal .btns .ok.danger{background:linear-gradient(180deg,#ff7b7b,#d94848); color:#fff; box-shadow:none;}
   /* кошелёк в минусе (одни монеты потрачены на двух устройствах): минус красным, «Купить» выключена */
   .chip.coin.neg{color:var(--danger); border-color:#5a2730;}
   .neg-v{color:var(--danger) !important;}
@@ -837,7 +842,8 @@ const ICONS={
  mail:'<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="m4.5 7.5 7.5 5.5 7.5-5.5"/>',
  cloud:'<path d="M7.2 18.5h10a3.8 3.8 0 0 0 .5-7.57A5.6 5.6 0 0 0 6.9 9.6a4.45 4.45 0 0 0 .3 8.9z"/>',
  cloudoff:'<path d="M7.2 18.5h10a3.8 3.8 0 0 0 .5-7.57A5.6 5.6 0 0 0 6.9 9.6a4.45 4.45 0 0 0 .3 8.9z"/><path d="M4.5 4.5l15 15"/>',
- logout:'<path d="M14 4.5H6.5A1.5 1.5 0 0 0 5 6v12a1.5 1.5 0 0 0 1.5 1.5H14M10 12h10M16.5 8.5 20 12l-3.5 3.5"/>'};
+ logout:'<path d="M14 4.5H6.5A1.5 1.5 0 0 0 5 6v12a1.5 1.5 0 0 0 1.5 1.5H14M10 12h10M16.5 8.5 20 12l-3.5 3.5"/>',
+ clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2.2"/>'};
 const ic=(k,cls)=>`<svg class="ic${cls?" "+cls:""}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]||ICONS.spark}</svg>`;
 // монета — золотой диск со знаком Магната (той же колоннадой, что в шапке)
 const C='<svg class="mcoin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="#f5c451"/><circle cx="12" cy="12" r="10.5" fill="none" stroke="#b8892b"/><circle cx="12" cy="12" r="7.7" fill="none" stroke="#c99a35" stroke-width="1.1"/><path d="M12 7.6 8.4 9.5h7.2z" fill="#6b4a0e"/><rect x="8.7" y="10" width="6.6" height="1" rx=".5" fill="#6b4a0e"/><rect x="9.3" y="11.5" width="1.2" height="3.3" rx=".5" fill="#6b4a0e"/><rect x="11.4" y="11.5" width="1.2" height="3.3" rx=".5" fill="#6b4a0e"/><rect x="13.5" y="11.5" width="1.2" height="3.3" rx=".5" fill="#6b4a0e"/><rect x="8.5" y="15.3" width="7" height="1" rx=".5" fill="#6b4a0e"/><path d="M5.3 9.6a7.4 7.4 0 0 1 4.3-4.3" fill="none" stroke="#fff1c2" stroke-width="1.1" stroke-linecap="round" opacity=".8"/></svg>';
@@ -944,9 +950,12 @@ function load(){
 // а между вкладками сливается целиком: менялось здесь — здесь, иначе из хранилища
 function casMerge(cur){
   const R=parseStore(cur); if(!R) return;
+  // другая вкладка вошла в ДРУГОЙ аккаунт (ревью листов, 12.10): записи здесь — прежнего аккаунта,
+  // в новый им нельзя (та вкладка уже убрала их в скрытую копию) — берём хранилище целиком
+  const sw=!!(_sync&&_sync.acct&&R.sync&&R.sync.acct&&_sync.acct!==R.sync.acct);
   _sync=R.sync;
   const demoL=PRISTINE||!!S.demoData, demoR=!!R.S.demoData;
-  if(demoL&&!demoR){ S=R.S; PRISTINE=false; }
+  if(sw||(demoL&&!demoR)){ S=R.S; PRISTINE=false; }
   else if(demoL||!demoR){
     const b=BASEJ==null?null:JSON.parse(BASEJ);
     const M=merge3(b,S,R.S);
@@ -3215,6 +3224,13 @@ const idle=async()=>{ while(busyUI()) await new Promise(r=>setTimeout(r,1000)); 
 // ---- состояние для строки «Синхронизировано» ----
 let ACST={k:"",pending:false,toast:""}, syncT=0, syncBusy=false, syncAgain=false, backoff=0, lastSync=0, CHOICE=null;
 function setSt(k){ ACST.k=k; if(k==="ok"){ backoff=0; ACST.pending=false; } paintAcc(); }
+const MON3=["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
+// «Сегодня, 14:32» / «Вчера, 22:10» / «10 окт, 14:32» — секунды Unix от сервера
+function whenAt(sec){
+  const d=new Date(sec*1000), day=ymd(d), hm=pad(d.getHours())+":"+pad(d.getMinutes());
+  return (day===TODAY?"Сегодня":day===addDays(TODAY,-1)?"Вчера":d.getDate()+" "+MON3[d.getMonth()])+", "+hm;
+}
+const seenText=s=>s===TODAY?"сегодня":s===addDays(TODAY,-1)?"вчера":isYmd(s)?+s.slice(8,10)+" "+MON3[+s.slice(5,7)-1]:"";
 function agoText(ms){
   const s=(Date.now()-ms)/1000;
   if(s<60) return "только что";
@@ -3222,7 +3238,7 @@ function agoText(ms){
   const d=new Date(ms), day=ymd(d), hm=pad(d.getHours())+":"+pad(d.getMinutes());
   if(day===TODAY) return "в "+hm;
   if(day===addDays(TODAY,-1)) return "вчера в "+hm;
-  return d.getDate()+" "+["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"][d.getMonth()];
+  return d.getDate()+" "+MON3[d.getMonth()];
 }
 function stLine(){
   const y=_sync||{};
@@ -3292,7 +3308,7 @@ async function syncRound(o){
   const reason=_sync.reset||(_sync.merge?"merge":_sync.rid?"edit":"first");
   if(!updSync(s=>{ s.out={seq, hash, base:s.rid||null, at:Date.now()}; })||!SAVED_OK) return false;
   const r=await api("sync",{...who, base:_sync.rid||null, seq, hash, outHash, doc:ds, reason},!!o.keep);
-  return syncDone(r,{ds,seq},y.acct);
+  return syncDone(r,{ds,seq,reason},y.acct);
 }
 function syncDone(r,sent,acct){
   if(!r.ok) return syncFail(r);
@@ -3301,7 +3317,9 @@ function syncDone(r,sent,acct){
     const h=r.head||{};
     const head=s=>{ s.rid=h.rid; s.rev=h.rev; s.hsv=h.sv; };
     if(r.st==="ok"||r.st==="same"){
-      updSync(s=>{ if(sent){ s.base=JSON.parse(sent.ds); s.out=null; s.reset=""; s.merge=false; if(r.st==="ok") s.seq=Math.max(s.seq||0,sent.seq); }
+      // reset снимаем только тот, что ушёл: «Вернуть версию» во время медленной отправки правки
+      // иначе ушло бы следующим кругом как edit, и прежняя голова не закрепилась бы (ревью листов)
+      updSync(s=>{ if(sent){ s.base=JSON.parse(sent.ds); s.out=null; if(s.reset===sent.reason) s.reset=""; s.merge=false; if(r.st==="ok") s.seq=Math.max(s.seq||0,sent.seq); }
         else if(s.reset&&JSON.stringify(docOf(S))===JSON.stringify(s.base)) s.reset="";   // отправлять нечего — и сбрасывать нечего
         head(s); s.at=Date.now(); });
       setSt("ok"); return JSON.stringify(docOf(S))!==JSON.stringify(_sync.base);
@@ -3403,7 +3421,7 @@ const ACC_ERR={
   down:"Сервер Магната сейчас не отвечает. Записи на телефоне в порядке — попробуй позже",
 };
 const mmss=s=>Math.floor(s/60)+":"+pad(Math.max(0,s%60));
-const waitText=s=>s<90?Math.max(1,Math.round(s))+" сек":Math.ceil(s/60)+" мин";
+const waitText=s=>s<90?Math.max(1,Math.round(s))+" сек":s<5400?Math.ceil(s/60)+" мин":Math.ceil(s/3600)+" ч";
 function accErr(r){
   const e=r.err;
   if(e==="code") return "Код не подходит"+(r.left>0?". Осталось попыток: "+r.left:"");
@@ -3510,12 +3528,6 @@ function openLogin(o){
       busy=false; go.disabled=false; go.textContent="Войти";
       if(!r.ok){ err(accErr(r)); if(r.err==="code"||r.err==="replaced"){ inp.value=""; inp.focus(); }
         if((r.err==="expired"||r.err==="tries_over")&&left<=0) startTimer(0); return; }
-      // на телефоне записи ДРУГОГО аккаунта: в этот их не переносим (данные A никогда не попадают
-      // в B), отложенной копии пока нет — говорим прямо и сразу выходим из нового. Адрес прежнего
-      // аккаунта — только намёком: у телефона может быть другой хозяин (ревью R2)
-      const fm=foreignMail(r);
-      if(fm){ await logoutSend();
-        err(`На этом телефоне записи другого аккаунта (${fm}) — войди в него или сначала сбрось данные`); inp.value=""; return; }
       close(); await finishLogin(r,dev);
     };
     inp.addEventListener("input",()=>{ const d=inp.value.replace(/\D/g,"").slice(0,6); if(inp.value!==d) inp.value=d; if(d.length===6) send(); });
@@ -3527,26 +3539,61 @@ function openLogin(o){
   document.body.appendChild(ovl);
   if(o.code&&mail){ step2(900); startTimer(o.wait||0); } else step1();
 }
-// записи на телефоне — другого аккаунта (не тот acct и не та почта) и не пустые: «а•••@mail.ru»,
-// иначе "". Пустые (пример, чистый лист, всё сброшено) — не чужие: вход идёт как обычно
+// адрес прежнего аккаунта показываем только намёком: «а•••@mail.ru» — у телефона может быть
+// другой хозяин (ревью R2)
 const maskMail=m=>{ const i=String(m||"").indexOf("@"); return i>0?m[0]+"•••"+m.slice(i):"•••"; };
-function foreignMail(r){
-  reread();
-  return _sync&&_sync.acct&&_sync.acct!==r.acct&&_sync.mail!==r.email&&!isDemo()&&!blankDoc(docOf(S))?maskMail(_sync.mail):"";
+// записи на телефоне — ДРУГОГО аккаунта (не тот acct и не та почта) и не пустые. Пустые (пример,
+// чистый лист, всё сброшено) — не чужие: вход идёт как обычно. Владелец — по _sync, а без него
+// (старый app.html выкинул служебное) — по метке входа who (§7 плана)
+function foreignHere(r){
+  const w=whoGet(), acct=(_sync&&_sync.acct)||w.acct||"", mail=(_sync&&_sync.mail)||w.mail||"";
+  return acct&&acct!==r.acct&&mail!==r.email&&!isDemo()&&!blankDoc(docOf(S))?{acct,mail}:null;
 }
-// вход удался: аккаунт на телефоне тот же — продолжаем; другой с записями отсекает send()
-// (foreignMail); иначе — первый вход
+// вход удался: аккаунт на телефоне тот же — продолжаем. Другой аккаунт с записями — его записи в
+// этот не переносим (данные A никогда не попадают в B): убираем в скрытую копию на этом телефоне,
+// телефон начинает с примера. Записи входящего аккаунта ждали в скрытой копии — возвращаем их.
+// Иначе — первый вход (§7 плана: пустой телефон берёт аккаунт, пустой аккаунт — телефон)
 async function finishLogin(r,dev){
+  reread();
+  const fh=foreignHere(r);
+  // копия не записалась (нет места в браузере) — записи прежнего аккаунта НЕ стираем, вход отменяем:
+  // иначе они пропали бы без следа (ревью листов). Метку who не трогаем, сессию на сервере снимаем
+  if(fh&&!stashPut(fh.acct,fh.mail,S,_sync)){
+    try{ sessionStorage.removeItem(PEND_KEY); }catch(e){}
+    await logoutSend();
+    toast("Не хватило места в браузере, чтобы убрать записи прежнего аккаунта в копию — вход отменён. Скачай копию или освободи место");
+    return;
+  }
   // новая кука заменила прежнюю: недошедший выход той сессии повторять больше нечем
   try{ sessionStorage.removeItem(PEND_KEY); localStorage.removeItem(LOGOUT_KEY); }catch(e){}
   const w=whoGet(); w.devs=w.devs&&typeof w.devs==="object"?w.devs:{}; w.devs[r.email]=dev; w.acct=r.acct; w.mail=r.email; w.dev=dev; whoSet(w);
-  reread();
+  let note="";
   if(_sync&&_sync.acct===r.acct){ updSync(s=>{ s.off=false; s.auth=false; s.mail=r.email; s.dev=dev; }); }
   else {
+    if(fh){
+      note=`Записи аккаунта ${esc(maskMail(fh.mail))} убраны в скрытую копию на этом телефоне — вернутся, когда войдёшь в него`;
+      try{ localStorage.removeItem(KEY); }catch(e){}
+      RAW=null; BASEJ=null; S=seed(); S.demoData=true; PRISTINE=false; FIRST_RUN=false; invalidate();
+      S.lastLv=levelOf(totalXP());     // иначе draw() показал бы «В империи теперь уровни» — это не старые данные
+    }
     _sync={v:1, acct:r.acct, mail:r.email, dev, rid:null, rev:0, hsv:0, base:null, seq:0, out:null, wsv:SV, reset:"", merge:false, auth:false, old:false, off:false, first:true, at:0};
+    const e=stashTake(r.acct,r.email);
+    if(e&&e.s&&typeof e.s==="object"){
+      // свои записи без аккаунта на телефоне — объединяем с копией (без базы: ничего не пропадает)
+      const own=!isDemo()&&!blankDoc(docOf(S))?S:null;
+      let ns=normalize(e.s);
+      if(own) ns=normalize({...merge3(null,docOf(own),docOf(ns),SV,SV), body:own.body});
+      S=ns; PRISTINE=false; invalidate();
+      // родословная копии (база, номер отправки) годится, если это тот же аккаунт и то же
+      // устройство; аккаунт пересоздан под той же почтой — родословная неизвестна, первый вход
+      const y=e.sync&&typeof e.sync==="object"&&e.sync.acct===r.acct&&e.sync.dev===dev?e.sync:null;
+      if(y) _sync={...y, mail:r.email, off:false, auth:false, old:false, first:false};
+      note=own?"Записи этого аккаунта вернулись из скрытой копии и объединены с тем, что было на телефоне":"С возвращением — записи этого аккаунта вернулись из скрытой копии";
+    }
     if(!PRISTINE){ QUIET=true; try{ save(); } finally{ QUIET=false; } }
   }
   backoff=0; render(); await sync();
+  if(note) toast(note);
 }
 async function logout(){
   if(!LOGGED()) return;
@@ -3586,15 +3633,222 @@ function accCard(){
   return `<div class="glass card acc" id="acc"><h3>Аккаунт${ACCPREV}</h3>
     <div class="acrow">${ic("mail")}<span class="acm">${esc(_sync.mail||"")}</span><button class="linkbtn" id="acOut">${ic("logout")} Выйти</button></div>
     <div class="acst" id="acSt"></div>
-    <div class="aclinks">${links}</div></div>`;
+    <div class="aclinks"><button class="linkbtn" id="acVer">${ic("clock")} Версии</button><button class="linkbtn" id="acDevs">${ic("phone")} Устройства</button>${links}</div>
+    <button class="linkbtn acdel" id="acDel">${ic("trash")} Удалить аккаунт</button></div>`;
 }
 function accBind(root){
   const c=root.querySelector("#acc"); if(!c) return;
   const lg=c.querySelector("#acLogin"); if(lg) lg.onclick=()=>openLogin();
   const out=c.querySelector("#acOut"); if(out) out.onclick=logout;
+  const ver=c.querySelector("#acVer"); if(ver) ver.onclick=openVersions;
+  const dv=c.querySelector("#acDevs"); if(dv) dv.onclick=openDevices;
+  const dl=c.querySelector("#acDel"); if(dl) dl.onclick=openDelete;
   c.addEventListener("click",e=>{ const t=e.target.closest("button"); if(!t) return;
     if(t.id==="acRe") openLogin({mail:_sync&&_sync.mail}); else if(t.id==="acUpd") location.reload(); });
   paintAcc();
+}
+
+// ---- скрытая копия: записи другого аккаунта на этом телефоне ----
+// Вошёл в аккаунт B на телефоне с записями A: в B их не переносим (данные A никогда не попадают
+// в B) — они ждут в скрытой копии и возвращаются при входе в A (с «Телом»: оно и так только в
+// телефоне). Не больше трёх аккаунтов, не дольше 180 дней. В другой аккаунт копия не уходит никогда
+const STASH_KEY="magnat_stash_v1";
+function stashGet(){ try{ const s=JSON.parse(localStorage.getItem(STASH_KEY)||"null"); return s&&typeof s==="object"&&!Array.isArray(s)?s:{}; }catch(e){ return {}; } }
+// true — записано; false — браузер не дал места (тогда записи стирать нельзя)
+function stashSet(st){ try{ if(Object.keys(st).length) localStorage.setItem(STASH_KEY,JSON.stringify(st)); else localStorage.removeItem(STASH_KEY); return true; }catch(e){ return false; } }
+function stashPut(acct,mail,s,sync){
+  const st=stashGet(), now=Date.now();
+  for(const k in st) if(!st[k]||typeof st[k]!=="object"||now-(+st[k].at||0)>180*864e5) delete st[k];
+  st[acct]={at:now, mail, s, sync};
+  Object.keys(st).sort((a,b)=>st[b].at-st[a].at).slice(3).forEach(k=>{ delete st[k]; });
+  return stashSet(st);
+}
+// копия этого аккаунта (по acct, иначе по почте — аккаунт пересоздан) — забрать и убрать
+function stashTake(acct,mail){
+  const st=stashGet(), k=st[acct]?acct:Object.keys(st).find(x=>st[x]&&typeof st[x]==="object"&&st[x].mail===mail);
+  if(!k) return null; const e=st[k]; delete st[k]; stashSet(st); return e;
+}
+
+// ---- листы аккаунта: «Версии», «Устройства», удаление ----
+// своё окно (.accovl: синхронизацию не держит, как лист входа), закрывается тапом мимо и Escape
+function accSheet(html,form){
+  const tag=form?"form":"div";
+  const ovl=el(`<div class="ovl accovl"><${tag} class="modal" role="dialog" aria-modal="true" aria-labelledby="acH"${form?" novalidate":""} style="max-width:380px">${html}</${tag}></div>`);
+  const m=ovl.firstElementChild;
+  const sh={ovl, m, err:t=>{ const e=m.querySelector("#acErr"); if(e){ e.textContent=t||""; e.classList.toggle("on",!!t); } }};
+  // Escape ловим на документе: в листе без поля ввода фокуса нет, и само окно нажатия не увидело бы.
+  // Зовём sh.close(), а не замыкание: лист удаления подменяет close, чтобы погасить свой таймер
+  const onKey=e=>{ if(e.key==="Escape") sh.close(); };
+  sh.close=()=>{ document.removeEventListener("keydown",onKey); ovl.remove(); };
+  ovl.onclick=e=>{ if(e.target===ovl) sh.close(); };
+  document.addEventListener("keydown",onKey);
+  document.body.appendChild(ovl);
+  return sh;
+}
+// отказ сервера в листе: вход истёк — лист закрывается, на карточке «Вход истёк — войди снова»;
+// остальное — строкой в листе, записи на телефоне целы
+function sheetFail(sh,r){
+  if(r.err==="auth"||r.err==="acct"){ sh.close(); idle().then(()=>{ updSync(s=>{ s.auth=true; }); paintAcc(); }); return; }
+  sh.err(r.err==="slow"?"Слишком много запросов — подожди "+waitText(+r.retryIn||60):r.err==="offline"?ACC_ERR.offline:ACC_ERR.down);
+}
+const RE_RID=/^r_[0-9a-f]{16}$/, RE_SID=/^s_[0-9a-f]{12}$/;
+
+// «Версии»: прошлые версии записей на сервере (§8 плана). Любую можно вернуть — это «restore»:
+// нынешняя голова закрепляется на сервере на 90 дней, другие телефоны получают возврат слиянием
+async function openVersions(){
+  if(!LOGGED()||document.querySelector(".accovl")) return;
+  const sh=accSheet(`<h4 id="acH">${ic("clock")} Версии записей</h4>
+    <p class="mtxt">Сервер хранит прошлые версии до 30 дней, версии до сброса и до выбора — 90 дней. Вернуть можно любую — нынешняя тоже останется в списке.</p>
+    <div class="aclist" id="acVerList"><p class="acsm">Загружаю…</p></div>
+    <p class="ferr" id="acErr" aria-live="polite"></p>
+    <div class="btns"><button type="button" class="no" id="acClose">Закрыть</button></div>`);
+  sh.m.querySelector("#acClose").onclick=sh.close;
+  const list=sh.m.querySelector("#acVerList");
+  const r=await api("versions",{});
+  if(!sh.ovl.isConnected) return;
+  if(!r.ok){ list.innerHTML=""; return sheetFail(sh,r); }
+  const vs=Array.isArray(r.list)?r.list.filter(v=>v&&typeof v==="object"&&RE_RID.test(v.rid)):[];
+  if(!vs.length){ list.innerHTML=`<p class="acsm">Пока пусто — версии появятся по мере работы.</p>`; return; }
+  const cur=_sync&&_sync.rid;
+  // закреплённая версия — та, что была головой перед сбросом, возвратом или выбором стороны:
+  // причину берём у ближайшей более новой отправки (список — новые первыми)
+  const why=i=>{ const nx=vs.slice(0,i).reverse().find(v=>v.kind!=="parked"); const k=nx&&nx.reason;
+    return k==="reset"?"до сброса":k==="restore"?"до возврата":k==="join"?"до выбора":"хранится 90 дней"; };
+  list.innerHTML=vs.map((v,i)=>{ const s=v.sum&&typeof v.sum==="object"?v.sum:{}, h=+s.h||0, d=+s.d||0, when=whenAt(+v.at||0);
+    const tag=v.kind==="parked"?`<span class="tag lo">копия с телефона</span>`:v.pin?`<span class="tag md">${why(i)}</span>`:"";
+    return `<div class="verrow"><div class="verm"><b>${esc(when)}</b> · ${esc(String(v.label||"Браузер"))}<div class="versub">${h} ${pl(h,"привычка","привычки","привычек")} · ${d} ${pl(d,"день","дня","дней")} с отметками${tag}</div></div>${v.rid===cur?`<span class="vernow">сейчас</span>`:`<button type="button" class="linkbtn" data-rid="${v.rid}" data-when="${esc(when)}">Вернуть</button>`}</div>`; }).join("");
+  list.onclick=e=>{ const b=e.target.closest("button[data-rid]"); if(b) restoreVersion(sh,b.dataset.rid,b.dataset.when); };
+}
+async function restoreVersion(sh,rid,when){
+  const acct=_sync&&_sync.acct;
+  if(!await askConfirm(`Вернуть записи к версии от ${when}? Нынешние останутся в списке.`,"Вернуть")) return;
+  sh.err("");
+  const r=await api("version",{rid});
+  if(!sh.ovl.isConnected) return;
+  if(!r.ok){ if(r.err==="gone") return sh.err("Эта версия уже вычищена с сервера — открой список заново"); return sheetFail(sh,r); }
+  let d=null; try{ d=JSON.parse(r.doc); }catch(e){}
+  if(!d||typeof d!=="object"||Array.isArray(d)) return sh.err("Эта версия не читается");
+  sh.close(); await idle(); reread(); if(!LOGGED()||_sync.acct!==acct) return;   // вкладка рядом сменила аккаунт
+  S=normalize({...d, body:S.body}); PRISTINE=false; save(); updSync(s=>{ s.reset="restore"; });
+  render(); toast("Записи возвращены к версии от "+esc(when));
+}
+
+// «Устройства»: где выполнен вход; выйти на одном или на всех других (§5, §8 плана)
+async function openDevices(){
+  if(!LOGGED()||document.querySelector(".accovl")) return;
+  const sh=accSheet(`<h4 id="acH">${ic("phone")} Где выполнен вход</h4>
+    <p class="mtxt">Устройства, где ты входил в этот аккаунт. «Выйти» — записи там останутся, а синхронизация остановится до нового входа.</p>
+    <div class="aclist" id="acDevList"><p class="acsm">Загружаю…</p></div>
+    <p class="ferr" id="acErr" aria-live="polite"></p>
+    <div class="btns"><button type="button" class="no" id="acClose">Закрыть</button><button type="button" class="ok soft" id="acOutAll" hidden>Выйти на всех других</button></div>`);
+  sh.m.querySelector("#acClose").onclick=sh.close;
+  const list=sh.m.querySelector("#acDevList"), all=sh.m.querySelector("#acOutAll");
+  let busy=false;
+  const load=async()=>{
+    const r=await api("sessions",{});
+    if(!sh.ovl.isConnected) return;
+    if(!r.ok){ list.innerHTML=""; return sheetFail(sh,r); }
+    const ds=Array.isArray(r.list)?r.list.filter(x=>x&&typeof x==="object"&&RE_SID.test(x.sid)):[];
+    all.hidden=!ds.some(x=>!x.me);
+    list.innerHTML=ds.length?ds.map(x=>`<div class="devrow"><div class="devm">${esc(String(x.label||"Браузер"))}<div class="versub">заходил ${esc(seenText(String(x.seen||""))||"давно")}${x.me?" · это устройство":""}</div></div>${x.me?"":`<button type="button" class="linkbtn" data-sid="${x.sid}">Выйти</button>`}</div>`).join("")
+      :`<p class="acsm">Пока пусто.</p>`;
+  };
+  list.onclick=async e=>{ const b=e.target.closest("button[data-sid]"); if(!b||busy) return;
+    busy=true; b.disabled=true; sh.err("");
+    const r=await api("logout",{sid:b.dataset.sid}); busy=false;
+    if(!sh.ovl.isConnected) return;
+    if(!r.ok){ b.disabled=false; return sheetFail(sh,r); }
+    toast("Устройство вышло из аккаунта"); await load(); };
+  all.onclick=async()=>{ if(busy) return;
+    if(!await askConfirm("Выйти из аккаунта на всех других устройствах? Записи там останутся, синхронизация остановится до нового входа.","Выйти на других")) return;
+    busy=true; all.disabled=true; sh.err("");
+    const r=await api("logout",{all:true}); busy=false; all.disabled=false;
+    if(!sh.ovl.isConnected) return;
+    if(!r.ok) return sheetFail(sh,r);
+    toast("На других устройствах выполнен выход"); await load(); };
+  await load();
+}
+
+// удаление аккаунта — два шага (§8 плана): сначала что произойдёт и «Сначала скачать мои
+// данные», затем свежий код из письма (цель delete: адрес берётся из сессии, в теле его нет)
+// и красная «Удалить навсегда» — без автоотправки на шестой цифре: действие необратимо
+function openDelete(){
+  if(!LOGGED()||document.querySelector(".accovl")) return;
+  const mail=_sync.mail||"";
+  let busy=false, timer=0, left=0;
+  const sh=accSheet("",true), f=sh.m, base=sh.close;
+  const close=sh.close=()=>{ clearInterval(timer); base(); };
+  const tick=()=>{ const b=f.querySelector("#acResend"); if(!b){ clearInterval(timer); return; }
+    if(left>0){ b.disabled=true; b.textContent="Отправить ещё раз через "+mmss(left); left--; }
+    else { b.disabled=false; b.textContent="Отправить код ещё раз"; clearInterval(timer); } };
+  const startTimer=s=>{ left=Math.max(0,Math.ceil(s)); clearInterval(timer); tick(); timer=setInterval(tick,1000); };
+  async function ask(again){
+    if(busy) return; busy=true;
+    const go=f.querySelector("#acDlGo"); if(go&&!again){ go.disabled=true; go.textContent="Отправляю…"; }
+    const r=await api("code",{purpose:"delete"});
+    busy=false; if(!f.isConnected) return;
+    if(r.ok||r.err==="wait"){
+      if(!f.querySelector("#acDlCode")) step2(r.ok?r.ttl:900);
+      startTimer(r.ok?(r.resend||60):(+r.retryIn||60));
+      sh.err(r.ok?"":accErr(r)); return;
+    }
+    if(go&&!again){ go.disabled=false; go.textContent="Прислать код"; }
+    if(r.err==="auth"||r.err==="acct") return sheetFail(sh,r);
+    sh.err(accErr(r));
+  }
+  function step1(){
+    f.innerHTML=`<h4 id="acH">${ic("trash")} Удалить аккаунт?</h4>
+      <p class="mtxt">С сервера сотрём почту и все записи — сразу, из резервных копий — в течение 30 дней. Восстановить будет нельзя. На этом телефоне записи останутся.</p>
+      <p class="ferr" id="acErr" aria-live="polite"></p>
+      <div class="aclinks"><button type="button" class="linkbtn" id="acDlSave">${ic("download")} Сначала скачать мои данные</button></div>
+      <div class="btns"><button type="button" class="no" id="acNo">Отмена</button><button type="submit" class="ok danger" id="acDlGo">Прислать код</button></div>`;
+    f.querySelector("#acNo").onclick=close;
+    f.querySelector("#acDlSave").onclick=downloadBackup;
+    f.onsubmit=e=>{ e.preventDefault(); ask(false); };
+  }
+  function step2(ttl){
+    const wm=webmail(mail);
+    f.innerHTML=`<h4 id="acH">${ic("mail")} Код для удаления</h4>
+      <p class="mtxt">Отправили код на <b>${esc(mail)}</b>. Введи его — и аккаунт будет удалён. Код действует ${Math.round((ttl||900)/60)} минут.</p>
+      <label class="lab" for="acDlCode">Код</label>
+      <input id="acDlCode" class="codein" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="7" placeholder="000000">
+      <p class="ferr" id="acErr" aria-live="polite"></p>
+      <p class="acsm">Письма нет? Проверь «Спам» и «Рассылки». Отправитель — Магнат.</p>
+      <div class="aclinks">${wm?`<a class="linkbtn" href="${wm[1]}" target="_blank" rel="noopener">${wm[0]}</a>`:""}<button type="button" class="linkbtn" id="acResend" disabled>Отправить ещё раз</button></div>
+      <div class="btns"><button type="button" class="no" id="acNo">Отмена</button><button type="submit" class="ok danger" id="acDlGo">Удалить навсегда</button></div>`;
+    const inp=f.querySelector("#acDlCode"), go=f.querySelector("#acDlGo");
+    f.querySelector("#acNo").onclick=close;
+    f.querySelector("#acResend").onclick=()=>{ sh.err(""); ask(true); };
+    inp.addEventListener("input",()=>{ const d=inp.value.replace(/\D/g,"").slice(0,6); if(inp.value!==d) inp.value=d; sh.err(""); });
+    f.onsubmit=async e=>{ e.preventDefault();
+      const code=inp.value.replace(/\D/g,"");
+      if(code.length!==6){ sh.err("Нужно 6 цифр из письма"); inp.focus(); return; }
+      if(busy) return; busy=true; go.disabled=true; go.textContent="Удаляю…"; sh.err("");
+      const r=await api("delete",{code});
+      busy=false;
+      // аккаунта на сервере уже нет — прибираемся, даже если лист закрыли, пока шёл запрос (ревью)
+      if(r.ok){ close(); accountDeleted(); return; }
+      if(!f.isConnected) return;
+      go.disabled=false; go.textContent="Удалить навсегда";
+      if(r.err==="auth"||r.err==="acct") return sheetFail(sh,r);
+      sh.err(accErr(r)); if(r.err==="code"||r.err==="replaced"){ inp.value=""; inp.focus(); }
+      if((r.err==="expired"||r.err==="tries_over")&&left<=0) startTimer(0); };
+    setTimeout(()=>inp.focus(),50);
+  }
+  step1();
+}
+// аккаунт удалён на сервере (кука снята им же): служебное, метка входа и скрытая копия этого
+// аккаунта — прочь; записи остаются на телефоне обычными, без аккаунта. Другие телефоны получат
+// «Вход истёк — войди снова», их записи целы
+function accountDeleted(){
+  const acct=_sync&&_sync.acct;
+  clearTimeout(syncT); CHOICE=null;
+  reread(); _sync=null;
+  if(!PRISTINE){ QUIET=true; try{ save(); } finally{ QUIET=false; } }
+  const w=whoGet(); delete w.acct; whoSet(w);
+  if(acct) stashTake(acct);
+  try{ localStorage.removeItem(LOGOUT_KEY); sessionStorage.removeItem(PEND_KEY); }catch(e){}
+  render(); toast("Аккаунт удалён. Записи остались только на этом телефоне");
 }
 
 // normalize() раздал при загрузке новые id (старые данные без id) — сохраняем сразу,

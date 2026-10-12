@@ -8,10 +8,20 @@
 //   2) фоновая отправка (уход со страницы) не подменяет данные под открытым окном правки;
 //   3) окно «Записи сильно разошлись» одно, а не по копии на каждую синхронизацию;
 //   4) первый вход, где телефон — часть аккаунта: дальше обычные правки, а не «join»;
-//   5) вход в другой аккаунт на телефоне с чужими записями: не переносим, почту не показываем;
+//   5) вход в другой аккаунт на телефоне с чужими записями: записи первого — в скрытую копию на
+//      телефоне, в новый аккаунт не уходят, почту первого целиком не показываем; вернулся в
+//      первый — записи вернулись (R2-дополнение 12.10, вечер);
 //   6) «Выйти» без сети: выход на сервере доходит, когда сеть появится;
 //   7) кошелёк в минусе после двух устройств: настоящий «−», красным, «Купить» выключена;
-//   8) «Восстановить из копии» при входе спрашивает про аккаунт и все телефоны.
+//   8) «Восстановить из копии» при входе спрашивает про аккаунт и все телефоны;
+//   9) «Версии»: список с сервера, «Вернуть» — подтверждение, отправка restore, метки;
+//  10) «Устройства»: список входов, «Выйти» на одном, «Выйти на всех других»;
+//  11) удаление аккаунта: два шага, код с целью delete без адреса в теле, неверный код понятен,
+//      после удаления — записи на телефоне, аккаунта и запросов нет;
+//  12–15) ревью листов (12.10, вечер): вторая вкладка с открытым окном правки не уносит записи
+//      прежнего аккаунта в новый; копия не записалась (нет места) — вход отменён, записи целы;
+//      лист удаления закрыли во время запроса — «ok» всё равно прибирает аккаунт; «Вернуть
+//      версию» во время медленной отправки уходит как restore, прежняя голова закреплена.
 // Страница — http://127.0.0.1 (secure context), service worker выключен: /api ловит route.
 const http = require('http'), fs = require('fs'), path = require('path');
 const { chromium, chromePath, APP_DIR, startClean } = require('./lib');
@@ -22,6 +32,7 @@ const bad = (m) => { fails++; console.log('  ✗ FAIL:', m); };
 const J = (x) => JSON.stringify(x);
 const ACCT = 'a_0123456789abcdef', DEV = 'd_0123456789abcdef', RID0 = 'r_aaaaaaaaaaaaaaaa';
 const hex16 = (n) => n.toString(16).padStart(16, '0');
+const TODAY_YMD = (d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'))(new Date());
 
 // статика из корня репозитория
 function staticServer() {
@@ -35,31 +46,49 @@ function staticServer() {
   return new Promise(res => s.listen(0, '127.0.0.1', () => res({ url: 'http://127.0.0.1:' + s.address().port, close: () => new Promise(r => { s.close(r); s.closeAllConnections(); }) })));
 }
 
-// модель API: вход по любому коду, CAS по голове, pull/same/empty — как api.py по смыслу.
+// модель API: вход по любому коду, CAS по голове, pull/same/empty — как api.py по смыслу;
+// ревизии с датой, причиной и сводкой (/api/versions, /api/version), сессии (/api/sessions,
+// /api/logout {sid|all}), удаление (код с целью delete по сессии, /api/delete — код «482913»).
 // over(path, body) — подменить ответ в блоке (вернуть объект) или пропустить (undefined)
+const AT0 = 1760000000, LABEL = 'Компьютер · Chrome', GOOD = '482913';
+const sumOf = (doc) => { try { const d = JSON.parse(doc); return { h: d.habits.length, d: Object.keys(d.checks).length, t: d.tasks.length, f: d.finance.entries.length }; } catch (e) { return {}; } };
 function miniApi() {
-  const st = { calls: [], accts: {}, cur: null, n: 0, over: null };
-  const head = (a) => ({ rid: a.rid, rev: a.rev, sv: 1, at: 1760000000, label: 'Компьютер · Chrome', sum: {} });
-  st.add = (mail, doc, rid = RID0, acct = ACCT) => (st.accts[mail] = { acct, rid, rev: rid ? 1 : 0, doc, revs: new Set(rid ? [rid] : []), seq: {} });
+  const st = { calls: [], accts: {}, cur: null, n: 0, over: null, sessions: null, deleted: [] };
+  // revs — известные серверу rid (для known), vers — версии с блобом (для /api/versions)
+  const ver = (a) => (a.rid && a.vers.get(a.rid)) || { at: AT0, sum: {} };
+  const head = (a) => ({ rid: a.rid, rev: a.rev, sv: 1, at: ver(a).at, label: LABEL, sum: ver(a).sum });
+  st.add = (mail, doc, rid = RID0, acct = ACCT) => (st.accts[mail] = { acct, rid, rev: rid ? 1 : 0, doc, seq: {}, revs: new Set(rid ? [rid] : []),
+    vers: new Map(rid ? [[rid, { rid, rev: 1, at: AT0, kind: 'push', reason: 'first', label: LABEL, sum: sumOf(doc), doc, pin: null }]] : []) });
   st.handle = (p, b) => {
     const o = st.over && st.over(p, b); if (o) return o;
-    if (p === 'code') return { ok: true, ttl: 900, resend: 60 };
+    const a = st.cur && st.accts[st.cur];
+    if (p === 'code') return b.purpose === 'delete' ? (a ? { ok: true, ttl: 900, resend: 60 } : { ok: false, err: 'auth' }) : { ok: true, ttl: 900, resend: 60 };
     if (p === 'login') {
       const em = String(b.email || '').trim().toLowerCase();
-      const a = st.accts[em] || st.add(em, null, null, 'a_' + hex16(0xabc000 + Object.keys(st.accts).length));
-      st.cur = em; return { ok: true, acct: a.acct, email: em };
+      const x = st.accts[em] || st.add(em, null, null, 'a_' + hex16(0xabc000 + Object.keys(st.accts).length));
+      st.cur = em; return { ok: true, acct: x.acct, email: em };
     }
-    if (p === 'logout') { st.cur = null; return { ok: true }; }
-    if (p === 'me') { const a = st.cur && st.accts[st.cur]; return a ? { ok: true, auth: true, acct: a.acct, email: st.cur } : { ok: true, auth: false }; }
-    if (p !== 'sync') return { ok: false, err: 'bad' };
-    const a = st.cur && st.accts[st.cur];
+    if (p === 'logout') {
+      if (b.all) { if (st.sessions) st.sessions = st.sessions.filter(s => s.me); return { ok: true }; }
+      if (b.sid) { if (st.sessions) st.sessions = st.sessions.filter(s => s.sid !== b.sid); return { ok: true }; }
+      st.cur = null; return { ok: true };
+    }
+    if (p === 'me') return a ? { ok: true, auth: true, acct: a.acct, email: st.cur } : { ok: true, auth: false };
     if (!a) return { ok: false, err: 'auth' };
+    if (p === 'versions') return { ok: true, list: [...a.vers.values()].reverse().map(({ doc, ...v }) => v) };
+    if (p === 'version') { const v = a.vers.get(b.rid); return v ? { ok: true, rid: v.rid, at: v.at, doc: v.doc } : { ok: false, err: 'gone' }; }
+    if (p === 'sessions') return { ok: true, list: st.sessions || [{ sid: 's_aaaaaaaaaaaa', label: LABEL, seen: TODAY_YMD, me: true }] };
+    if (p === 'delete') { if (b.code !== GOOD) return { ok: false, err: 'code', left: 4 }; st.deleted.push(st.cur); delete st.accts[st.cur]; st.cur = null; return { ok: true }; }
+    if (p !== 'sync') return { ok: false, err: 'bad' };
     if (b.acct !== a.acct) return { ok: false, err: 'acct' };
     const seqMax = a.seq[b.dev] || 0;
     const pull = () => ({ ok: true, st: 'pull', head: head(a), doc: a.doc, known: !!b.base && a.revs.has(b.base), parked: null, seqMax });
     if (b.doc == null) return !a.rid ? { ok: true, st: 'empty', seqMax } : b.base === a.rid ? { ok: true, st: 'same', head: head(a) } : pull();
     if (a.rid && b.base !== a.rid) return pull();
+    const prev = a.rid && a.vers.get(a.rid);
     a.rid = 'r_' + hex16(++st.n); a.rev++; a.doc = b.doc; a.revs.add(a.rid); a.seq[b.dev] = Math.max(seqMax, b.seq);
+    a.vers.set(a.rid, { rid: a.rid, rev: a.rev, at: AT0 + a.rev * 3600, kind: 'push', reason: b.reason, label: LABEL, sum: sumOf(b.doc), doc: b.doc, pin: null });
+    if (prev && /^(reset|restore|join)$/.test(b.reason)) prev.pin = AT0 + 90 * 86400;   // прежняя голова закреплена на 90 дней
     return { ok: true, st: 'ok', head: head(a) };
   };
   st.syncs = () => st.calls.filter(c => c.path === 'sync');
@@ -79,11 +108,13 @@ async function mk({ api = null, vp = { width: 390, height: 844 } } = {}) {
   });
   const reqs = [];
   ctx.on('request', r => { if (new URL(r.url()).pathname.startsWith('/api')) reqs.push(r.url()); });
-  if (api) await ctx.route('**/api/**', route => {
+  if (api) await ctx.route('**/api/**', async route => {
     const p = new URL(route.request().url()).pathname.replace(/^\/api\//, '');
     let b = {}; try { b = JSON.parse(route.request().postData() || '{}'); } catch (e) {}
     api.calls.push({ path: p, body: b });
-    return route.fulfill({ status: 200, contentType: 'application/json', body: J(api.handle(p, b)) });
+    const res = J(api.handle(p, b)), d = api.delayFor ? api.delayFor(p, b) : 0;   // ответ считается сразу, отдаётся с задержкой
+    if (d) await new Promise(r => setTimeout(r, d));
+    return route.fulfill({ status: 200, contentType: 'application/json', body: res });
   });
   const p = await ctx.newPage();
   Object.assign(p, { errs: [], dialogs: [], answer: true });
@@ -235,32 +266,50 @@ const HB = (extra = {}) => ({ habits: [{ id: 101, ico: '', name: 'Бег', since
       await ctx.close();
     });
 
-    await step('5) Вход в другой аккаунт на телефоне с записями первого: не переносим, почту первого целиком не показываем', async () => {
+    await step('5) Вход в другой аккаунт на телефоне с записями первого: записи — в скрытую копию, в новый не уходят; вернулся — вернулись', async () => {
       const api = miniApi();
       const { ctx, p } = await mk({ api });
       await p.goto(URL + '?account'); await p.waitForTimeout(250); await startClean(p);
       await p.click('#todayChips .tchip'); await p.waitForTimeout(200);
+      await p.evaluate(() => { S.body.log.push({ date: TODAY, w: 81.5 }); save(); });    // «Тело» — только телефон, должно вернуться
       await uiLogin(p, 'anna@example.ru');
       await until(p, SETTLED);
       await p.click('#acOut'); await until(p, () => !LOGGED());
       await p.waitForTimeout(300);
       const before = await p.evaluate(() => JSON.stringify(docOf(S)));
+      const annaAcct = api.accts['anna@example.ru'].acct;
       const n0 = api.calls.length; p.dialogs = [];
       const pre = await uiLogin(p, 'boris@example.ru');
-      await until(p, () => /\S/.test((document.querySelector('#acErr') || {}).textContent || ''), null, 6000);
+      await until(p, () => LOGGED() && !_sync.first && !syncBusy && !!document.querySelector('#startOwn'), null, 8000);
       await p.waitForTimeout(500);
-      const v = await p.evaluate(() => ({ err: (document.querySelector('#acErr') || {}).textContent || '', open: !!document.querySelector('.accovl'),
-        logged: LOGGED(), acct: _sync && _sync.acct, doc: JSON.stringify(docOf(S)) }));
+      const v = await p.evaluate(() => { const st = JSON.parse(localStorage.getItem('magnat_stash_v1') || '{}'), k = Object.keys(st);
+        return { logged: LOGGED(), acct: _sync && _sync.acct, demo: !!S.demoData, doc: JSON.stringify(docOf(S)), own: !!document.querySelector('#startOwn'),
+          keys: k, mail: k.length === 1 && st[k[0]].mail, stashDoc: k.length === 1 && JSON.stringify(docOf(st[k[0]].s)), stashBody: k.length === 1 && st[k[0]].s.body.log.length,
+          toasts: window.__toasts.slice(), st: ((document.querySelector('#acSt') || {}).textContent || '').trim(), err: (document.querySelector('#acErr') || {}).textContent || '' }; });
       const after = api.calls.slice(n0).map(c => c.path + (c.body.doc ? ':push' : ''));
-      const shown = v.err + ' ' + p.dialogs.join(' ');
+      const shown = v.toasts.join(' ') + ' ' + p.dialogs.join(' ') + ' ' + v.err;
       pre === '' ? ok('после «Выйти» почта прежнего аккаунта в поле входа не подставлена') : bad('в поле входа подставлено: ' + pre);
-      (/другого аккаунта/.test(v.err) && /a•••@example\.ru/.test(v.err) && !/anna@/.test(shown) && v.open && !v.logged)
-        ? ok(`окно входа не закрылось: «${v.err}»`) : bad('вход в другой аккаунт: ' + J({ v, dialogs: p.dialogs }));
-      (after.join() === 'code,login,logout' && v.doc === before && v.acct === api.accts['anna@example.ru'].acct)
-        ? ok('новый аккаунт сразу вышел (/api/logout), ни одной синхронизации с ним, записи телефона не тронуты') : bad('запросы после входа: ' + J(after));
-      const bDoc = api.accts['boris@example.ru'] && api.accts['boris@example.ru'].doc;
-      !bDoc ? ok('в аккаунт boris не ушло ничего') : bad('записи anna попали в аккаунт boris');
-      errCheck(p, 'чужой аккаунт');
+      const borisAcct = api.accts['boris@example.ru'].acct;
+      (v.logged && v.acct === borisAcct && v.demo && v.own && v.doc !== before && /Это пример/.test(v.st))
+        ? ok('вошёл в boris: на телефоне пример и «Начать своё», записи anna на экране не остались') : bad('после входа в boris: ' + J({ logged: v.logged, acct: v.acct, demo: v.demo, own: v.own, st: v.st }));
+      (v.keys.length === 1 && v.keys[0] === annaAcct && v.mail === 'anna@example.ru' && v.stashDoc === before && v.stashBody === 1)
+        ? ok('записи anna (с «Телом») лежат в скрытой копии под её аккаунтом') : bad('скрытая копия: ' + J({ keys: v.keys, mail: v.mail, same: v.stashDoc === before, body: v.stashBody }));
+      (v.toasts.some(t => /скрытую копию/.test(t) && /a•••@example\.ru/.test(t)) && !/anna@/.test(shown))
+        ? ok('сказано словами, адрес anna — только намёком') : bad('подсказка: ' + J({ toasts: v.toasts, shown }));
+      const bDoc = api.accts['boris@example.ru'].doc;
+      (!bDoc && !after.includes('sync:push') && !after.includes('logout'))
+        ? ok('в аккаунт boris не ушло ничего, выхода из него не было: ' + after.join(',')) : bad('запросы после входа: ' + J({ after, bDoc: !!bDoc }));
+      // обратно в anna: boris (пример) не прячем, записи anna возвращаются, на сервер ничего нового
+      p.dialogs = []; const pushes0 = api.pushes().length;
+      await p.click('#acOut'); await until(p, () => !LOGGED()); await p.waitForTimeout(300);
+      await uiLogin(p, 'anna@example.ru');
+      const set = await until(p, SETTLED, null, 12000);
+      const r = await p.evaluate(() => ({ acct: _sync.acct, doc: JSON.stringify(docOf(S)), body: S.body.log.length, demo: !!S.demoData,
+        stash: localStorage.getItem('magnat_stash_v1'), toasts: window.__toasts.slice(), rid: _sync.rid }));
+      (set && r.acct === annaAcct && r.doc === before && r.body === 1 && !r.demo && r.stash === null && api.pushes().length === pushes0 && api.accts['anna@example.ru'].doc === before)
+        ? ok('снова anna: записи и «Тело» вернулись из копии, копия убрана, отправок не понадобилось (same)') : bad('возврат в anna: ' + J({ set, acct: r.acct === annaAcct, same: r.doc === before, body: r.body, demo: r.demo, stash: r.stash, pushes: [pushes0, api.pushes().length] }));
+      r.toasts.some(t => /вернулись из скрытой копии/.test(t)) ? ok('сказано «вернулись из скрытой копии»') : bad('тосты: ' + J(r.toasts));
+      errCheck(p, 'смена аккаунта');
       await ctx.close();
     });
 
@@ -336,6 +385,223 @@ const HB = (extra = {}) => ({ habits: [{ id: 101, ico: '', name: 'Бег', since
       const kept = await p.evaluate(() => Object.keys(S.checks).length);
       kept === 1 ? ok('«Отмена» — записи не тронуты') : bad('после отмены: дней с отметками ' + kept);
       errCheck(p, 'восстановление при входе');
+      await ctx.close();
+    });
+
+    // как SETTLED, но на нужной ревизии — функция уходит в страницу, узлу её константы не видны
+    const settledRev = (n) => LOGGED() && !_sync.first && !_sync.out && !syncBusy && !ACST.pending && JSON.stringify(docOf(S)) === JSON.stringify(_sync.base) && _sync.rev === n;
+    const YESTERDAY = (d => { d.setDate(d.getDate() - 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(new Date());
+    const rows = (p, sel) => p.evaluate((sel) => [...document.querySelectorAll(sel)].map(r => ({ t: r.innerText.replace(/\s+/g, ' ').trim(), btn: !!r.querySelector('button.linkbtn'), now: !!r.querySelector('.vernow') })), sel);
+    await step('9) «Версии»: список с сервера (новые первыми, нынешняя — «сейчас»), «Вернуть» — вопрос, записи как тогда, отправка restore, прежняя закреплена', async () => {
+      const api = miniApi();
+      const { ctx, p } = await mk({ api });
+      await p.goto(URL + '?account'); await p.waitForTimeout(250);
+      const doc0 = await seedLogged(p, api, 'box@example.ru', HB());
+      await until(p, SETTLED);
+      // правка без монет и уровня (иначе окно «Новый уровень» перекрыло бы карточку): переименование
+      await p.evaluate(() => { S.habits[0].name = 'Бег утром'; save(); });
+      if (!await until(p, settledRev, 2, 12000)) throw new Error('правка не ушла на сервер');
+      const rid1 = api.accts['box@example.ru'].rid;
+      await p.click('#acVer'); await p.waitForSelector('.verrow', { timeout: 5000 });
+      const l = await rows(p, '.verrow');
+      const head = await p.evaluate(() => (document.querySelector('.accovl h4') || {}).textContent || '');
+      (l.length === 2 && l[0].now && !l[0].btn && l[1].btn && !l[1].now && /2 привычки · 1 день с отметками/.test(l[1].t) && /Компьютер · Chrome/.test(l[0].t) && /^\d+ окт, \d\d:\d\d/.test(l[1].t.replace(/^Сегодня, |^Вчера, /, '10 окт, ')) && /Версии записей/.test(head))
+        ? ok(`две версии, новая — «сейчас»: «${l[1].t}»`) : bad('список версий: ' + J({ l, head }));
+      p.dialogs = []; const n0 = api.calls.length;
+      await p.click('.verrow button.linkbtn');
+      const closed = await until(p, () => !document.querySelector('.accovl'), null, 5000);
+      const set = await until(p, settledRev, 3, 12000);
+      const r = await p.evaluate(() => ({ doc: JSON.stringify(docOf(S)), name: S.habits[0].name, toast: window.__toasts.slice(-1)[0] || '', reset: _sync.reset }));
+      const push = api.pushes().pop();
+      (p.dialogs.length === 1 && /^Вернуть записи к версии от .+\? Нынешние останутся в списке\.$/.test(p.dialogs[0]))
+        ? ok(`вопрос: «${p.dialogs[0]}»`) : bad('вопрос при возврате: ' + J(p.dialogs));
+      (closed && set && r.doc === doc0 && r.name === 'Бег' && push && push.body.reason === 'restore' && r.reset === '' && /возвращены к версии/.test(r.toast)
+        && api.calls.slice(n0).some(c => c.path === 'version' && c.body.rid === RID0))
+        ? ok('записи стали как в первой версии, ушли как restore, тост «возвращены»') : bad('возврат: ' + J({ closed, set, same: r.doc === doc0, name: r.name, reason: push && push.body.reason, reset: r.reset, toast: r.toast }));
+      const pinned = api.accts['box@example.ru'].vers.get(rid1).pin;
+      await p.click('#acVer'); await p.waitForSelector('.verrow', { timeout: 5000 });
+      const l2 = await rows(p, '.verrow');
+      (pinned && l2.length === 3 && l2[0].now && /до возврата/.test(l2[1].t) && !/до возврата/.test(l2[2].t))
+        ? ok('снова список: три версии, прежняя голова помечена «до возврата»') : bad('список после возврата: ' + J({ pinned, l2 }));
+      await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+      (await p.evaluate(() => !document.querySelector('.accovl'))) ? ok('Escape закрывает лист и без фокуса в нём') : bad('после Escape лист открыт');
+      api.over = (pth) => pth === 'versions' ? { ok: true, list: [] } : undefined;
+      await p.click('#acVer'); await until(p, () => /Пока пусто/.test((document.querySelector('#acVerList') || {}).textContent || ''), null, 5000)
+        ? ok('пустой список — «Пока пусто — версии появятся по мере работы»') : bad('пустой список не показан');
+      await p.click('#acClose');
+      (await p.evaluate(() => !document.querySelector('.accovl'))) ? ok('«Закрыть» закрывает лист') : bad('лист не закрылся');
+      errCheck(p, 'версии');
+      await ctx.close();
+    });
+
+    await step('10) «Устройства»: список входов, это устройство без «Выйти», выход на одном и на всех других', async () => {
+      const api = miniApi();
+      api.sessions = [{ sid: 's_aaaaaaaaaaaa', label: 'Компьютер · Chrome', seen: TODAY_YMD, me: true }, { sid: 's_bbbbbbbbbbbb', label: 'iPhone · Safari', seen: YESTERDAY, me: false }, { sid: 's_cccccccccccc', label: 'Android · Chrome', seen: '2026-10-01', me: false }];
+      const { ctx, p } = await mk({ api });
+      await p.goto(URL + '?account'); await p.waitForTimeout(250);
+      await seedLogged(p, api, 'box@example.ru', HB());
+      await until(p, SETTLED);
+      await p.click('#acDevs'); await p.waitForSelector('.devrow', { timeout: 5000 });
+      const l = await rows(p, '.devrow');
+      const allBtn = await p.evaluate(() => !document.querySelector('#acOutAll').hidden);
+      (l.length === 3 && /Компьютер · Chrome заходил сегодня · это устройство/.test(l[0].t) && !l[0].btn && /iPhone · Safari заходил вчера Выйти/.test(l[1].t) && /Android · Chrome заходил 1 окт Выйти/.test(l[2].t) && l[1].btn && l[2].btn && allBtn)
+        ? ok(`три входа: «${l[0].t}», «${l[1].t}»`) : bad('устройства: ' + J({ l, allBtn }));
+      await p.click('.devrow:nth-child(2) button.linkbtn');
+      await until(p, () => document.querySelectorAll('.devrow').length === 2, null, 5000);
+      const one = api.calls.filter(c => c.path === 'logout').map(c => c.body);
+      const l2 = await rows(p, '.devrow');
+      (one.length === 1 && one[0].sid === 's_bbbbbbbbbbbb' && !one[0].all && l2.length === 2 && !/iPhone/.test(l2.map(x => x.t).join()) && (await p.evaluate(() => LOGGED())))
+        ? ok('«Выйти» у iPhone: /api/logout {sid}, строка ушла, сам остался в аккаунте') : bad('выход одного: ' + J({ one, l2 }));
+      p.dialogs = [];
+      await p.click('#acOutAll');
+      await until(p, () => document.querySelectorAll('.devrow').length === 1, null, 5000);
+      const all = api.calls.filter(c => c.path === 'logout').map(c => c.body);
+      const l3 = await rows(p, '.devrow'), hid = await p.evaluate(() => ({ hidden: document.querySelector('#acOutAll').hidden, logged: LOGGED(), toast: window.__toasts.slice(-1)[0] || '' }));
+      (p.dialogs.length === 1 && /на всех других устройствах/.test(p.dialogs[0]) && all.length === 2 && all[1].all === true && l3.length === 1 && /это устройство/.test(l3[0].t) && hid.hidden && hid.logged && /других устройствах выполнен выход/.test(hid.toast) && api.cur === 'box@example.ru')
+        ? ok(`«Выйти на всех других»: вопрос, /api/logout {all:true}, осталось это устройство, кнопка скрыта, «${hid.toast}»`) : bad('выход на всех: ' + J({ dialogs: p.dialogs, all, l3, hid }));
+      await p.click('#acClose');
+      errCheck(p, 'устройства');
+      await ctx.close();
+    });
+
+    await step('11) Удаление аккаунта: два шага, код с целью delete без адреса в теле, неверный код понятен, после — записи на телефоне, аккаунта нет, запросов нет', async () => {
+      const api = miniApi();
+      const { ctx, p } = await mk({ api });
+      await p.goto(URL + '?account'); await p.waitForTimeout(250);
+      await seedLogged(p, api, 'box@example.ru', HB());
+      await until(p, SETTLED);
+      const before = await p.evaluate(() => JSON.stringify(docOf(S)));
+      await p.click('#acDel'); await p.waitForSelector('#acDlGo', { timeout: 5000 });
+      const s1 = await p.evaluate(() => ({ h: document.querySelector('.accovl h4').textContent.trim(), txt: document.querySelector('.accovl .mtxt').textContent, save: !!document.querySelector('#acDlSave'),
+        go: document.querySelector('#acDlGo').textContent, danger: document.querySelector('#acDlGo').classList.contains('danger'), code: !!document.querySelector('#acDlCode') }));
+      (/Удалить аккаунт\?/.test(s1.h) && /сразу, из резервных копий — в течение 30 дней/.test(s1.txt) && /На этом телефоне записи останутся/.test(s1.txt) && s1.save && s1.go === 'Прислать код' && s1.danger && !s1.code)
+        ? ok(`шаг 1: «${s1.h}», «Сначала скачать мои данные», красная «${s1.go}», поля кода ещё нет`) : bad('шаг 1: ' + J(s1));
+      const n0 = api.calls.length;
+      await p.click('#acDlGo'); await p.waitForSelector('#acDlCode', { timeout: 5000 });
+      const codeReq = api.calls.slice(n0).find(c => c.path === 'code');
+      (codeReq && codeReq.body.purpose === 'delete' && !('email' in codeReq.body)) ? ok('код запрошен с целью delete, адреса в теле нет — его знает сессия') : bad('запрос кода: ' + J(codeReq));
+      const s2 = await p.evaluate(() => ({ txt: document.querySelector('.accovl .mtxt').textContent, go: document.querySelector('#acDlGo').textContent, resend: document.querySelector('#acResend').textContent }));
+      (/box@example\.ru/.test(s2.txt) && /аккаунт будет удалён/.test(s2.txt) && s2.go === 'Удалить навсегда' && /ещё раз через/.test(s2.resend)) ? ok(`шаг 2: письмо на box@example.ru, «${s2.go}», повтор по таймеру`) : bad('шаг 2: ' + J(s2));
+      await p.fill('#acDlCode', '000000'); await p.waitForTimeout(300);
+      const auto = api.calls.filter(c => c.path === 'delete').length;
+      await p.click('#acDlGo');
+      await until(p, () => /\S/.test(document.querySelector('#acErr').textContent), null, 5000);
+      const e1 = await p.evaluate(() => ({ err: document.querySelector('#acErr').textContent, open: !!document.querySelector('#acDlCode'), logged: LOGGED(), val: document.querySelector('#acDlCode').value }));
+      (auto === 0 && e1.err === 'Код не подходит. Осталось попыток: 4' && e1.open && e1.logged && e1.val === '')
+        ? ok(`шесть цифр сами не отправляются; неверный код: «${e1.err}», поле очищено, аккаунт на месте`) : bad('неверный код: ' + J({ auto, e1 }));
+      await p.fill('#acDlCode', GOOD); await p.click('#acDlGo');
+      const gone = await until(p, () => !LOGGED() && !document.querySelector('.accovl'), null, 5000);
+      await p.waitForTimeout(300);
+      const v = await p.evaluate(() => { const raw = JSON.parse(localStorage.getItem('magnat_app_v2')); return { sync: '_sync' in raw, who: JSON.parse(localStorage.getItem('magnat_who_v1') || '{}'), doc: JSON.stringify(docOf(S)), body: S.body.log.length,
+        login: !!document.querySelector('#acLogin'), toast: window.__toasts.slice(-1)[0] || '', stash: localStorage.getItem('magnat_stash_v1'), sent: !!_sync }; });
+      (gone && !v.sync && !v.sent && !v.who.acct && v.doc === before && v.login && /Аккаунт удалён\. Записи остались только на этом телефоне/.test(v.toast) && api.deleted.includes('box@example.ru') && !api.accts['box@example.ru'])
+        ? ok(`удалён: «${v.toast}», снова «Войти по почте», записи на телефоне те же, служебного нет`) : bad('после удаления: ' + J({ gone, v, deleted: api.deleted }));
+      const n1 = api.calls.length;
+      await p.click('#todayChips .tchip'); await p.waitForTimeout(2600);
+      await p.evaluate(() => { lastSync = 0; dispatchEvent(new Event('online')); dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange')); }); await p.waitForTimeout(1500);
+      api.calls.length === n1 ? ok('дальше — ни одного запроса: правка, сеть, фокус, возвращение во вкладку') : bad('после удаления ещё запросы: ' + J(api.calls.slice(n1).map(c => c.path)));
+      errCheck(p, 'удаление');
+      await ctx.close();
+    });
+
+    // телефон с записями anna, вошли в anna; возвращает документ anna и её acct
+    async function annaPhone(p) {
+      await p.goto(URL + '?account'); await p.waitForTimeout(250); await startClean(p);
+      await p.click('#todayChips .tchip'); await p.waitForTimeout(200);
+      await uiLogin(p, 'anna@example.ru'); await until(p, SETTLED);
+      return p.evaluate(() => JSON.stringify(docOf(S)));
+    }
+
+    await step('12) Вторая вкладка с открытым окном правки: первая вошла в другой аккаунт — «Сохранить» не уносит записи первого в новый', async () => {
+      const api = miniApi();
+      const { ctx, p } = await mk({ api });
+      const before = await annaPhone(p);
+      const annaAcct = api.accts['anna@example.ru'].acct;
+      const p2 = await ctx.newPage(); Object.assign(p2, { errs: [] });
+      p2.on('pageerror', e => p2.errs.push('PAGEERROR: ' + e.message)); p2.on('dialog', d => d.accept());
+      await p2.goto(URL); await p2.waitForTimeout(400);
+      await p2.evaluate(() => { editHabit(S.habits[0].id); });          // окно правки: чужую запись эта вкладка пока не принимает
+      await p.click('#acOut'); await until(p, () => !LOGGED()); await p.waitForTimeout(300);
+      await uiLogin(p, 'boris@example.ru');
+      await until(p, () => LOGGED() && !_sync.first && !syncBusy && !!document.querySelector('#startOwn'), null, 8000);
+      const borisAcct = api.accts['boris@example.ru'].acct;
+      const mid = await p2.evaluate(() => ({ modal: !!document.querySelector('#hSv'), acct: _sync && _sync.acct, doc: JSON.stringify(docOf(S)) }));
+      await p2.evaluate(() => { document.querySelector('#hSv').click(); });   // «Сохранить» → save() → casMerge с хранилищем boris
+      await p2.waitForTimeout(3500);                                           // afterSave звал бы отправку через 2 с
+      const after = await p2.evaluate(() => { const d = JSON.parse(localStorage.getItem('magnat_app_v2')), st = JSON.parse(localStorage.getItem('magnat_stash_v1') || '{}');
+        return { acct: _sync && _sync.acct, demo: !!S.demoData, doc: JSON.stringify(docOf(S)), storedDemo: !!d.demoData, storedAcct: d._sync && d._sync.acct, stashDoc: st[Object.keys(st)[0]] && JSON.stringify(docOf(st[Object.keys(st)[0]].s)) }; });
+      (mid.modal && mid.acct === annaAcct && mid.doc === before) ? ok('под окном во второй вкладке — ещё записи anna') : bad('вторая вкладка до «Сохранить»: ' + J(mid));
+      (after.acct === borisAcct && after.demo && after.storedDemo && after.storedAcct === borisAcct && after.doc !== before && after.stashDoc === before)
+        ? ok('«Сохранить» принял хранилище целиком: на обеих вкладках пример boris, записи anna — в скрытой копии') : bad('после «Сохранить»: ' + J({ ...after, stashSame: after.stashDoc === before }));
+      const bDoc = api.accts['boris@example.ru'].doc;
+      (!bDoc && !api.pushes().some(c => c.body.acct === borisAcct)) ? ok('в аккаунт boris не ушло ничего') : bad('в boris ушли записи anna: ' + J({ bDoc: !!bDoc, pushes: api.pushes().map(c => c.body.acct) }));
+      errCheck(p, 'вкладка 1'); errCheck(p2, 'вкладка 2');
+      await ctx.close();
+    });
+
+    await step('13) Место в браузере кончилось — копия прежнего аккаунта не записалась: вход в новый отменён, записи целы', async () => {
+      const api = miniApi();
+      const { ctx, p } = await mk({ api });
+      const before = await annaPhone(p);
+      const annaAcct = api.accts['anna@example.ru'].acct;
+      await p.click('#acOut'); await until(p, () => !LOGGED()); await p.waitForTimeout(300);
+      await p.evaluate(() => { const o = Storage.prototype.setItem; Storage.prototype.setItem = function (k, v) { if (k === 'magnat_stash_v1') throw new Error('QuotaExceededError'); return o.call(this, k, v); }; });
+      const n0 = api.calls.length;
+      await uiLogin(p, 'boris@example.ru'); await p.waitForTimeout(1500);
+      const v = await p.evaluate(() => ({ logged: LOGGED(), acct: _sync && _sync.acct, doc: JSON.stringify(docOf(S)), stash: localStorage.getItem('magnat_stash_v1'), toasts: window.__toasts.slice(),
+        who: JSON.parse(localStorage.getItem('magnat_who_v1') || '{}').acct, stored: !!localStorage.getItem('magnat_app_v2'), login: !!document.querySelector('#acLogin') }));
+      const after = api.calls.slice(n0).map(c => c.path + (c.body.doc ? ':push' : ''));
+      (!v.logged && v.login && v.acct === annaAcct && v.doc === before && v.stored && v.stash === null && !v.who && v.toasts.some(t => /вход отменён/.test(t)))
+        ? ok(`вход отменён словами, записи anna на месте, в аккаунт не вошли: «${v.toasts.find(t => /отменён/.test(t))}»`) : bad('копия не записалась: ' + J(v));
+      (after.join() === 'code,login,logout' && !api.accts['boris@example.ru'].doc) ? ok('сессия boris снята (/api/logout), отправок не было') : bad('запросы: ' + J(after));
+      errCheck(p, 'нет места для копии');
+      await ctx.close();
+    });
+
+    await step('14) Удаление: лист закрыли (Escape), пока шёл запрос, — ответ «ok» всё равно прибирает аккаунт на телефоне', async () => {
+      const api = miniApi();
+      const { ctx, p } = await mk({ api });
+      await p.goto(URL + '?account'); await p.waitForTimeout(250);
+      await seedLogged(p, api, 'box@example.ru', HB());
+      await until(p, SETTLED);
+      await p.click('#acDel'); await p.waitForSelector('#acDlGo', { timeout: 5000 });
+      await p.click('#acDlGo'); await p.waitForSelector('#acDlCode', { timeout: 5000 });
+      api.delayFor = (pth) => pth === 'delete' ? 1200 : 0;
+      await p.fill('#acDlCode', GOOD); await p.click('#acDlGo'); await p.waitForTimeout(150);
+      await p.keyboard.press('Escape');
+      const closed = await p.evaluate(() => !document.querySelector('.accovl'));
+      await p.waitForTimeout(2200);
+      const v = await p.evaluate(() => ({ logged: LOGGED(), sync: '_sync' in JSON.parse(localStorage.getItem('magnat_app_v2')), who: JSON.parse(localStorage.getItem('magnat_who_v1') || '{}').acct,
+        login: !!document.querySelector('#acLogin'), toast: window.__toasts.slice(-1)[0] || '', checks: Object.keys(S.checks).length }));
+      (closed && api.deleted.includes('box@example.ru') && !v.logged && !v.sync && !v.who && v.login && v.checks === 1 && /Аккаунт удалён/.test(v.toast))
+        ? ok('лист закрыт до ответа, аккаунт на сервере удалён — на телефоне тоже прибрано, записи целы') : bad('удаление при закрытом листе: ' + J({ closed, v, deleted: api.deleted }));
+      errCheck(p, 'удаление при закрытом листе');
+      await ctx.close();
+    });
+
+    await step('15) «Вернуть версию» во время медленной отправки правки: возврат уходит как restore, прежняя голова закреплена', async () => {
+      const api = miniApi();
+      const { ctx, p } = await mk({ api });
+      await p.goto(URL + '?account'); await p.waitForTimeout(250);
+      const doc0 = await seedLogged(p, api, 'box@example.ru', HB());
+      await until(p, SETTLED);
+      await p.evaluate(() => { S.habits[0].name = 'Бег утром'; save(); });
+      if (!await until(p, settledRev, 2, 12000)) throw new Error('первая правка не ушла');
+      api.delayFor = (pth, b) => pth === 'sync' && typeof b.doc === 'string' ? 4000 : 0;   // вторая правка едет медленно
+      await p.evaluate(() => { S.habits[1].name = 'Чтение вечером'; save(); });
+      if (!await until(p, () => syncBusy && !!_sync.out, null, 6000)) throw new Error('отправка второй правки не началась');
+      await p.click('#acVer'); await p.waitForSelector(`.verrow button[data-rid="${RID0}"]`, { timeout: 5000 });
+      await p.click(`.verrow button[data-rid="${RID0}"]`);                     // «Вернуть …?» → да
+      await until(p, () => !document.querySelector('.accovl') && S.habits[0].name === 'Бег', null, 5000);
+      const midReset = await p.evaluate(() => _sync.reset);
+      const set = await until(p, settledRev, 4, 20000);
+      const reasons = api.pushes().map(c => c.body.reason);
+      const a = api.accts['box@example.ru'], prev = [...a.vers.values()].find(v => v.rev === 3);
+      const r = await p.evaluate(() => ({ doc: JSON.stringify(docOf(S)), reset: _sync.reset }));
+      (midReset === 'restore' && set && reasons.join() === 'edit,edit,restore' && prev && prev.pin && r.doc === doc0 && r.reset === '')
+        ? ok(`отправки: ${reasons.join(', ')} — возврат не превратился в edit, голова до возврата закреплена, записи как в первой версии`)
+        : bad('гонка возврата: ' + J({ midReset, set, reasons, pin: prev && prev.pin, same: r.doc === doc0, reset: r.reset }));
+      errCheck(p, 'гонка возврата');
       await ctx.close();
     });
   } finally {
