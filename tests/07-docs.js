@@ -83,8 +83,10 @@ function netSpy(flag) {
   } catch (e) {}
   try { if (window.cookieStore) for (const k of ["get", "getAll", "set", "delete"]) { const f = cookieStore[k].bind(cookieStore); cookieStore[k] = function () { put("cookie", location.href); return f.apply(null, arguments); }; } } catch (e) {}
   if (flag) {
-    try { localStorage.setItem("magnat_acc_preview", "1"); localStorage.setItem("magnat_acct_preview", "1"); } catch (e) {}
+    let on = false;
+    try { localStorage.setItem("magnat_acc_preview", "1"); localStorage.setItem("magnat_acct_preview", "1"); on = localStorage.getItem("magnat_acc_preview") === "1"; } catch (e) {}
     try { sessionStorage.setItem("magnat_acct_preview", "1"); sessionStorage.setItem("magnat_acc_preview", "1"); } catch (e) {}
+    if (on && /app\.html$/.test(location.pathname)) try { window.__mgNet("flag", location.href); } catch (e) {}
   }
 }
 
@@ -185,12 +187,20 @@ function netSpy(flag) {
     const fileUrl = "file://" + path.join(APP_DIR, "app.html");
     const own = async () => { const seen = [], s = await serve(APP_DIR, null, seen); servers.push(s); return { seen, origin: `http://127.0.0.1:${s.address().port}` }; };
     const [A, L, F] = [await own(), await own(), await own()];
+    // Окно Claude: страница другого адреса (свой порт — другой origin), приложение в рамке
+    // с флагом. Не about:blank: у рамки внутри него хранилище закрыто, и флаг не встал бы.
+    const top = await new Promise(res => { const s = http.createServer((rq, rs) => {
+      rs.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      rs.end(`<!doctype html><title>Окно</title><iframe src="${F.origin}/app.html?account" style="width:390px;height:780px;border:0"></iframe>`);
+    }).listen(0, "127.0.0.1", () => res(s)); });
+    servers.push(top);
+    const T = `http://127.0.0.1:${top.address().port}`;
     const runs = [
-      { name: "посетитель, file://", url: fileUrl, own: "file:" },
-      { name: "посетитель, свой сервер", url: A.origin + "/app.html", own: A.origin, seen: A.seen },
-      { name: "посетитель главной, свой сервер", url: L.origin + "/?site", own: L.origin, seen: L.seen, landing: true },
-      { name: "флаг предпросмотра (magnat_acc_preview=1, ?account), file://", url: fileUrl + "?account", own: "file:", flag: true },
-      { name: "флаг предпросмотра, рамка Claude", url: F.origin + "/app.html?account", own: F.origin, seen: F.seen, flag: true, framed: true },
+      { name: "посетитель, file://", url: fileUrl, own: ["file:"] },
+      { name: "посетитель, свой сервер", url: A.origin + "/app.html", own: [A.origin], seen: A.seen },
+      { name: "посетитель главной, свой сервер", url: L.origin + "/?site", own: [L.origin], seen: L.seen, landing: true },
+      { name: "флаг предпросмотра (magnat_acc_preview=1, ?account), file://", url: fileUrl + "?account", own: ["file:"], flag: true },
+      { name: "флаг предпросмотра, рамка Claude", url: T + "/", own: [F.origin, T], seen: F.seen, flag: true, framed: true },
     ];
     const visit = async (r) => {
       const ctx = await b.newContext({ viewport: { width: 390, height: 800 } }), net = [];
@@ -200,10 +210,8 @@ function netSpy(flag) {
         ctx.on("request", q => net.push({ kind: "запрос", url: q.url() }));
         const p = await ctx.newPage();
         let t = p;
-        if (r.framed) {   // как окно Claude: страница чужого адреса, приложение — в рамке
-          await p.setContent(`<iframe src="${r.url}" style="width:390px;height:780px;border:0"></iframe>`);
-          t = await (await p.$("iframe")).contentFrame();
-        } else await p.goto(r.url);
+        await p.goto(r.url);
+        if (r.framed) t = await (await p.$("iframe")).contentFrame();
         await t.waitForTimeout(1500);                 // синхронизация пошла бы через 1 с после отрисовки
         if (r.landing) {
           await p.evaluate(() => scrollTo(0, document.body.scrollHeight)); await p.waitForTimeout(800);
@@ -227,7 +235,7 @@ function netSpy(flag) {
         let u; try { u = new URL(url); } catch (e) { continue; }
         if (/^(data|blob|about):$/.test(u.protocol)) continue;
         if (/^\/api(\/|$)/.test(u.pathname)) api.add(kind + " " + url);   // на file:// '/api/x' — это file:///api/x
-        if (r.own === "file:" ? u.protocol !== "file:" : u.origin !== r.own) foreign.add(kind + " " + url);
+        if (!r.own.includes(u.protocol === "file:" ? "file:" : u.origin)) foreign.add(kind + " " + url);
       }
       for (const s of r.seen || []) {
         if (/^\/api(\/|$|\?)/.test(s.path)) api.add("на сервер пришло " + s.path);
@@ -238,6 +246,7 @@ function netSpy(flag) {
       const n = res.net.filter(x => x.kind === "запрос" && !/^(data|about):/.test(x.url)).length;
       const probs = [];
       if (!spy) probs.push("шпион сети не встал — проверка ничего не видит");
+      if (r.flag && !res.net.some(x => x.kind === "flag")) probs.push("флаг предпросмотра не встал в хранилище приложения — проверка ничего не видит");
       if (api.size) probs.push("запросы к /api: " + [...api].slice(0, 3).join(", "));
       if (foreign.size) probs.push("запросы на чужие адреса: " + [...foreign].slice(0, 3).join(", "));
       if (cookie.size) probs.push("cookie: " + [...cookie].slice(0, 3).join(", "));
