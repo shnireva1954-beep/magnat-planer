@@ -96,6 +96,26 @@ const mod = (src, fn) => { const s = clone(src); fn(s); return s; };
     (M.tasks.length === 1 && M.tasks[0].done) ? ok('и наоборот: выполнили здесь, удалили там — выполнена') : bad('выполнение против удаления (2): ' + J(M.tasks));
     M = await m3(b1, mod(b1, s => { s.tasks[0].name = 'Отчёт v2'; }), mod(b1, s => { s.tasks = []; }));
     M.tasks.length === 0 ? ok('удаление сильнее правки без выполнения') : bad('удаление против правки: ' + J(M.tasks));
+    // удалившая сторона сначала выполнила задачу (её 20 ушли в копилку), другая тоже выполнила —
+    // задача возвращается выполненной, а 20 монет платятся один раз, а не дважды (ревью R0, 12.10)
+    const paid = (x) => x.taskBank + x.tasks.filter(t => t.done).length * 20;
+    const doneDel = mod(b1, s => { s.tasks = []; s.taskBank = 20; s.checks[D] = [1]; });
+    const doneThere = mod(b1, s => { s.tasks[0].done = true; });
+    const pd = [await m3(b1, doneDel, doneThere), await m3(b1, doneThere, doneDel)];
+    pd.every(x => x.tasks.length === 1 && x.tasks[0].done && paid(x) === 20)
+      ? ok('выполнил и удалил здесь, выполнил там: задача выполнена, монеты за неё — один раз (20, а не 40), в обе стороны')
+      : bad('выполнение против удаления платит дважды: ' + J(pd.map(x => ({ t: x.tasks, bank: x.taskBank }))));
+    M = await m3(b1, mod(b1, s => { s.tasks = []; s.taskBank = 0; }), doneThere);
+    paid(M) === 20 ? ok('удалил без выполнения, выполнил там: копилка не уменьшается (20)') : bad('удаление без выполнения: ' + J({ t: M.tasks, bank: M.taskBank }));
+    // в копилке удалившей стороны ещё и выполненная в базе и удалённая ею задача — её 20 не трогаем
+    const b3 = mod(B, s => { s.tasks = [T, { id: 11, name: 'Старое', prio: 'md', due: D, done: true }]; s.taskBank = 0; });
+    M = await m3(b3, mod(b3, s => { s.tasks = []; s.taskBank = 40; }), mod(b3, s => { s.tasks[0].done = true; }));
+    (M.tasks.length === 1 && M.tasks[0].id === 10 && M.taskBank === 20) ? ok('копилка удалившей: 20 за выполненную в базе остаются, лишние 20 за вернувшуюся сняты')
+      : bad('копилка с выполненной в базе: ' + J({ t: M.tasks, bank: M.taskBank }));
+    const cb = mod(B, s => { s.tasks = [{ ...T, chal: true }]; s.chal = { d: D, k: 0, n: 2 }; });
+    M = await m3(cb, mod(cb, s => { s.tasks = []; s.taskBank = 20; s.chal.n = 3; }), mod(cb, s => { s.tasks[0].done = true; s.chal.n = 3; }));
+    (M.tasks.length === 1 && paid(M) === 20 && M.chal.n === 3) ? ok('то же с вызовом дня: монеты один раз и chal.n +1, а не +2')
+      : bad('вызов: выполнение против удаления: ' + J({ t: M.tasks, bank: M.taskBank, n: M.chal.n }));
     // поля по общему правилу, chal/main — ИЛИ
     M = await m3(b1, mod(b1, s => { s.tasks[0].prio = 'hi'; }), mod(b1, s => { s.tasks[0].due = '2026-10-07'; s.tasks[0].main = true; }));
     (M.tasks[0].prio === 'hi' && M.tasks[0].due === '2026-10-07' && M.tasks[0].main === true) ? ok('правки задачи по полю: приоритет отсюда, срок и «главное» оттуда') : bad('поля задачи: ' + J(M.tasks));
@@ -174,6 +194,11 @@ const mod = (src, fn) => { const s = clone(src); fn(s); return s; };
     (M.chal.d === '2026-10-11' && M.chal.k === 0) ? ok('вызов дня: более поздний день') : bad('chal.d: ' + J(M.chal));
     M = await m3(B, mod(B, s => { s.chal = { d: '2026-10-11', k: 2, n: 0 }; }), mod(B, s => { s.chal = { d: '2026-10-11', k: 1, n: 0 }; }));
     M.chal.k === 2 ? ok('вызов дня: при равном дне — больший k') : bad('chal.k: ' + J(M.chal));
+    // день вызова не уезжает назад, даже если одна сторона не менялась (часы другого телефона сбиты)
+    const bk = mod(B, s => { s.chal = { d: '2026-10-11', k: 1, n: 0 }; }), back = mod(bk, s => { s.chal = { d: '2026-10-10', k: 2, n: 0 }; });
+    const dk = [await m3(bk, bk, back), await m3(bk, back, bk), await m3(bk, mod(bk, s => { s.checks[D] = [2]; }), back)];
+    dk.every(x => x.chal.d === '2026-10-11' && x.chal.k === 1) ? ok('вызов дня: более поздний день побеждает и против «не менялось» (§7), в обе стороны')
+      : bad('chal.d уехал назад: ' + J(dk.map(x => x.chal)));
     const rv = { [D]: { g: 'Сделал', b: '' }, '2026-10-06': { g: 'x', b: 'y' }, '2026-10-07': { g: 'a', b: 'b' } };
     const bv = mod(B, s => { s.rev = rv; });
     M = await m3(bv, mod(bv, s => { delete s.rev[D]; delete s.rev['2026-10-06']; s.rev['2026-10-07'].g = 'a2'; }),
@@ -193,6 +218,19 @@ const mod = (src, fn) => { const s = clone(src); fn(s); return s; };
     M = await m3(bu, mod(bu, s => { s.goals = [1, 2]; s.both = 2; s.mine = true; }), mod(bu, s => { delete s.old; s.both = 3; s.theirs = { a: 1 }; }));
     (J(M.goals) === '[1,2]' && M.old === undefined && M.both === 2 && M.mine === true && J(M.theirs) === '{"a":1}')
       ? ok('незнакомые ключи: правка, удаление, конфликт (своё), добавления обеих') : bad('незнакомые ключи: ' + J(M));
+    // незнакомый ключ с тысячами вложенных [[[…]]] (кривая копия): normalize его не берёт, и
+    // merge3 не падает переполнением стека; 32 уровня — берёт, 33 — нет (ревью R0, 12.10)
+    const deep = await p.evaluate(() => {
+      const nest = n => JSON.parse('['.repeat(n) + ']'.repeat(n));
+      const out = { d32: 'd32' in normalize({ d32: nest(32) }), d33: 'd33' in normalize({ d33: nest(33) }),
+                    str: 'txt' in normalize({ txt: '[[[[' + '['.repeat(100) }) };
+      const base = normalize({}), l = { ...base, zz: nest(6000) }, r = { ...base, checks: { '2026-10-05': [1] } };
+      try { const m = merge3(base, l, r); out.merged = !('zz' in m) && JSON.stringify(m.checks) === JSON.stringify(r.checks); }
+      catch (e) { out.merged = 'упал: ' + e.message; }
+      return out;
+    });
+    (deep.d32 && !deep.d33 && deep.str && deep.merged === true) ? ok('глубокий незнакомый ключ: 32 уровня — берётся, 33 и 6000 — нет, merge3 не падает; скобки внутри строки не считаются')
+      : bad('глубокий ключ: ' + J(deep));
   }
 
   // ---------- 6. FIELD_SV: поле, которого не знает старая версия ----------

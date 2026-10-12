@@ -894,7 +894,10 @@ let FIRST_RUN=false, PRISTINE=false;
 // SAVED_OK=false — последняя запись не удалась, отправлять такое нельзя.
 // NEWIDS — normalize() раздал новые id: такие данные load() сразу сохраняет, иначе после
 // каждой перезагрузки id были бы другими
-let RAW=null, _sync=null, SAVED_OK=true, NEWIDS=false;
+// BASEJ — те же данные, что в RAW, но уже приведённые normalize() в этой вкладке (строкой): база
+// слияния. Заново приводить RAW нельзя — у старых данных без id normalize() раздаёт случайные id,
+// и база не совпала бы ни с одной стороной: всё старое удвоилось бы (ревью R0, 12.10)
+let RAW=null, BASEJ=null, _sync=null, SAVED_OK=true, NEWIDS=false;
 function parseStore(raw){
   let d; try{ d=JSON.parse(raw); }catch(e){ return null; }
   const sync=d&&typeof d==="object"&&!Array.isArray(d)&&d._sync&&typeof d._sync==="object"&&!Array.isArray(d._sync)?d._sync:null;
@@ -903,7 +906,7 @@ function parseStore(raw){
 function load(){
   try{
     const r=localStorage.getItem(KEY);
-    if(r){ RAW=r; NEWIDS=false; const st=parseStore(r); if(st){ _sync=st.sync; return st.S; } }
+    if(r){ RAW=r; NEWIDS=false; const st=parseStore(r); if(st){ _sync=st.sync; BASEJ=JSON.stringify(st.S); return st.S; } }
   }catch(e){}
   FIRST_RUN=true; PRISTINE=true; return seed();
 }
@@ -917,19 +920,21 @@ function casMerge(cur){
   const demoL=PRISTINE||!!S.demoData, demoR=!!R.S.demoData;
   if(demoL&&!demoR){ S=R.S; PRISTINE=false; }
   else if(demoL||!demoR){
-    const B=RAW==null?null:parseStore(RAW), b=B&&B.S;
+    const b=BASEJ==null?null:JSON.parse(BASEJ);
     const M=merge3(b,S,R.S);
     M.body=b&&JSON.stringify(S.body)===JSON.stringify(b.body)?R.S.body:S.body;
     if(demoL&&demoR) M.demoData=true;
     S=normalize(M);
   }
-  RAW=cur; invalidate();
+  RAW=cur; BASEJ=JSON.stringify(R.S); invalidate();
 }
 function save(){ invalidate();
   let cur=null; try{ cur=localStorage.getItem(KEY); }catch(e){}
-  if(cur!=null&&cur!==RAW) casMerge(cur);
+  // слияние упало (чего быть не должно) — не пишем поверх чужого и не роняем вызвавшего:
+  // своё остаётся в памяти, следующий save() попробует снова
+  if(cur!=null&&cur!==RAW) try{ casMerge(cur); }catch(e){ console.warn(e); SAVED_OK=false; toast("Не удалось сохранить — обнови страницу"); return; }
   const str=JSON.stringify(_sync?{...S,_sync}:S);
-  try{ localStorage.setItem(KEY,str); RAW=str; SAVED_OK=true; }
+  try{ localStorage.setItem(KEY,str); RAW=str; BASEJ=JSON.stringify(S); SAVED_OK=true; }
   catch(e){ SAVED_OK=false; toast("Не удалось сохранить — освободи место в браузере"); }  // молчать тут нельзя
 }
 function freshStart(){  // чистый лист — без чужих данных
@@ -1046,12 +1051,26 @@ function normalize(d){
   // другое устройство). Не выбрасываем, а ставим следом в их порядке: иначе старая версия
   // молча стирала бы новое. Только простые имена: не служебные (_sync), не старые поля,
   // которые normalize сам сворачивает, и не больше 64 КБ
+  // и не глубже 32 уровней вложенности: на тысячах вложенных [[[…]]] слияние (merge3 сравнивает
+  // документы целиком строкой) падало переполнением стека, и вкладка переставала сохранять
   for(const k in d){
     if(KNOWN_KEYS.has(k)||!/^[a-z][A-Za-z0-9]{0,30}$/.test(k)) continue;
     let js; try{ js=JSON.stringify(d[k]); }catch(e){ continue; }
-    if(js!==undefined&&js.length<=65536) r[k]=JSON.parse(js);
+    if(js!==undefined&&js.length<=65536&&jsonDepth(js)<=32) r[k]=JSON.parse(js);
   }
   return r;
+}
+// глубина вложенности по строке JSON — без рекурсии, чтобы сама проверка не упала на глубоком
+function jsonDepth(js){
+  let d=0, max=0, str=false;
+  for(let i=0;i<js.length;i++){
+    const c=js.charCodeAt(i);
+    if(str){ if(c===92) i++; else if(c===34) str=false; continue; }   // \ — пропустить следующий; " — конец строки
+    if(c===34) str=true;
+    else if(c===91||c===123){ if(++d>max) max=d; }                    // [ {
+    else if(c===93||c===125) d--;                                     // ] }
+  }
+  return max;
 }
 // поля, которые normalize знает; последние четыре — старые, он их сворачивает или отбрасывает
 const KNOWN_KEYS=new Set(["habits","checks","tasks","taskBank","finance","body","rewards","rv","boughtCnt","spent","les","chal","rev","demoData","lastLv",
@@ -1072,6 +1091,7 @@ const nameKey=s=>String(s==null?"":s).trim().toLowerCase().replace(/\s+/g," ");
 const earlier=(a,c)=>!a||!c?"":a<c?a:c;                  // "" — «было всегда», раньше всего
 const byId=a=>{ const m=new Map(); for(const x of a) if(!m.has(x.id)) m.set(x.id,x); return m; };
 const unknownKeys=o=>Object.keys(o).filter(k=>!KNOWN_KEYS.has(k));
+const laterDk=(a,c)=>a.d!==c.d?(a.d>c.d?{d:a.d,k:a.k}:{d:c.d,k:c.k}):{d:a.d,k:Math.max(a.k,c.k)};
 const keysR_L=(r,l)=>{ const ks=Object.keys(r); for(const k of Object.keys(l)) if(!own(r,k)) ks.push(k); return ks; };
 // поле из FIELD_SV: стороне старой версии берём его значение из базы ("tasks[].main", "chal.n")
 function fsvTake(dst,src,parts){
@@ -1136,6 +1156,9 @@ function merge3(b0,l0,r0,lsv,rsv){
   const doc=x=>{ const o={...x}; delete o.body; delete o.demoData; return o; };
   const L=doc(l), R=doc(r), B=b&&doc(b);
   const M=jeq(L,R)?L:B&&jeq(B,L)?R:B&&jeq(B,R)?L:b?mergeBase(b,l,r):mergeNoBase(l,r);
+  // вызов дня: d/k — всегда более поздний день, при равном — больший k, даже когда одна сторона
+  // не менялась: день, сдвинутый назад сбитыми часами, не должен победить (§7)
+  { const dk=laterDk(l.chal,r.chal); M.chal={d:dk.d, k:dk.k, n:M.chal.n}; }
   M.body=l.body;                                          // «Тело» всегда своё: в синхронизацию не уходит
   delete M.demoData;                                      // пример никуда не сливается
   const out=normalize(M); NEWIDS=keep; return out;
@@ -1190,13 +1213,14 @@ function mergeBase(b,l,r){
   const task3=(bt,lt,rt)=>{ const o=bt||{}, t={id:rt.id, name:pick3(o.name,lt.name,rt.name), prio:pick3(o.prio,lt.prio,rt.prio),
       due:pick3(o.due,lt.due,rt.due), done:pick3(o.done,lt.done,rt.done)};
     if(lt.chal||rt.chal) t.chal=true; if(lt.main||rt.main) t.main=true; return t; };
+  const revL=[], revR=[];     // удалённые этой стороной, но оставленные выполнением на другой
   M.tasks=F("tasks",()=>{
     const out=[], have=new Set(), reT=new Map();
     for(const t of r.tasks){ if(have.has(t.id)) continue;
       const bt=bT.get(t.id), lt=lT.get(t.id);
       if(bt){
         if(lt) out.push(task3(bt,lt,t));
-        else if(!bt.done&&t.done) out.push(t);            // здесь удалили, там выполнили — выполнение сильнее
+        else if(!bt.done&&t.done){ out.push(t); revL.push(t); }   // здесь удалили, там выполнили — выполнение сильнее
         else continue;
         have.add(t.id); continue;
       }
@@ -1208,10 +1232,26 @@ function mergeBase(b,l,r){
       if(have.has(id)) continue;
       const bt=!reT.has(t.id)&&bT.get(t.id);
       if(bt&&!(!bt.done&&t.done)) continue;                 // там удалили, а здесь не выполняли
+      if(bt) revR.push(t);
       out.push(id===t.id?t:{...t,id}); have.add(id);
     }
     const d=taskDupes(out,bT,lT); doneDrop=d.doneDrop; return d.tasks;
   });
+  // Удалившая сторона могла сначала выполнить задачу: тогда её 20 монет уже в копилке, а
+  // выполнение на другой стороне вернуло задачу выполненной — те же 20 второй раз (ревью R0).
+  // Чья копилка выросла больше, чем объясняют выполненные в базе и удалённые ею задачи, —
+  // столько вернувшихся задач она и выполняла: снимаем по 20 за каждую, не больше их числа.
+  // Неточность: задача, созданная, выполненная и удалённая на той же стороне после базы,
+  // выглядит так же — тогда снимется лишнее (описано в рисках, случай редкий)
+  let chalRevived=0;
+  const revFix=(side,rev)=>{
+    if(!rev.length) return 0;
+    const sm=side===l?lT:rT, gone=b.tasks.filter(t=>t.done&&!sm.has(t.id)).length;
+    const n=Math.min(rev.length,Math.max(0,Math.floor((side.taskBank-b.taskBank-TASKCOIN*gone)/TASKCOIN)));
+    rev.slice(0,n).forEach(t=>{ if(t.chal) chalRevived++; });     // и вызов дня тот же засчитан дважды
+    return n;
+  };
+  bankFix+=revFix(l,revL)+revFix(r,revR);
   M.taskBank=Math.max(0,add3(b.taskBank,l.taskBank,r.taskBank)-TASKCOIN*bankFix);
   // финансы: по id, добавления объединяются, удаление с любой стороны побеждает, расхождение —
   // по полю; коллизия id — своей новый uid()
@@ -1263,12 +1303,10 @@ function mergeBase(b,l,r){
   for(const k of keysR_L(r.boughtCnt,lb)){ if(gone.has(k)) continue; const n=add3(ownV(b.boughtCnt,k),ownV(lb,k),ownV(r.boughtCnt,k)); if(n>0) M.boughtCnt[k]=n; }
   M.spent=add3(b.spent,l.spent,r.spent);
   M.les=F("les",()=>set3(b.les,l.les,r.les));
-  // вызов дня: d/k — общее правило, при расхождении более поздний d, при равном — больший k;
+  // вызов дня: d/k — более поздний d, при равном — больший k (laterDk, без общего правила);
   // n — b + Δl + Δr минус вызовы, отмеченные на обеих, и минус выброшенные выполненные дубли
-  const cdk=c=>({d:c.d,k:c.k});
-  let dk=jeq(cdk(b.chal),cdk(l.chal))?cdk(r.chal):jeq(cdk(b.chal),cdk(r.chal))?cdk(l.chal)
-        :l.chal.d!==r.chal.d?cdk(l.chal.d>r.chal.d?l.chal:r.chal):{d:l.chal.d,k:Math.max(l.chal.k,r.chal.k)};
-  M.chal={d:dk.d, k:dk.k, n:Math.max(0,add3(b.chal.n,l.chal.n,r.chal.n)-chalBoth-doneDrop)};
+  const dk=laterDk(l.chal,r.chal);
+  M.chal={d:dk.d, k:dk.k, n:Math.max(0,add3(b.chal.n,l.chal.n,r.chal.n)-chalBoth-doneDrop-chalRevived)};
   // разбор дня: по дате и полю (g, b) общее правило; правка сильнее удаления
   M.rev=F("rev",()=>{
     const o={};
@@ -1327,7 +1365,7 @@ function mergeNoBase(l,r){
   M.boughtCnt={}; for(const k of keysR_L(r.boughtCnt,lb)) M.boughtCnt[k]=Math.max(ownV(lb,k)||0,ownV(r.boughtCnt,k)||0);
   M.spent=Math.max(l.spent,r.spent);
   M.les=setU(l.les,r.les);
-  const c=l.chal.d!==r.chal.d?(l.chal.d>r.chal.d?l.chal:r.chal):{d:l.chal.d,k:Math.max(l.chal.k,r.chal.k)};
+  const c=laterDk(l.chal,r.chal);
   M.chal={d:c.d, k:c.k, n:Math.max(l.chal.n,r.chal.n)};
   M.rev={}; for(const k of keysR_L(r.rev,l.rev)){ const lv=l.rev[k]||{}, rv=r.rev[k]||{}; M.rev[k]={g:lv.g||rv.g||"", b:lv.b||rv.b||""}; }
   const lv=[l.lastLv,r.lastLv].filter(Number.isInteger); if(lv.length) M.lastLv=Math.max(...lv);
@@ -2782,9 +2820,16 @@ function openLesson(n,first){
 // ---- router ----
 let cur="home", lastView="";
 const RENDER={home:vHome,habits:vHabits,tasks:vTasks,money:vMoney,body:vBody,shop:vShop,path:vPath};
+// Черновики полей прямо на экране — «Что сегодня главное?» и «Разбор дня». Перерисовка (своя
+// отметка или запись другой вкладки) строит форму заново пустой, и набранное пропадало
+// (ревью R0, 12.10). Набранное, но не отправленное, переносим в новую форму
+const DRAFTS=["mainI","revG","revB"];
 function render(){
+  const keep={};
+  for(const id of DRAFTS){ const e=document.getElementById(id); if(e&&e.value!==e.defaultValue) keep[id]=e.value; }
   try{ draw(); }
   catch(err){ rescue(err); }
+  for(const id in keep){ const e=document.getElementById(id); if(e) e.value=keep[id]; }
   ROLL=false;                    // повод прокрутить кошелёк живёт одну перерисовку
 }
 function draw(){
@@ -3046,7 +3091,7 @@ function takeStore(){
   if(document.querySelector(".ovl")||(a&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable))){
     storeT=setTimeout(takeStore,1500); return;
   }
-  if(SAVED_OK){ const R=parseStore(cur); if(!R) return; S=R.S; _sync=R.sync; RAW=cur; PRISTINE=false; invalidate(); }
+  if(SAVED_OK){ const R=parseStore(cur); if(!R) return; S=R.S; _sync=R.sync; RAW=cur; BASEJ=JSON.stringify(R.S); PRISTINE=false; invalidate(); }
   else save();     // своё здесь не записалось — сливаем и пробуем записать ещё раз
   render();
 }

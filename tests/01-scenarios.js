@@ -1434,6 +1434,97 @@ async function walkTabs(p, label) {
     await ctx.close();
   }
   {
+    // поле прямо на экране (не окно): пока курсор в «Что сегодня главное?», чужая запись ждёт;
+    // курсор ушёл — вкладка подтягивает её, а набранный черновик не пропадает (ревью R0, 12.10:
+    // перерисовка строила форму заново пустой). Отправленный — и черновик, и чужая отметка на месте
+    const ctx = await b.newContext({ viewport: { width: 390, height: 900 } });
+    await ctx.clock.install({ time: new Date(2026, 10, 20, 10, 0) });
+    const mk = async () => { const p = await ctx.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('dialog', d => d.accept()); return p; };
+    const p1 = await mk(), p2 = await mk();
+    await p1.goto(URL); await p1.waitForTimeout(400); await startClean(p1);
+    await p2.goto(URL); await p2.waitForTimeout(500);
+    const DRAFT = 'Черновик, который я печатал';
+    await p1.bringToFront(); await p1.fill('#mainI', DRAFT);
+    await p2.bringToFront(); await p2.click('#todayChips .tchip'); await p2.waitForTimeout(600);
+    const st = () => p1.evaluate(() => ({ n: checksOf(TODAY).length, v: (document.querySelector('#mainI') || {}).value, f: (document.activeElement || {}).id }));
+    const w1 = await st();
+    (w1.n === 0 && w1.v === DRAFT && w1.f === 'mainI') ? ok('курсор в поле на экране: запись другой вкладки ждёт, текст и курсор на месте') : bad('ожидание при фокусе в поле: ' + JSON.stringify(w1));
+    await p1.evaluate(() => document.activeElement.blur()); await p1.waitForTimeout(1900);
+    const w2 = await st();
+    (w2.n === 1 && w2.v === DRAFT) ? ok('курсор ушёл — чужая отметка подтянулась, черновик «главного» не стёрт перерисовкой') : bad('черновик после записи другой вкладки: ' + JSON.stringify(w2));
+    await p1.evaluate(() => document.querySelector('#mainF').requestSubmit()); await p1.waitForTimeout(400);
+    const w3 = await p1.evaluate(k => { const d = JSON.parse(localStorage.getItem(k)); return { t: d.tasks.filter(t => t.main).map(t => t.name).join(), n: (d.checks[TODAY] || []).length }; }, KEYS);
+    (w3.t === DRAFT && w3.n === 1) ? ok('черновик отправлен: главное дело и отметка другой вкладки — в хранилище') : bad('после отправки черновика: ' + JSON.stringify(w3));
+    // вечерний разбор: то же для двух полей
+    await ctx.clock.setSystemTime(new Date(2026, 10, 20, 19, 0)); await p1.evaluate(() => render()); await p1.waitForTimeout(200);
+    await p1.fill('#revG', 'Получилось'); await p1.fill('#revB', 'Мешал телефон'); await p1.evaluate(() => document.activeElement.blur());
+    await p2.evaluate(() => { document.querySelectorAll('#todayChips .tchip')[1].click(); }); await p1.waitForTimeout(1900);
+    const w4 = await p1.evaluate(() => ({ g: (document.querySelector('#revG') || {}).value, b: (document.querySelector('#revB') || {}).value, n: checksOf(TODAY).length }));
+    (w4.g === 'Получилось' && w4.b === 'Мешал телефон' && w4.n === 2) ? ok('черновик «Разбора дня» (два поля) тоже переживает чужую запись') : bad('черновик разбора: ' + JSON.stringify(w4));
+    [p1, p2].forEach(p => { if (p.errs.length) bad('ошибки во вкладках: ' + p.errs.join(' | ')); });
+    await ctx.close();
+  }
+  {
+    // старые данные без id, и первая запись этой вкладки не удалась (место кончилось): в хранилище
+    // осталась старая строка. Другая вкладка открывает те же данные и сохраняет их со своими id.
+    // Первая вкладка сливает и пишет заново — без удвоения задач, записей и награды TikTok. До
+    // правки база слияния бралась повторным normalize() старой строки — с новыми случайными id
+    const ctx = await b.newContext({ viewport: { width: 390, height: 900 } });
+    const mk = async () => { const p = await ctx.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('dialog', d => d.accept()); return p; };
+    const p0 = await mk(); await p0.goto(URL); await p0.waitForTimeout(200);
+    await p0.evaluate(k => localStorage.setItem(k, JSON.stringify({ habits: [{ ico: '', name: 'Бег' }], checks: {},
+      tasks: [{ name: 'Отчёт', prio: 'md', due: '2026-10-01', done: true }], finance: { income: 0, entries: [{ type: 'out', cat: '🍔 Еда', amount: 1200, date: '2026-10-01' }] },
+      rewards: [{ ico: '🎮', name: 'Игры', n: 5 }], rv: 0, lastLv: 1 })), KEYS);
+    await p0.close();
+    const p1 = await mk();
+    await p1.addInitScript(k => { const set = Storage.prototype.setItem; let once = true;
+      Storage.prototype.setItem = function (a, v) { if (a === k && once) { once = false; throw new DOMException('quota', 'QuotaExceededError'); } return set.call(this, a, v); }; }, KEYS);
+    await p1.goto(URL); await p1.waitForTimeout(500);
+    const a = await p1.evaluate(k => ({ ok: SAVED_OK, legacy: !JSON.parse(localStorage.getItem(k)).tasks[0].id }), KEYS);
+    const p2 = await mk(); await p2.goto(URL); await p2.waitForTimeout(500);
+    await p1.waitForTimeout(600);
+    const r = await p1.evaluate(k => { const d = JSON.parse(localStorage.getItem(k));
+      return { ok: SAVED_OK, t: d.tasks.length, e: d.finance.entries.length, w: d.rewards.map(x => x.name).join(), mem: S.tasks.length + S.finance.entries.length }; }, KEYS);
+    (a.ok === false && a.legacy && r.ok && r.t === 1 && r.e === 1 && r.w === '30 минут TikTok,Игры' && r.mem === 2)
+      ? ok('первая запись не удалась → чужая запись слита без удвоения (задача, расход, TikTok по одному), повторная запись прошла')
+      : bad('удвоение после неудачной записи старых данных: ' + JSON.stringify({ a, r }));
+    [p1, p2].forEach(p => { if (p.errs.length) bad('ошибки во вкладках: ' + p.errs.join(' | ')); });
+    await ctx.close();
+  }
+  {
+    // «Тело» между вкладками: вес записан в первой, во второй открыто окно новой задачи (запись ждёт);
+    // вторая сохраняет задачу — её «Тело» не менялось, поэтому вес первой остаётся
+    const ctx = await b.newContext({ viewport: { width: 390, height: 900 } });
+    const mk = async () => { const p = await ctx.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('dialog', d => d.accept()); return p; };
+    const p1 = await mk(), p2 = await mk();
+    await p1.goto(URL); await p1.waitForTimeout(400); await startClean(p1);
+    await p2.goto(URL); await p2.waitForTimeout(500);
+    await p2.bringToFront(); await p2.evaluate(() => { cur = 'tasks'; render(); }); await p2.click('#addTask'); await p2.waitForTimeout(300);
+    await p1.evaluate(() => { S.body.log.push({ date: TODAY, w: 81.5 }); S.body.goalW = 75; save(); }); await p1.waitForTimeout(300);
+    await p2.fill('.modal input[type=text]', 'Задача при открытом окне'); await p2.click('.modal .ok'); await p2.waitForTimeout(500);
+    const r = await p2.evaluate(k => { const d = JSON.parse(localStorage.getItem(k)); return { w: d.body.log.map(x => x.w).join(), g: d.body.goalW, t: d.tasks.map(t => t.name).join() }; }, KEYS);
+    (r.w === '81.5' && r.g === 75 && r.t === 'Задача при открытом окне') ? ok('«Тело» между вкладками: вес первой пережил запись второй (у второй «Тело» не менялось), задача на месте')
+      : bad('«Тело» между вкладками: ' + JSON.stringify(r));
+    [p1, p2].forEach(p => { if (p.errs.length) bad('ошибки во вкладках: ' + p.errs.join(' | ')); });
+    await ctx.close();
+  }
+  {
+    // вкладка с приветствием (своих данных ещё нет — базы слияния нет) жмёт «Начать своё», когда
+    // в другой вкладке уже настоящие данные: слияние без базы — ничего чужого не пропадает
+    const ctx = await b.newContext({ viewport: { width: 390, height: 900 } });
+    const mk = async () => { const p = await ctx.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('dialog', d => d.accept()); return p; };
+    const p1 = await mk(), p2 = await mk();
+    await p1.goto(URL); await p1.waitForTimeout(400);
+    await p2.goto(URL); await p2.waitForTimeout(400); await startClean(p2);
+    await p2.evaluate(() => { S.tasks.push({ id: uid(), name: 'Задача второй вкладки', prio: 'md', due: TODAY, done: false }); S.checks[TODAY] = [S.habits[0].id]; save(); });
+    await p1.bringToFront(); await startClean(p1);
+    const r = await p1.evaluate(k => { const d = JSON.parse(localStorage.getItem(k)); return { t: d.tasks.map(t => t.name).join(), c: (d.checks[TODAY] || []).length, h: d.habits.length, mem: S.tasks.length }; }, KEYS);
+    (r.t === 'Задача второй вкладки' && r.c === 1 && r.h === 3 && r.mem === 1) ? ok('«Начать своё» во вкладке без базы при данных в другой: задача и отметка другой вкладки целы, привычки не удвоены')
+      : bad('первый запуск против данных другой вкладки: ' + JSON.stringify(r));
+    [p1, p2].forEach(p => { if (p.errs.length) bad('ошибки во вкладках: ' + p.errs.join(' | ')); });
+    await ctx.close();
+  }
+  {
     // системное окно подтверждения (на сайте askConfirm = confirm()) держит вторую вкладку, первая
     // тем временем отмечает день; вторая подтверждает удаление операции. До правки 11.10 ответ
     // отдавался сразу, save() читал старое хранилище и затирал отметки первой вкладки
