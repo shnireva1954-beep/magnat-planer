@@ -13,11 +13,13 @@
 //      пользуется (есть данные) — сразу в приложение (app.html).
 // Плюс API входа (server/api): шаг установки и службы (1д), выкладка API за
 // сайтом с проверкой и откатом (2б), magnat mail / status / upgrade и копия
-// базы (2в), /api через Caddy — прокси, заголовки, 413 и 503 JSON (3б).
+// базы (2в), копия на Яндекс Диск (поддельный REST API), запросы людей о
+// данных и оплата сервера (2г), /api через Caddy — прокси, заголовки, 413 и
+// 503 JSON (3б).
 // Caddy берётся из PATH, из CADDY= или скачивается с официального
 // репозитория в node_modules/.cache (он в .gitignore) — tests/lib.js.
 const { spawn, spawnSync } = require("child_process");
-const fs = require("fs"), path = require("path"), os = require("os"), http = require("http"), zlib = require("zlib");
+const fs = require("fs"), path = require("path"), os = require("os"), http = require("http"), zlib = require("zlib"), crypto = require("crypto");
 const L = require("./lib");
 const { findCaddy, freePort, get, waitPort } = L;
 
@@ -221,12 +223,19 @@ exit 0
     has(bsvc, ["User=magnat-api", "ExecStart=/usr/local/sbin/magnat api-backup", "PrivateNetwork=yes", "ProtectSystem=strict"]).length === 0
       && !/runuser/.test(bsvc) && /^OnCalendar=/m.test(btim) && /^Persistent=true$/m.test(btim) && /systemctl enable --now magnat-api-backup\.timer/.test(inst)
       ? ok("копия базы раз в сутки — служба от magnat-api без сети и без runuser, таймер включён") : bad("служба/таймер копии базы не те");
+    const osvc = unit("magnat-backup.service"), otim = unit("magnat-backup.timer");
+    has(osvc, ["Type=oneshot", "ExecStart=/usr/local/sbin/magnat backup", "After=magnat-api-backup.service", "ProtectSystem=full", "ProtectHome=yes", "PrivateTmp=yes"]).length === 0
+      && !/^User=/m.test(osvc) && /^OnCalendar=.* 01:10:00 UTC$/m.test(otim) && /^Persistent=true$/m.test(otim) && /systemctl enable --now magnat-backup\.timer/.test(inst)
+      && /apt_get install .* openssl /.test(inst) && /\/var\/backups\/magnat\/offsite/.test(inst)
+      ? ok("ночной magnat backup — от root после местной копии (копия на Диск, письма, чистка), таймер включён, openssl ставится") : bad("служба/таймер magnat-backup не те");
     if (sh("command -v systemd-analyze").status === 0) {
       const UD = path.join(T, "units"); fs.mkdirSync(UD);
       fs.writeFileSync(path.join(UD, "magnat-api.service"), svc);
       fs.writeFileSync(path.join(UD, "magnat-api-backup.service"), bsvc.replace("/usr/local/sbin/magnat api-backup", "/bin/true"));
       fs.writeFileSync(path.join(UD, "magnat-api-backup.timer"), btim);
-      const va = sh("systemd-analyze verify --man=no ./magnat-api.service ./magnat-api-backup.service ./magnat-api-backup.timer", { cwd: UD });
+      fs.writeFileSync(path.join(UD, "magnat-backup.service"), osvc.replace("/usr/local/sbin/magnat backup", "/bin/true"));
+      fs.writeFileSync(path.join(UD, "magnat-backup.timer"), otim);
+      const va = sh("systemd-analyze verify --man=no ./magnat-api.service ./magnat-api-backup.service ./magnat-api-backup.timer ./magnat-backup.service ./magnat-backup.timer", { cwd: UD });
       va.status === 0 && !(va.stdout + va.stderr).trim() ? ok("systemd-analyze verify — службы и таймер без замечаний")
         : bad("systemd-analyze verify:\n    " + (va.stdout + va.stderr).trim().split("\n").slice(0, 6).join("\n    "));
     } else console.log("  ⚠ пропуск systemd-analyze verify: его здесь нет (тексты служб проверены выше)");
@@ -441,6 +450,137 @@ exit 0
         ? ok(`api.py ни разу не запущен от root мимо runuser -u magnat-api (${py.length} вызовов: ${[...kinds].join(", ")})`) : bad("вызовы api.py мимо runuser:\n    " + py.filter(c => !ru.includes(c)).join("\n    "));
     } else console.log("  ⚠ пропуск проверки runuser: тест не от root — runuser не нужен");
   } catch (e) { bad("2в упал: " + (e.stack || e)); }
+
+  // ---- 2г. копия на Яндекс Диск, запросы людей о данных, оплата сервера --------
+  // Настоящие openssl и curl; Диск — поддельный REST API (tests/lib.js: fakeDisk).
+  // curl — через самописец: токен обязан идти из файла (-H @…), не аргументом.
+  console.log("\n2г. magnat backup-setup / backup, magnat user, magnat paid-until");
+  const disk = await L.fakeDisk();
+  const PHRASE = "тихая-гавань-42-копии";
+  fs.writeFileSync(path.join(bin, "curl"), `#!/bin/bash\nprintf '%s\\n' "$*" >> "${T}/curl.log"\nexec /usr/bin/curl "$@"\n`, { mode: 0o755 });
+  const denv = { MAGNAT_DISK_API: disk.url, NO_PROXY: "127.0.0.1", no_proxy: "127.0.0.1" };
+  const run = (args, input) => spawnSync("bash", [path.join(ROOT, "server/magnat.sh"), ...args], { input, encoding: "utf8", env: { ...env, ...denv }, timeout: 120000 });
+  const rd = (f) => { try { return fs.readFileSync(f); } catch (e) { return null; } };
+  const rdT = (f) => { const b = rd(path.join(T, f)); return b ? b.toString() : ""; };
+  const dec = (buf) => { // как на новой машине: openssl enc -d … -pass file:backup.pass
+    const r = spawnSync("openssl", ["enc", "-d", "-aes-256-cbc", "-pbkdf2", "-iter", "200000", "-pass", "file:" + path.join(ETC, "backup.pass")], { input: buf, maxBuffer: 64 << 20 });
+    return r.status === 0 ? r.stdout : null;
+  };
+  const secretsIn = (x) => [disk.token, PHRASE, PASS].filter(v => String(x).includes(v));
+  const subj = (x) => L.parseMail(x.raw).subject;
+  const alerts = () => smtp.to("support@example.ru").filter(x => /^Магнат: /.test(subj(x)));
+  const statusLine = (re) => (st.stdout.match(re) || ["нет строки"])[0];
+  const noFiles = () => ["disk.auth", "backup.pass", "disk.auth.new", "backup.pass.new"].every(f => !fs.existsSync(path.join(ETC, f)));
+  const BD2 = path.join(AS, "backup");
+  try {
+    st = run(["status"]);
+    /Яндекс Диск:\s+копии не настроены \(по желанию, один раз: magnat backup-setup\)/.test(st.stdout) && /Место на диске: свободно \d+,\d ГБ/.test(st.stdout)
+      && /Оплата сервера: срок не записан → magnat paid-until ДД\.ММ\.ГГГГ/.test(st.stdout)
+      ? ok("magnat status до настройки: «Яндекс Диск: копии не настроены…», «Место на диске: свободно …», «Оплата сервера: срок не записан…»")
+      : bad("status до настройки:\n    " + st.stdout.split("\n").filter(l => /Яндекс|Место|Оплата/.test(l)).join("\n    "));
+
+    let m = run(["backup-setup"], `${disk.token}\n${PHRASE}\nдругая фраза 12345\n`);
+    m.status === 1 && /НЕ УШЛО: фразы не совпали/.test(m.stdout) && noFiles() ? ok("фразы не совпали → «НЕ УШЛО», ничего не записано") : bad("фразы: " + (m.stdout + m.stderr).slice(-300));
+    m = run(["backup-setup"], `не токен\n${PHRASE}\n${PHRASE}\n`);
+    m.status === 1 && /НЕ УШЛО: это не похоже на токен/.test(m.stdout) && noFiles() && disk.reqs.length === 0 ? ok("не токен → «НЕ УШЛО» без единого запроса к Диску") : bad("не токен: " + m.stdout.slice(-300));
+    m = run(["backup-setup"], `y0_chuzhoy_token_1234567890abcdef\n${PHRASE}\n${PHRASE}\n`);
+    m.status === 1 && /НЕ УШЛО: Диск не пустил: токен неверный или истёк → magnat backup-setup\. Прежние настройки не тронуты/.test(m.stdout) && noFiles() && disk.reqs.length === 1 && disk.reqs[0].status === 401
+      ? ok("чужой токен → Диск отвечает 401 → «НЕ УШЛО: Диск не пустил…», настройки не записаны") : bad("401: " + (m.stdout + m.stderr).slice(-300) + " " + JSON.stringify(disk.reqs));
+
+    // настоящий токен: шифрует сегодняшнюю местную копию, выгружает, сверяет размер и md5
+    disk.clear();
+    m = run(["backup-setup"], `${disk.token}\n${PHRASE}\n${PHRASE}\n`);
+    const doy = Math.floor((Date.now() - Date.UTC(new Date().getUTCFullYear(), 0, 0)) / 86400000), slotName = `magnat-${String(doy % 14).padStart(2, "0")}.db.gz.enc`;
+    const local = rd(path.join(BD2, `magnat-${new Date().toISOString().slice(0, 10)}.db.gz`));
+    const up = disk.read(slotName), plain = up && dec(up);
+    const authF = rd(path.join(ETC, "disk.auth")), passF = rd(path.join(ETC, "backup.pass"));
+    const modes = ["disk.auth", "backup.pass"].map(f => { try { return fs.statSync(path.join(ETC, f)).mode & 0o777; } catch (e) { return -1; } });
+    m.status === 0 && /КОПИЯ НА ДИСКЕ ЕСТЬ: magnat-\d\d\.db\.gz\.enc \(\d+ КБ\) в папке приложения на Яндекс Диске/.test(m.stdout) && up && local && plain && plain.equals(local)
+      && authF && authF.toString() === `Authorization: OAuth ${disk.token}\n` && passF && passF.toString() === PHRASE + "\n" && modes.every(x => x === 0o600)
+      ? ok(`magnat backup-setup: «КОПИЯ НА ДИСКЕ ЕСТЬ», слот ${slotName}; расшифровка фразой даёт байт в байт сегодняшнюю местную копию; disk.auth и backup.pass 0600`)
+      : bad(`backup-setup (код ${m.status}): up=${!!up} plain=${!!(plain && local && plain.equals(local))} modes=${modes.map(x => x.toString(8))}\n    ` + (m.stdout + m.stderr).trim().slice(-400));
+    up && local && !up.equals(local) && up.slice(0, 8).toString() === "Salted__" ? ok("на Диске лежит шифртекст (Salted__…), а не база") : bad("на Диске не шифртекст");
+    const ups = disk.reqs.filter(r => r.path === "/v1/disk/resources/upload"), puts = disk.reqs.filter(r => r.path.startsWith("/upload/") && r.method === "PUT"), stats = disk.reqs.filter(r => r.path === "/v1/disk/resources" && r.method === "GET");
+    ups.length === 1 && ups[0].authOk && ups[0].query.overwrite === "true" && ups[0].query.path === "app:/" + slotName && puts.length === 1 && puts[0].status === 201 && stats.length === 1 && stats[0].status === 200
+      ? ok("Диск: адрес загрузки по токену (папка приложения, overwrite=true) → PUT → сверка размера и md5") : bad("запросы к Диску: " + JSON.stringify(disk.reqs));
+    const outAll = m.stdout + m.stderr, argvAll = ["curl.log", "runuser.log", "py.log", "systemctl.log"].map(rdT).join("\n");
+    !secretsIn(outAll).length && !secretsIn(argvAll).length && /-H @/.test(rdT("curl.log")) ? ok("токена и фразы нет ни в выводе, ни в аргументах curl/runuser/python — токен идёт файлом (-H @…)") : bad("секреты утекли: вывод " + secretsIn(outAll).length + ", аргументы " + secretsIn(argvAll).length);
+    !fs.readdirSync(path.join(BK, "offsite")).length && !fs.existsSync(path.join(STATE, ".disk-resp")) ? ok("временного шифртекста и ответа Диска не осталось") : bad("остались временные файлы: " + fs.readdirSync(path.join(BK, "offsite")).join(" "));
+    st = run(["status"]);
+    /Яндекс Диск:\s+копия \d\d\.\d\d \d\d:\d\d UTC ✅ \(magnat-\d\d\.db\.gz\.enc, \d+ КБ, зашифрована; слотов 14\)/.test(st.stdout) && !secretsIn(st.stdout).length
+      ? ok("magnat status: «Яндекс Диск: копия … ✅ (…, зашифрована; слотов 14)» — без секретов") : bad("status Диска: " + statusLine(/Яндекс Диск.*/));
+
+    // ночь: magnat backup — слот перезаписан, копии старше 30 дней убраны, свежие на месте
+    const oldPre = path.join(BK, "deploy", "pre-old.db.gz"), keepPre = path.join(BK, "deploy", "pre-new.db.gz");
+    fs.writeFileSync(oldPre, "old"); fs.utimesSync(oldPre, new Date(2026, 0, 1), new Date(2026, 0, 1)); fs.writeFileSync(keepPre, "new");
+    disk.clear(); m = run(["backup"]);
+    m.status === 0 && disk.reqs.some(r => r.path.startsWith("/upload/") && r.status === 201) && !fs.existsSync(oldPre) && fs.existsSync(keepPre) && !fs.readdirSync(path.join(BK, "offsite")).length
+      ? ok("magnat backup: слот на Диске перезаписан, копии старше 30 дней убраны, свежие на месте") : bad(`magnat backup: код ${m.status}, pre-old ${fs.existsSync(oldPre)}\n    ` + (m.stdout + m.stderr).slice(-300));
+
+    // Диск сломался: первая ночь — отметка в статусе, вторая — письмо, третья — без повтора (сутки)
+    disk.fail = 507; let n0 = alerts().length;
+    m = run(["backup"]); st = run(["status"]);
+    m.status === 1 && /Яндекс Диск:\s+копия НЕ ушла ❌ \d\d\.\d\d \d\d:\d\d UTC — на Диске нет места \(последняя удачная — \d\d\.\d\d \d\d:\d\d UTC\)/.test(st.stdout) && alerts().length === n0
+      ? ok("Диск ответил 507 → «копия НЕ ушла ❌ … на Диске нет места (последняя удачная — …)», после первой ночи письма нет")
+      : bad(`507: код ${m.status}, писем ${alerts().length - n0}\n    ` + statusLine(/Яндекс Диск.*/) + "\n    " + (m.stdout + m.stderr).slice(-200));
+    m = run(["backup"]);
+    const al = await smtp.wait(x => /не уходит 2 ночи подряд/.test(subj(x)), 5000);
+    al && alerts().length === n0 + 1 && /^Магнат: Копия базы на Яндекс Диск не уходит 2 ночи подряд: на Диске нет места$/.test(subj(al))
+      ? ok("вторая ночь подряд → письмо на адрес поддержки «Магнат: Копия базы на Яндекс Диск не уходит 2 ночи подряд: на Диске нет места»") : bad("письмо о Диске: " + (al ? subj(al) : "нет") + ", всего новых " + (alerts().length - n0));
+    m = run(["backup"]);
+    alerts().length === n0 + 1 ? ok("третья ночь — письмо не повторяется (не чаще раза в сутки на вид)") : bad("письмо повторилось: " + (alerts().length - n0));
+    disk.fail = 0; m = run(["backup"]); st = run(["status"]);
+    m.status === 0 && /Яндекс Диск:\s+копия \d\d\.\d\d \d\d:\d\d UTC ✅/.test(st.stdout) && !fs.existsSync(path.join(STATE, "offsite-fail"))
+      ? ok("Диск ожил → копия ушла, ❌ снята, счёт ночей сброшен") : bad("после починки: " + statusLine(/Яндекс Диск.*/));
+
+    // оплата сервера
+    const fmt = (d) => `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.${d.getUTCFullYear()}`;
+    const inDays = (n) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + n); return fmt(d); };
+    const q = (x) => x.replace(/\./g, "\\.");
+    m = run(["paid-until", "31.02.2026"]);
+    m.status === 1 && /«31\.02\.2026» не похоже на дату — нужно ДД\.ММ\.ГГГГ/.test(m.stdout) && !fs.existsSync(path.join(ETC, "paid-until")) ? ok("magnat paid-until 31.02.2026 → не дата, ничего не записано") : bad("плохая дата: " + m.stdout);
+    m = run(["paid-until", inDays(13)]); st = run(["status"]);
+    m.status === 0 && new RegExp(`Оплата сервера: до ${q(inDays(13))} \\(осталось 13 дней\\) ✅`).test(st.stdout) && (fs.statSync(path.join(ETC, "paid-until")).mode & 0o777) === 0o600
+      ? ok(`magnat paid-until ${inDays(13)} → «Оплата сервера: до … (осталось 13 дней) ✅», файл 0600`) : bad("paid-until 13: " + statusLine(/Оплата.*/) + " | " + m.stdout);
+    n0 = alerts().length; m = run(["backup"]);
+    alerts().length === n0 ? ok("за 13 дней до срока письма нет") : bad("письмо об оплате раньше времени: " + subj(alerts().at(-1)));
+    m = run(["paid-until", inDays(2)]); st = run(["status"]); m = run(["backup"]);
+    const pa = await smtp.wait(x => /^Магнат: Сервер оплачен до/.test(subj(x)), 5000);
+    new RegExp(`Оплата сервера: до ${q(inDays(2))} — ⚠ осталось 2 дня, продли на RUVDS`).test(st.stdout) && pa && subj(pa) === `Магнат: Сервер оплачен до ${inDays(2)} — осталось 2 дня, продли на RUVDS`
+      ? ok("за 2 дня: «⚠ осталось 2 дня, продли на RUVDS» и письмо «Магнат: Сервер оплачен до … — осталось 2 дня, продли на RUVDS»") : bad("2 дня: " + statusLine(/Оплата.*/) + " письмо: " + (pa ? subj(pa) : "нет"));
+    m = run(["paid-until", inDays(-1)]); st = run(["status"]);
+    new RegExp(`Оплата сервера: срок ${q(inDays(-1))} ПРОШЁЛ ❌ — продли на RUVDS, иначе машину снесут`).test(st.stdout) ? ok("срок прошёл → «ПРОШЁЛ ❌ — продли на RUVDS, иначе машину снесут»") : bad("прошёл: " + statusLine(/Оплата.*/));
+
+    // запросы людей о данных: аккаунт появляется после входа по коду (API закрыт — код только ящикам владельца)
+    const ORIGIN = "https://magnat-planer.ru", EM = "support@example.ru", nBefore = smtp.to(EM).length;
+    let rr = await L.postJson(APORT, "/api/code", { email: EM, purpose: "login" }, { origin: ORIGIN });
+    const code = rr.status === 200 ? await L.waitCode(smtp, EM, { kind: "login", after: nBefore }) : null;
+    rr = code ? await L.postJson(APORT, "/api/login", { email: EM, code, dev: "d_" + crypto.randomBytes(8).toString("hex"), label: "Проверка" }, { origin: ORIGIN }) : rr;
+    rr.status === 200 && code ? ok("вход по коду — аккаунт на сервере появился") : bad("вход не удался: " + rr.status + " " + rr.text + " код " + code);
+    m = run(["user", "show", EM]);
+    m.status === 0 && /^Аккаунт есть: создан \d{4}-\d\d-\d\d, последний заход/m.test(m.stdout) && /Устройства \(1\)/.test(m.stdout) && !m.stdout.includes(EM)
+      ? ok("magnat user show — «Аккаунт есть: создан …», устройства, без самого адреса в выводе") : bad("user show: " + (m.stdout + m.stderr).slice(-200));
+    m = run(["user", "show", "nikogo@example.ru"]);
+    m.status === 0 && /^Аккаунта с этим адресом нет\.$/m.test(m.stdout) ? ok("magnat user show чужого адреса — «Аккаунта с этим адресом нет.»") : bad("user show nobody: " + m.stdout);
+    m = run(["user", "show", "не адрес"]);
+    m.status === 1 && /не похоже на адрес почты/.test(m.stdout) ? ok("magnat user show «не адрес» — отказ без запуска api.py") : bad("user show bad: " + m.stdout);
+    m = run(["user", "export", EM]);
+    const ex = await smtp.wait(x => x.to.map(t => t.toLowerCase()).includes(EM) && /Твои данные в Магнате/.test(subj(x)), 5000);
+    m.status === 0 && /ВЫГРУЗКА ОТПРАВЛЕНА: письмо с данными ушло на support@example\.ru — только на этот адрес/.test(m.stdout) && ex && /magnat-\d{4}-\d\d-\d\d\.json/.test(ex.raw) && ex.to.length === 1 && !secretsIn(m.stdout + m.stderr).length
+      ? ok("magnat user export — «ВЫГРУЗКА ОТПРАВЛЕНА», письмо «Твои данные в Магнате» с magnat-<дата>.json только на этот адрес") : bad(`user export (код ${m.status}): ${(m.stdout + m.stderr).slice(-200)} письмо: ${ex ? "есть" : "нет"}`);
+    m = run(["user", "delete", EM], "нет\n");
+    let again = run(["user", "show", EM]);
+    // подсказка «Напиши ДА:» — от read -p, он печатает её только терминалу; здесь stdin — труба
+    m.status === 1 && /Удалить аккаунт support@example\.ru с сервера\?/.test(m.stdout) && /Отмена — ничего не удалено/.test(m.stdout) && /Аккаунт есть/.test(again.stdout)
+      ? ok("magnat user delete без «ДА» — вопрос, отмена, аккаунт на месте") : bad(`delete без ДА (код ${m.status}, сигнал ${m.signal}): stdout «${m.stdout.slice(-120)}» stderr «${m.stderr.slice(-200)}»`);
+    m = run(["user", "delete", EM], "ДА\n");
+    again = run(["user", "show", EM]);
+    m.status === 0 && /Аккаунт удалён, надгробие записано/.test(m.stdout) && /Аккаунта с этим адресом нет/.test(again.stdout) ? ok("magnat user delete с «ДА» — «Аккаунт удалён, надгробие записано», аккаунта больше нет") : bad("delete ДА: " + (m.stdout + m.stderr).slice(-300));
+    const py2 = rdT("py.log").trim().split("\n").filter(c => / (user|alert) /.test(c)), ru2 = rdT("runuser.log");
+    py2.length >= 6 && py2.every(c => ru2.split("\n").some(l => l.startsWith("-u ") && l.endsWith(c))) && !/(user export|alert) .*(SMTP_PASS|OAuth)/.test(rdT("py.log"))
+      ? ok(`api.py user/alert — ${py2.length} вызовов, все через runuser, пароль почты только через stdin`) : bad("вызовы user/alert мимо runuser или с паролем: " + py2.length);
+  } catch (e) { bad("2г упал: " + (e.stack || e)); }
+  await disk.close();
   await smtp.close();
 
   // ---- 3. Caddy ------------------------------------------------------------

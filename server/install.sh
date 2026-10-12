@@ -142,6 +142,7 @@ remove_relay() {
     while IFS=$'\t' read -r t rule; do
       [ -n "$rule" ] || continue
       # shellcheck disable=SC2086
+      # shellcheck disable=SC2015  # «|| true» — правило могло исчезнуть между просмотром и удалением
       iptables -t "$t" -D $rule 2>/dev/null && n=$((n + 1)) || true
     done <<<"$relay"
     sysctl -qw net.ipv4.ip_forward=0 2>/dev/null || true
@@ -198,7 +199,7 @@ if ! swapon --show=NAME --noheadings | grep -q .; then
   fi
 fi
 apt_get update -qq
-apt_get install -y -qq ca-certificates curl gnupg git openssh-client ufw fail2ban python3 python3-systemd unattended-upgrades >/dev/null
+apt_get install -y -qq ca-certificates curl openssl gnupg git openssh-client ufw fail2ban python3 python3-systemd unattended-upgrades >/dev/null
 
 # Caddy — из официального репозитория (свежий, сам обновляется). Не вышло —
 # из репозитория Ubuntu: старее, но рабочий.
@@ -282,7 +283,7 @@ echo; echo "--- 5/8 API входа по почте (закрыт: код — т�
 id magnat-api >/dev/null 2>&1 ||
   useradd --system --home-dir /var/lib/magnat-api --no-create-home --shell /usr/sbin/nologin magnat-api
 install -d -o magnat-api -g magnat-api -m 0700 /var/lib/magnat-api /var/lib/magnat-api/tmp /var/lib/magnat-api/backup
-install -d -o root -g root -m 0700 /etc/magnat /var/backups/magnat /var/backups/magnat/deploy
+install -d -o root -g root -m 0700 /etc/magnat /var/backups/magnat /var/backups/magnat/deploy /var/backups/magnat/offsite
 # Пустой smtp.env — служба стартует и без почты (LoadCredential без файла не стартует).
 [ -e /etc/magnat/smtp.env ] || install -o root -g root -m 0600 /dev/null /etc/magnat/smtp.env
 install -d -o root -g root -m 0755 /srv/magnat-api /srv/magnat-api/releases
@@ -330,7 +331,7 @@ RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 WantedBy=multi-user.target
 EOF
 # Копия базы раз в сутки, на этой же машине, семь последних — от magnat-api,
-# без runuser и без сети. Копия вне машины — позже, отдельным шагом.
+# без runuser и без сети. Копия вне машины — magnat-backup ниже, от root.
 cat > /etc/systemd/system/magnat-api-backup.service <<'EOF'
 [Unit]
 Description=Magnat API: daily local copy of the database (keeps 7)
@@ -365,9 +366,45 @@ Persistent=true
 [Install]
 WantedBy=timers.target
 EOF
+# Полчаса после местной копии — от root: зашифрованная копия на Яндекс Диск
+# владельца (если он один раз набрал magnat backup-setup), письма-напоминания
+# на адрес поддержки, чистка копий старше 30 дней. Root читает /etc/magnat и
+# копии magnat-api; api.py и здесь запускается только через runuser.
+cat > /etc/systemd/system/magnat-backup.service <<'EOF'
+[Unit]
+Description=Magnat: nightly encrypted copy to Yandex Disk, reminders, cleanup
+After=magnat-api-backup.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/magnat backup
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=20min
+UMask=0077
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+EOF
+cat > /etc/systemd/system/magnat-backup.timer <<'EOF'
+[Unit]
+Description=Magnat: nightly encrypted copy to Yandex Disk, reminders, cleanup
+
+[Timer]
+OnCalendar=*-*-* 01:10:00 UTC
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
 systemctl daemon-reload
 systemctl enable magnat-api.service >/dev/null 2>&1
 systemctl enable --now magnat-api-backup.timer >/dev/null 2>&1
+systemctl enable --now magnat-backup.timer >/dev/null 2>&1
 systemctl try-restart magnat-api.service || true     # повторный запуск: новые настройки службы
 rm -f "$STATE/api-skip"                               # повторная установка — снова попробовать API, что не встал
 /usr/local/sbin/magnat deploy || true                 # apply_api ставит API из выложенной версии и запускает
@@ -383,6 +420,7 @@ fi
 
 # --- 6. Caddy ---------------------------------------------------------------------
 echo; echo "--- 6/8 Веб-сервер Caddy (HTTPS сам, заголовки безопасности) ---"
+# shellcheck disable=SC2015  # «|| true» — исходного Caddyfile может не быть
 [ -f /etc/caddy/Caddyfile ] && cp -f /etc/caddy/Caddyfile /etc/caddy/Caddyfile.orig 2>/dev/null || true
 install -m 0644 "$HERE/Caddyfile" /etc/caddy/Caddyfile
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 || fail "Caddyfile не прошёл проверку."
@@ -448,6 +486,9 @@ echo
 if ! grep -q '^SMTP_PASS=.' /etc/magnat/smtp.env 2>/dev/null; then
   echo
   echo "Дальше — почта для кодов входа, один раз: набери  magnat mail"
+fi
+if [ ! -s /etc/magnat/disk.auth ]; then
+  echo "Копия базы вне сервера (Яндекс Диск, по желанию, один раз): magnat backup-setup — как получить токен, в server/README.md"
 fi
 echo
 echo "VSE-GOTOVO"

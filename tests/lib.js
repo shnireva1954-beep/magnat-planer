@@ -44,7 +44,7 @@ async function startClean(p) {
 // Всё — на свободных портах 127.0.0.1 и во временных папках. Всё гасится само:
 // при выходе, при SIGINT/SIGTERM/SIGHUP, а Caddy и API (через prctl
 // PR_SET_PDEATHSIG) — даже если сам тест убит SIGKILL. Явно — cleanup().
-// fakeSmtp и fakeDav — в своём процессе: к ним можно ходить из spawnSync.
+// fakeSmtp и fakeDisk — в своём процессе: к ним можно ходить из spawnSync.
 // dropProxy и frameServer — в этом: их клиенты только асинхронные (Caddy,
 // браузер, request) — spawnSync остановит цикл событий, и они замолчат.
 // Адреса в тестах — только *@example.ru. MAGNAT_KEEP_TMP=1 — не удалять папки.
@@ -548,78 +548,66 @@ async function waitCode(smtp, email, { kind, after = 0, ms = 10000 } = {}) {
   }
 }
 
-// fakeDav({ user, pass, strict }) — WebDAV для выгрузки бэкапа: MKCOL, PUT,
-// GET/HEAD, DELETE, PROPFIND (Depth 0/1), basic auth (user: null — без входа).
-// strict — как у настоящих: PUT и MKCOL без родительской папки → 409.
-// fail = 507 — любой запрос отвечает этим кодом (меняется на ходу).
-// reqs — { method, path, auth, status, size, sha256 }; files — Map путь → Buffer;
-// dirs — Set папок; read(путь) → Buffer | null. url — "http://127.0.0.1:P/".
-async function fakeDav({ user = "backup@example.ru", pass = crypto.randomBytes(12).toString("base64url"), strict = true } = {}) {
-  const ctl = { user, pass, strict, fail: 0 };
-  const F = fakeDir("magnat-dav-", ctl), root = path.join(F.dir, "root");
+// fakeDisk({ token }) — REST API Яндекс Диска для копий (папка приложения app:/):
+// GET /v1/disk/resources/upload?path=app:/ИМЯ&overwrite=true → { href, method: "PUT" };
+// PUT href (без токена, одноразовый — как у настоящего) → 201;
+// GET /v1/disk/resources?path=app:/ИМЯ → { name, size, md5 } или 404;
+// Authorization: OAuth <token>, иначе 401 с JSON { message, error }.
+// fail = 507|423|… — API отвечает этим кодом (меняется на ходу); token — тоже.
+// reqs — { method, path, query, authOk, status, size }; files — Map имя → Buffer;
+// read(имя) → Buffer | null. url — "http://127.0.0.1:P" (без хвостового «/»).
+async function fakeDisk({ token = "y0_" + crypto.randomBytes(30).toString("base64url") } = {}) {
+  const ctl = { token, fail: 0 };
+  const F = fakeDir("magnat-disk-", ctl), root = path.join(F.dir, "root");
   fs.mkdirSync(root);
   const D = { dir: F.dir, root };
-  for (const k of ["user", "pass", "strict", "fail"]) Object.defineProperty(D, k, { enumerable: true, get: () => ctl[k], set: (v) => { ctl[k] = v; F.save(); } });
+  for (const k of ["token", "fail"]) Object.defineProperty(D, k, { enumerable: true, get: () => ctl[k], set: (v) => { ctl[k] = v; F.save(); } });
   Object.defineProperty(D, "reqs", { enumerable: true, get: () => F.events().map(({ t, ...r }) => r) });
-  const walk = (rel, out) => {
-    for (const n of fs.readdirSync(path.join(root, rel))) { const k = rel + "/" + n, st = fs.statSync(path.join(root, k)); out.push([k, st.isDirectory()]); if (st.isDirectory()) walk(k, out); }
-    return out;
-  };
-  Object.defineProperty(D, "files", { enumerable: true, get: () => new Map(walk("", []).filter(x => !x[1]).map(([k]) => [k, fs.readFileSync(path.join(root, k))])) });
-  Object.defineProperty(D, "dirs", { enumerable: true, get: () => new Set(["/", ...walk("", []).filter(x => x[1]).map(x => x[0])]) });
-  D.read = (p) => { try { return fs.readFileSync(path.join(root, path.posix.normalize("/" + p))); } catch (e) { return null; } };
+  Object.defineProperty(D, "files", { enumerable: true, get: () => new Map(fs.readdirSync(root).filter(n => !n.endsWith(".part")).map(n => [n, fs.readFileSync(path.join(root, n))])) });
+  D.read = (n) => { try { return fs.readFileSync(path.join(root, path.basename(n))); } catch (e) { return null; } };
   D.clear = F.clear;
-  const { proc, port } = await startFake("dav", F.dir);
-  Object.assign(D, { proc, port, url: `http://127.0.0.1:${port}/`, close: () => proc.stop(2000) });
+  const { proc, port } = await startFake("disk", F.dir);
+  Object.assign(D, { proc, port, url: `http://127.0.0.1:${port}`, close: () => proc.stop(2000) });
   return D;
 }
-function davServer(ctl, rec, root) {
-  const xmlEsc = (x) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;");
-  const st = (k) => { try { return fs.statSync(path.join(root, k)); } catch (e) { return null; } };
-  const isDir = (k) => { const s = st(k); return !!s && s.isDirectory(); }, isFile = (k) => { const s = st(k); return !!s && s.isFile(); };
+function diskServer(ctl, rec, root) {
+  const pending = new Map(); // id адреса загрузки → имя файла
   return http.createServer((req, res) => {
     const chunks = [];
     req.on("data", d => chunks.push(d));
     req.on("end", () => {
-      const c = ctl(), body = Buffer.concat(chunks);
-      let p; try { p = decodeURIComponent(req.url.split("?")[0]); } catch (e) { p = req.url; }
-      const key = path.posix.normalize("/" + p).replace(/\/+$/, "") || "/", parent = path.posix.dirname(key), disk = path.join(root, key);
-      let auth = null; const m = /^Basic\s+(\S+)/i.exec(req.headers.authorization || "");
-      if (m) { const x = Buffer.from(m[1], "base64").toString("utf8"), i = x.indexOf(":"); auth = { user: x.slice(0, i), pass: x.slice(i + 1) }; }
-      const send = (code, b = "", h = {}) => {
-        rec({ t: "req", method: req.method, path: key, auth, status: code, size: body.length, sha256: crypto.createHash("sha256").update(body).digest("hex"), at: Date.now() });
-        const buf = Buffer.isBuffer(b) ? b : Buffer.from(b); res.writeHead(code, { "Content-Length": buf.length, ...h }); res.end(req.method === "HEAD" ? undefined : buf);
+      const c = ctl(), body = Buffer.concat(chunks), u = new URL(req.url, "http://x");
+      const m = /^OAuth\s+(\S+)$/.exec(req.headers.authorization || ""), authOk = !!m && m[1] === c.token;
+      const send = (code, obj) => {
+        rec({ t: "req", method: req.method, path: u.pathname, query: Object.fromEntries(u.searchParams), auth: req.headers.authorization ? "***" : null, authOk, status: code, size: body.length, at: Date.now() });
+        const buf = Buffer.from(obj ? JSON.stringify(obj) : "");
+        res.writeHead(code, { "Content-Length": buf.length, ...(obj ? { "Content-Type": "application/json; charset=utf-8" } : {}) }); res.end(buf);
       };
-      if (c.user !== null && (!auth || auth.user !== c.user || auth.pass !== c.pass)) return send(401, "", { "WWW-Authenticate": 'Basic realm="fake-dav"' });
-      if (c.fail) return send(c.fail);
-      switch (req.method) {
-        case "MKCOL":
-          if (st(key)) return send(405);
-          if (c.strict && !isDir(parent)) return send(409);
-          fs.mkdirSync(disk, { recursive: true }); return send(201);
-        case "PUT": {
-          if (isDir(key)) return send(405);
-          if (c.strict && !isDir(parent)) return send(409);
-          const had = isFile(key);
-          fs.mkdirSync(path.dirname(disk), { recursive: true });
-          fs.writeFileSync(disk + ".part", body); fs.renameSync(disk + ".part", disk);
-          return send(had ? 204 : 201);
-        }
-        case "GET": case "HEAD": return isFile(key) ? send(200, fs.readFileSync(disk)) : send(404);
-        case "DELETE":
-          if (key === "/" || !st(key)) return send(404);
-          fs.rmSync(disk, { recursive: true, force: true }); return send(204);
-        case "PROPFIND": {
-          if (!st(key)) return send(404);
-          const items = [key];
-          if (isDir(key) && req.headers.depth !== "0") for (const n of fs.readdirSync(disk)) items.push((key === "/" ? "" : key) + "/" + n);
-          const resp = items.map(x => { const dirx = isDir(x); return `<d:response><d:href>${xmlEsc(encodeURI(dirx && x !== "/" ? x + "/" : x))}</d:href><d:propstat><d:prop>` +
-            (dirx ? "<d:resourcetype><d:collection/></d:resourcetype>" : `<d:resourcetype/><d:getcontentlength>${st(x).size}</d:getcontentlength>`) +
-            "</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>"; }).join("");
-          return send(207, `<?xml version="1.0" encoding="utf-8"?><d:multistatus xmlns:d="DAV:">${resp}</d:multistatus>`, { "Content-Type": "application/xml; charset=utf-8" });
-        }
-        default: return send(405);
+      const err = (code, error, message) => send(code, { message, description: error, error });
+      if (u.pathname.startsWith("/upload/")) {                       // адрес загрузки: без токена, одноразовый
+        const id = u.pathname.slice(8), name = pending.get(id);
+        if (!name || req.method !== "PUT") return err(404, "NotFound", "Нет такого адреса загрузки.");
+        if (c.fail) return err(c.fail, "Fail", "Сбой загрузки.");
+        pending.delete(id);
+        fs.writeFileSync(path.join(root, name + ".part"), body); fs.renameSync(path.join(root, name + ".part"), path.join(root, name));
+        return send(201);
       }
+      if (!authOk) return err(401, "UnauthorizedError", "Не авторизован.");
+      if (c.fail) return err(c.fail, "Fail", "Сбой.");
+      const p = u.searchParams.get("path") || "", nm = /^app:\/([A-Za-z0-9._-]+)$/.exec(p), file = nm && path.join(root, nm[1]);
+      if (u.pathname === "/v1/disk/resources/upload" && req.method === "GET") {
+        if (!nm) return err(400, "FieldValidationError", "Некорректный путь.");
+        if (fs.existsSync(file) && u.searchParams.get("overwrite") !== "true") return err(409, "DiskResourceAlreadyExistsError", "Ресурс уже существует.");
+        const id = crypto.randomBytes(8).toString("hex"); pending.set(id, nm[1]);
+        return send(200, { operation_id: id, href: `http://${req.headers.host}/upload/${id}`, method: "PUT", templated: false });
+      }
+      if (u.pathname === "/v1/disk/resources" && req.method === "GET") {
+        if (p === "app:/") return fs.readdirSync(root).length ? send(200, { name: "Магнат", path: "app:/", type: "dir" }) : err(404, "DiskNotFoundError", "Не удалось найти запрошенный ресурс.");
+        if (!nm || !fs.existsSync(file)) return err(404, "DiskNotFoundError", "Не удалось найти запрошенный ресурс.");
+        const b = fs.readFileSync(file);
+        return send(200, { name: nm[1], path: p, type: "file", size: b.length, md5: crypto.createHash("md5").update(b).digest("hex") });
+      }
+      return err(404, "DiskNotFoundError", "Не удалось найти запрошенный ресурс.");
     });
   });
 }
@@ -739,14 +727,14 @@ async function frameServer(appDir = APP_DIR, { page = "app.html", sandbox = "", 
 
 module.exports = { chromium, launch, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR, startClean,
   findCaddy, freePort, get, waitPort, request, postJson, rawHttp, sleep, tmpDir, cleanup,
-  startCaddy, startApi, fakeSmtp, fakeDav, dropProxy, frameServer, parseMail, lastCode, waitCode };
+  startCaddy, startApi, fakeSmtp, fakeDisk, dropProxy, frameServer, parseMail, lastCode, waitCode };
 
-// Подделка в своём процессе: node tests/lib.js --fake smtp|dav <папка>
+// Подделка в своём процессе: node tests/lib.js --fake smtp|disk <папка>
 if (require.main === module && process.argv[2] === "--fake") {
   const [kind, dir] = process.argv.slice(3);
   const ctl = () => { try { return JSON.parse(fs.readFileSync(path.join(dir, "ctl.json"), "utf8")); } catch (e) { return {}; } };
   const rec = (o) => fs.appendFileSync(path.join(dir, "events.jsonl"), JSON.stringify(o) + "\n");
-  const server = kind === "smtp" ? smtpServer(ctl, rec) : davServer(ctl, rec, path.join(dir, "root"));
+  const server = kind === "smtp" ? smtpServer(ctl, rec) : diskServer(ctl, rec, path.join(dir, "root"));
   server.listen(0, "127.0.0.1", () => process.stdout.write("PORT " + server.address().port + "\n"));
   for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => process.exit(0));
 }
