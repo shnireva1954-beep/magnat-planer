@@ -1,4 +1,4 @@
-const { chromium, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR, startClean } = require('./lib');
+const { chromium, chromePath, APP_DIR, APP_FILE, APP_URL, OUT_DIR, startClean, frameServer } = require('./lib');
 const EXE = chromePath();
 const URL = APP_URL;
 const OUT = OUT_DIR;
@@ -1565,6 +1565,64 @@ async function walkTabs(p, label) {
       : bad('пример смешался с настоящими: ' + JSON.stringify(d1));
     [p1, p2].forEach(p => { if (p.errs.length) bad('ошибки во вкладках: ' + p.errs.join(' | ')); });
     await ctx.close();
+  }
+
+  // ---------- 13. вход по почте выключен для посетителей (R2, 12.10.2026) ----------
+  // Код входа и синхронизации уже в приложении, но выключен (ACCOUNT_ON=false). Посетитель видит
+  // ровно прежнее: «Скачать копию / Восстановить», ни одного запроса к /api, ни одной куки.
+  // Владелец включает предпросмотр в своём браузере: ?account — вкл, ?account=0 — выкл. В окне
+  // Claude (рамка) и на file:// аккаунта нет никогда. Страница — по http (свой сервер теста)
+  console.log('\n13) Вход по почте: посетителю не виден, ?account — предпросмотр владельца, рамка и file:// — никогда');
+  {
+    const F = await frameServer(APP_DIR);
+    try {
+      const ctx = await b.newContext({ viewport: { width: 390, height: 900 } });
+      const p = await ctx.newPage(); p.errs = []; const api = [];
+      p.on('pageerror', e => p.errs.push('PAGEERROR: ' + e.message)); p.on('console', m => { if (m.type() === 'error') p.errs.push('CONSOLE: ' + m.text()); });
+      p.on('dialog', d => d.accept());
+      p.on('request', r => { if (/\/api\//.test(r.url())) api.push(r.url()); });
+      const home = () => p.evaluate(() => ({ acc: !!document.querySelector('#acc'), login: !!document.querySelector('#acLogin'), bkrow: !!document.querySelector('.bkrow #bkSave'),
+        note: !!document.querySelector('.bknote'), flag: localStorage.getItem('magnat_acc_preview'), url: location.search, ob: !!document.querySelector('#obLogin') }));
+      await p.goto(F.appUrl); await p.waitForTimeout(500);
+      const v0 = await home();
+      await startClean(p); await walkTabs(p, 'посетитель по http');
+      await p.click('#todayChips .tchip'); await p.waitForTimeout(2600);
+      const v1 = await home();
+      (!v0.ob && !v1.acc && v1.bkrow && v1.note && v1.flag === null && !api.length && F.count('/api') === 0 && !(await ctx.cookies()).length)
+        ? ok('посетитель по http: ни карточки входа, ни «Войти» в приветствии, «Скачать копию» на месте, 0 запросов к /api, 0 кук')
+        : bad('посетитель: ' + JSON.stringify({ v0, v1, api, srv: F.count('/api'), ck: (await ctx.cookies()).length }));
+      await p.goto(F.appUrl + '?account'); await p.waitForTimeout(700);
+      const v2 = await home();
+      await p.reload(); await p.waitForTimeout(700);
+      const v3 = await home();
+      (v2.acc && v2.login && !v2.bkrow && v2.flag === '1' && !/account/.test(v2.url) && v3.acc && !api.length && F.count('/api') === 0)
+        ? ok('?account: карточка «Вход по почте» вместо копии, метка в браузере, адрес очищен; после перезагрузки — тоже; без входа 0 запросов')
+        : bad('?account: ' + JSON.stringify({ v2, v3, api }));
+      const ctx2 = await b.newContext({ viewport: { width: 390, height: 900 } });
+      const q = await ctx2.newPage(); await q.goto(F.appUrl + '?account'); await q.waitForTimeout(500);
+      (await q.$('#obLogin')) ? ok('?account при первом запуске: в приветствии «Уже пользуешься Магнатом? Войти по почте»') : bad('нет «Войти» в приветствии при ?account');
+      await ctx2.close();
+      await p.goto(F.appUrl + '?account=0'); await p.waitForTimeout(500);
+      const v4 = await home();
+      (!v4.acc && v4.bkrow && v4.flag === null && !/account/.test(v4.url)) ? ok('?account=0: метка снята, снова прежний «Обзор»') : bad('?account=0: ' + JSON.stringify(v4));
+      errCheck(p, 'предпросмотр аккаунта');
+      // рамка (окно Claude): даже с ?account и с меткой в браузере — ничего
+      const fp = await ctx.newPage(); const fapi = [];
+      fp.on('request', r => { if (/\/api\//.test(r.url())) fapi.push(r.url()); });
+      await p.goto(F.appUrl + '?account'); await p.waitForTimeout(300);
+      await fp.goto(F.frameUrl('?account')); await fp.waitForTimeout(900);
+      const fr = F.appFrame(fp);
+      const vf = fr ? await fr.evaluate(() => ({ framed: FRAMED, acc: !!document.querySelector('#acc'), ob: !!document.querySelector('#obLogin'), bk: !!document.querySelector('.bkrow #bkSave') || !!document.querySelector('#obFresh') })) : null;
+      (vf && vf.framed && !vf.acc && !vf.ob && vf.bk && !fapi.length) ? ok('рамка с ?account (и меткой в браузере): ни карточки, ни «Войти» — прежние «Скачать копию» или приветствие, 0 запросов')
+        : bad('рамка: ' + JSON.stringify({ vf, fapi }));
+      await ctx.close();
+      // file:// — тоже никогда
+      const ctx3 = await b.newContext({ viewport: { width: 390, height: 900 } });
+      const r = await ctx3.newPage(); await r.goto('file://' + APP_FILE + '?account'); await r.waitForTimeout(500); await startClean(r);
+      const vr = await r.evaluate(() => ({ acc: !!document.querySelector('#acc'), bk: !!document.querySelector('.bkrow #bkSave'), on: ACCOUNT }));
+      (!vr.acc && vr.bk && !vr.on) ? ok('file:// с ?account: аккаунта нет, «Скачать копию» на месте') : bad('file://: ' + JSON.stringify(vr));
+      await ctx3.close();
+    } finally { await F.close(); }
   }
 
   await b.close();

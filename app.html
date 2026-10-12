@@ -292,6 +292,24 @@
   .bkrow{display:flex; gap:10px; margin-top:22px;}
   .bk{flex:1; padding:11px 8px; border-radius:11px; background:var(--panel); border:1px solid var(--line2); color:var(--mut); font-size:12.5px; cursor:pointer;}
   .bknote{text-align:center; font-size:10.5px; color:var(--mut2); margin-top:8px; line-height:1.5;}
+  /* аккаунт (R2, виден только при входе по почте): карточка на «Обзоре» вместо копии и лист входа */
+  .acc{margin-top:22px;}
+  .acc .acp{display:flex; gap:9px; align-items:flex-start; font-size:13px; color:var(--mut); line-height:1.5;} .acc .acp .ic{color:var(--emerald); margin-top:2px;}
+  .acc .acbtn{min-height:48px;}
+  .acrow{display:flex; gap:10px; align-items:center; font-size:14px; color:var(--ink);} .acrow>.ic{color:var(--emerald);}
+  .acrow .linkbtn{flex:none; color:var(--mut);}
+  .acm{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .acst{display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; font-size:12px; color:var(--mut2); margin-top:8px; line-height:1.45;}
+  .acst>span{flex:1 1 180px; min-width:0;}
+  .acst.warn{color:var(--gold);} .acst.err{color:var(--danger);}
+  .aclinks{display:flex; flex-wrap:wrap; gap:0 18px; margin-top:6px;}
+  .linkbtn{background:none; border:none; padding:0; color:var(--emerald); font:inherit; font-size:12.5px; cursor:pointer; min-height:44px; display:inline-flex; align-items:center; gap:6px; text-decoration:none;}
+  .linkbtn:disabled{color:var(--mut2); cursor:default;} .linkbtn.sub{color:var(--mut);}
+  .modal .codein{letter-spacing:.35em; text-align:center; font-size:22px; font-variant-numeric:tabular-nums;}
+  .modal .acsm{font-size:11.5px; color:var(--mut2); line-height:1.5; margin-top:12px;} .modal .acsm a{color:var(--mut);}
+  .modal .acfix{font-size:12.5px; color:var(--gold); margin-top:4px;}
+  .modal .aclinks{gap:0 16px;}
+  .obacc{display:flex; justify-content:center; margin-top:4px;}
   /* откуда монеты — на витрине наград */
   .earn{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:12px;}
   .earn>div{background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:9px 6px; text-align:center; font-size:10.5px; color:var(--mut2); line-height:1.35;}
@@ -809,7 +827,11 @@ const ICONS={
  dumbbell:'<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>',
  home:'<path d="M3.5 10.2 12 3.6l8.5 6.6V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z"/>',
  shield:'<path d="M12 3.4 19 6v5.7c0 4.2-2.9 7.5-7 8.9-4.1-1.4-7-4.7-7-8.9V6z"/><path d="m9.2 12.2 2 2 3.8-4"/>',
- spark:'<path d="M12 4v4M12 16v4M4 12h4M16 12h4M6.3 6.3l2.8 2.8M14.9 14.9l2.8 2.8M6.3 17.7l2.8-2.8M14.9 9.1l2.8-2.8"/>'};
+ spark:'<path d="M12 4v4M12 16v4M4 12h4M16 12h4M6.3 6.3l2.8 2.8M14.9 14.9l2.8 2.8M6.3 17.7l2.8-2.8M14.9 9.1l2.8-2.8"/>',
+ mail:'<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="m4.5 7.5 7.5 5.5 7.5-5.5"/>',
+ cloud:'<path d="M7.2 18.5h10a3.8 3.8 0 0 0 .5-7.57A5.6 5.6 0 0 0 6.9 9.6a4.45 4.45 0 0 0 .3 8.9z"/>',
+ cloudoff:'<path d="M7.2 18.5h10a3.8 3.8 0 0 0 .5-7.57A5.6 5.6 0 0 0 6.9 9.6a4.45 4.45 0 0 0 .3 8.9z"/><path d="M4.5 4.5l15 15"/>',
+ logout:'<path d="M14 4.5H6.5A1.5 1.5 0 0 0 5 6v12a1.5 1.5 0 0 0 1.5 1.5H14M10 12h10M16.5 8.5 20 12l-3.5 3.5"/>'};
 const ic=(k,cls)=>`<svg class="ic${cls?" "+cls:""}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]||ICONS.spark}</svg>`;
 // монета — золотой диск со знаком Магната (той же колоннадой, что в шапке)
 const C='<svg class="mcoin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="#f5c451"/><circle cx="12" cy="12" r="10.5" fill="none" stroke="#b8892b"/><circle cx="12" cy="12" r="7.7" fill="none" stroke="#c99a35" stroke-width="1.1"/><path d="M12 7.6 8.4 9.5h7.2z" fill="#6b4a0e"/><rect x="8.7" y="10" width="6.6" height="1" rx=".5" fill="#6b4a0e"/><rect x="9.3" y="11.5" width="1.2" height="3.3" rx=".5" fill="#6b4a0e"/><rect x="11.4" y="11.5" width="1.2" height="3.3" rx=".5" fill="#6b4a0e"/><rect x="13.5" y="11.5" width="1.2" height="3.3" rx=".5" fill="#6b4a0e"/><rect x="8.5" y="15.3" width="7" height="1" rx=".5" fill="#6b4a0e"/><path d="M5.3 9.6a7.4 7.4 0 0 1 4.3-4.3" fill="none" stroke="#fff1c2" stroke-width="1.1" stroke-linecap="round" opacity=".8"/></svg>';
@@ -936,6 +958,7 @@ function save(){ invalidate();
   const str=JSON.stringify(_sync?{...S,_sync}:S);
   try{ localStorage.setItem(KEY,str); RAW=str; BASEJ=JSON.stringify(S); SAVED_OK=true; }
   catch(e){ SAVED_OK=false; toast("Не удалось сохранить — освободи место в браузере"); }  // молчать тут нельзя
+  afterSave();                   // вошёл по почте — через пару секунд отправить
 }
 function freshStart(){  // чистый лист — без чужих данных
   let id=1; const habits=DEFHABITS.map(([ico,name])=>({id:id++,ico,name,since:""}));
@@ -1685,6 +1708,24 @@ function celebrateLevel(L,prev,intro){
 // «Поделиться»: confirm() там сразу отвечает «нет» — молча не работали покупка наград,
 // удаление и сброс. Поэтому в рамке — свои окна, а на сайте всё как было и проверено тестами.
 const FRAMED=(()=>{ try{ return window.self!==window.top; }catch(e){ return true; } })();
+// Вход по почте (R2, 12.10.2026) выключен для всех: ACCOUNT_ON=false до слова Артёма (R3).
+// Владелец смотрит заранее: app.html?account ставит в этом браузере метку magnat_acc_preview,
+// app.html?account=0 снимает. В окне Claude и на file:// аккаунта нет совсем — ни карточки,
+// ни одного запроса. Посетитель без метки видит ровно прежнее приложение
+const ACCOUNT_ON=false, ACC_PREVIEW_KEY="magnat_acc_preview";
+const ACC_WEB=!FRAMED&&/^https?:$/.test(location.protocol);
+const PREVIEW=(()=>{
+  if(!ACC_WEB) return false;
+  try{
+    const m=location.search.match(/[?&]account(?:=([^&]*))?(?=&|$)/);
+    if(m){
+      if(m[1]==="0") localStorage.removeItem(ACC_PREVIEW_KEY); else localStorage.setItem(ACC_PREVIEW_KEY,"1");
+      const u=new URL(location.href); u.searchParams.delete("account"); history.replaceState(null,"",u.pathname+u.search+u.hash);
+    }
+    return localStorage.getItem(ACC_PREVIEW_KEY)==="1";
+  }catch(e){ return false; }
+})();
+const ACCOUNT=(ACCOUNT_ON||PREVIEW)&&ACC_WEB&&!!window.isSecureContext&&!!(window.crypto&&crypto.subtle)&&typeof fetch==="function";
 // iPhone/iPad во ВКЛАДКЕ браузера: WebKit стирает данные сайта (localStorage), если его не
 // открывали 7 дней. Значок на экране «Домой» живёт по своему счётчику и не стирается —
 // туда и зовём (29.09.2026: продукт на продажу, потеря прогресса у покупателя недопустима)
@@ -1940,11 +1981,11 @@ function vHome(root){
      <div class="glass card" data-go="body"><h3>Вес <span class="go">›</span></h3><div class="stat"><div class="v cy num">${w?dcm(w)+" кг":"—"}</div><div class="l">${S.body.goalW?"цель "+dcm(S.body.goalW)+" кг":w?"цель не задана":"запиши вес"}</div></div>${S.body.log.length>1?'<canvas id="hBody" style="margin-top:8px"></canvas>':""}</div>
      <div class="glass card" data-go="shop"><h3>Империя · уровень ${L} <span class="go">›</span></h3><canvas id="hCity"></canvas><div style="text-align:center;font-size:11px;color:var(--mut2);margin-top:6px"><b class="e">${L} ${pl(L,"здание","здания","зданий")}</b> · следующее через ${nf(hi-xp)} ${STAR}</div></div>
    </div>
-   <div class="bkrow">
+   ${ACCOUNT?accCard():`<div class="bkrow">
      <button class="bk" id="bkSave">${ic("download")} Скачать копию данных</button>
      <button class="bk" id="bkLoad">${ic("inbox")} Восстановить из копии</button>
    </div>
-   <p class="bknote">Данные живут в этом браузере. Копия — страховка при смене телефона или чистке кэша.</p>
+   <p class="bknote">Данные живут в этом браузере. Копия — страховка при смене телефона или чистке кэша.</p>`}
    <button class="reset" id="resetBtn">сбросить всё и начать с чистого листа</button>
    ${legalLinks()}`;
   // charts
@@ -1991,8 +2032,11 @@ function vHome(root){
   lr.addEventListener("click",lrGo); onKeys(lr,lrGo);
   root.querySelector("#bkSave").addEventListener("click",downloadBackup);
   root.querySelector("#bkLoad").addEventListener("click",restoreBackup);
+  if(ACCOUNT) accBind(root);
   root.querySelector("#resetBtn").addEventListener("click",async()=>{
-    if(await askConfirm("Стереть весь прогресс (привычки, задачи, финансы, вес) и начать с чистого листа?","Стереть всё",true)) await startFresh();
+    // с аккаунтом сброс уходит на все телефоны — сказать прямо
+    if(await askConfirm(ACCOUNT&&LOGGED()?"Стереть весь прогресс — в аккаунте и на всех телефонах — и начать с чистого листа?"
+      :"Стереть весь прогресс (привычки, задачи, финансы, вес) и начать с чистого листа?","Стереть всё",true)) await startFresh();
   });
   // делиться есть чем со 2-го уровня: у новичка в карточке пустая империя и 0 монет
   const sb=root.querySelector("#shareBtn"); if(sb) sb.addEventListener("click",shareCard);
@@ -2383,7 +2427,7 @@ function vBody(root){
       <span>${ic("user")} ${S.body.sex==="f"?"жен":"муж"} · ${S.body.height} см · ${+TODAY.slice(0,4)-S.body.birth} лет ·
       ${actLine(N)}</span>
       <span class="hedit2">${ic("pen")} изменить</span></div>
-    <p class="bknote">Считается по формуле Миффлина — Сан Жеора: основной обмен ${nf(N.bmr)} ккал, умноженный на активность и подогнанный под цель по весу. Это оценка, а не назначение врача.</p>
+    <p class="bknote">Считается по формуле Миффлина — Сан Жеора: основной обмен ${nf(N.bmr)} ккал, умноженный на активность и подогнанный под цель по весу. Это оценка, а не назначение врача.${ACCOUNT&&LOGGED()?" Вес, рост и нормы хранятся только на этом телефоне — в аккаунт они не уходят.":""}</p>
     `:`
     <div class="glass card" style="margin-top:13px;text-align:center;padding:26px 18px">
       <div class="emp">${ic("calc")}</div>
@@ -2909,7 +2953,7 @@ function restoreBackup(){
       let d=null; try{ d=JSON.parse(raw); }catch(e){}
       if(!d || !Array.isArray(d.habits) || !d.checks || typeof d.checks!=="object"){ toast("Файл не похож на копию Магната"); return; }
       if(!await askConfirm("Заменить текущие данные данными из копии?","Заменить",true)) return;
-      S=normalize(d); save(); render(); toast("Данные восстановлены");
+      S=normalize(d); save(); if(LOGGED()) updSync(s=>{ s.reset="restore"; }); render(); toast("Данные восстановлены");
     });
     return;
   }
@@ -2928,7 +2972,7 @@ function restoreBackup(){
     if(!d || !Array.isArray(d.habits) || !d.checks || typeof d.checks!=="object"){
       err.textContent="Это не похоже на копию Магната — проверь, что текст вставлен целиком."; err.classList.add("on"); return; }
     if(!await askConfirm("Заменить текущие данные данными из копии?","Заменить",true)) return;
-    S=normalize(d); save(); close(); render(); toast("Данные восстановлены");
+    S=normalize(d); save(); if(LOGGED()) updSync(s=>{ s.reset="restore"; }); close(); render(); toast("Данные восстановлены");
   };
   ovl.querySelector(".ok").onclick=()=>apply(ta.value.trim());
   ovl.querySelector(".no").onclick=()=>pickBackupFile(apply);
@@ -3032,7 +3076,8 @@ async function startFresh(){
   // id — newHabitId(): у двух устройств «1, 2, 3» совпали бы, а слияние сводит по id
   const ids=new Set();
   S.habits=picked.map(([ico,name])=>{ const id=newHabitId(ids); ids.add(id); return {id,ico,name,since:TODAY}; });
-  save(); render(); window.scrollTo(0,0);
+  save(); if(LOGGED()) updSync(s=>{ s.reset="reset"; });     // аккаунт: это сброс, а не правка
+  render(); window.scrollTo(0,0);
   openLesson(1,true);
   return true;
 }
@@ -3053,10 +3098,431 @@ function showOnboarding(){
     <div class="btns" style="flex-direction:column">
       <button class="ok" id="obFresh">${ic("rocket")} Начать своё (чистый лист)</button>
       <button class="no" id="obDemo">${ic("eye")} Посмотреть пример</button>
-    </div>${legalLinks()}</div>`);
+    </div>${ACCOUNT?`<div class="obacc"><button class="linkbtn" id="obLogin">${ic("mail")} Уже пользуешься Магнатом? Войти по почте</button></div>`:""}${legalLinks()}</div>`);
   ovl.appendChild(m); document.body.appendChild(ovl);
   m.querySelector("#obFresh").onclick=async()=>{ if(await startFresh()) ovl.remove(); };
   m.querySelector("#obDemo").onclick=()=>{ PRISTINE=false; S.demoData=true; save(); ovl.remove(); render(); };
+  const ol=m.querySelector("#obLogin"); if(ol) ol.onclick=()=>openLogin();
+}
+
+// ═══════ Аккаунт: вход по почте и синхронизация (R2, 12.10.2026) ═══════
+// Всё ниже работает только при ACCOUNT (сейчас — предпросмотр владельца по ?account). Без него
+// ни одной строки в разметке и ни одного запроса. Правила данных — magnat/АККАУНТ-ПЛАН.md §7:
+// сервер хранит версии документа и ничего не сливает, сливает merge3() здесь. Отправка «ровно
+// один раз»: номер отправки (dev, seq) и хэш документа пишутся в _sync ДО запроса тем же
+// setItem, что и данные, — потерянный ответ при повторе сервер узнаёт (dup) и монеты не удваивает.
+// «Тело» в аккаунт не уходит никогда (docOf). Все времена от сервера — секунды Unix.
+const WHO_KEY="magnat_who_v1", PEND_KEY="magnat_acc_pending";
+const LOGGED=()=>ACCOUNT&&!!(_sync&&_sync.acct&&!_sync.off);
+function whoGet(){ try{ const w=JSON.parse(localStorage.getItem(WHO_KEY)||"null"); return w&&typeof w==="object"&&!Array.isArray(w)?w:{}; }catch(e){ return {}; } }
+function whoSet(w){ try{ localStorage.setItem(WHO_KEY,JSON.stringify(w)); }catch(e){} }
+const hexOf=a=>[...new Uint8Array(a)].map(x=>x.toString(16).padStart(2,"0")).join("");
+const newDev=()=>"d_"+hexOf(crypto.getRandomValues(new Uint8Array(8)));
+async function sha256hex(str){ return hexOf(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str))); }
+// ярлык устройства для списка входов: «iPhone · Safari», «Компьютер · Chrome»
+function devLabel(){
+  const u=navigator.userAgent;
+  const os=/iPhone/.test(u)?"iPhone":/iPad/.test(u)||(IOS&&!/iPhone/.test(u))?"iPad":/Android/.test(u)?"Android":"Компьютер";
+  const br=/YaBrowser/.test(u)?"Яндекс":/Edg\//.test(u)?"Edge":/OPR\//.test(u)?"Opera":/Firefox|FxiOS/.test(u)?"Firefox":/Chrome|CriOS/.test(u)?"Chrome":/Safari/.test(u)?"Safari":"";
+  return br?os+" · "+br:"Браузер";
+}
+// документ для аккаунта: приведённые данные без «Тела» и без пометки примера
+function docOf(x){ const k=NEWIDS, o=normalize(x); NEWIDS=k; delete o.body; delete o.demoData; return o; }
+const blankDoc=x=>!Object.keys(x.checks).length&&!x.tasks.length&&!x.finance.entries.length&&!x.les.length&&!Object.keys(x.rev).length&&!x.spent&&!x.taskBank;
+const isDemo=()=>PRISTINE||!!S.demoData;
+// сервер отказал «старое приложение» при этой версии формата (SV); вышла новая — пробуем снова
+const isOld=()=>!!_sync&&_sync.old===SV;
+
+// ЕДИНСТВЕННЫЙ запрос к серверу во всём приложении: POST JSON на свой же адрес /api/…, ответ
+// не дольше 12 с. Нет сети — запроса нет. Любой сбой, не-200 или не-JSON — {ok:false, err:'down'}
+async function api(path,body,keepalive){
+  if(!ACCOUNT) return {ok:false,err:"off"};
+  if(navigator.onLine===false) return {ok:false,err:"offline"};
+  const ac=new AbortController(), t=setTimeout(()=>ac.abort(),12000), str=JSON.stringify(body||{});
+  try{
+    const r=await fetch('/api/'+path,{method:"POST",headers:{"Content-Type":"application/json"},body:str,
+      credentials:"same-origin",cache:"no-store",keepalive:!!keepalive&&new TextEncoder().encode(str).length<60000,signal:ac.signal});
+    const j=r.status===200?await r.json():null;
+    return j&&typeof j==="object"&&typeof j.ok==="boolean"?j:{ok:false,err:"down"};
+  }catch(e){ return {ok:false,err:"down"}; }
+  finally{ clearTimeout(t); }
+}
+
+// ---- хранилище из синхронизации: перечитать, записать служебное ----
+// Другая вкладка записала своё — принимаем (как слушатель storage); своё не записалось — сливаем
+// и пишем снова. false — своё так и не записалось: такое не отправляем
+let NEEDDRAW=false, QUIET=false;
+function adoptStore(cur){
+  const R=parseStore(cur); if(!R) return false;
+  S=R.S; _sync=R.sync; RAW=cur; BASEJ=JSON.stringify(R.S); PRISTINE=false; invalidate(); return true;
+}
+function reread(){
+  let cur=null; try{ cur=localStorage.getItem(KEY); }catch(e){ return false; }
+  if(cur!=null&&cur!==RAW&&SAVED_OK){ if(adoptStore(cur)) NEEDDRAW=true; }
+  else if(!SAVED_OK){ QUIET=true; try{ save(); } finally{ QUIET=false; } }
+  return SAVED_OK;
+}
+// правка служебной части одной записью вместе с данными. QUIET — это не правка человека,
+// новую синхронизацию она не зовёт
+// Нетронутый первый запуск (PRISTINE) не пишем вовсе — иначе пример лёг бы в хранилище как
+// настоящие данные; служебное живёт в памяти до первой настоящей записи
+function updSync(fn){
+  reread(); if(!_sync) return;
+  fn(_sync); if(PRISTINE) return;
+  QUIET=true; try{ save(); } finally{ QUIET=false; }
+}
+// открыто окно или курсор в поле — данные под рукой у человека, их не подменяем.
+// Свои окна входа и приветствие (там подменять нечего) не в счёт
+function busyUI(){
+  for(const o of document.querySelectorAll(".ovl")) if(!o.classList.contains("accovl")&&!o.querySelector("#obFresh")) return true;
+  const a=document.activeElement;
+  return !!(a&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable)&&!a.closest(".accovl"));
+}
+const idle=async()=>{ while(busyUI()) await new Promise(r=>setTimeout(r,1000)); };
+
+// ---- состояние для строки «Синхронизировано» ----
+let ACST={k:"",pending:false,toast:""}, syncT=0, syncBusy=false, syncAgain=false, backoff=0, lastSync=0, CHOICE=null;
+function setSt(k){ ACST.k=k; if(k==="ok"){ backoff=0; ACST.pending=false; } paintAcc(); }
+function agoText(ms){
+  const s=(Date.now()-ms)/1000;
+  if(s<60) return "только что";
+  if(s<3600) return Math.floor(s/60)+" мин назад";
+  const d=new Date(ms), day=ymd(d), hm=pad(d.getHours())+":"+pad(d.getMinutes());
+  if(day===TODAY) return "в "+hm;
+  if(day===addDays(TODAY,-1)) return "вчера в "+hm;
+  return d.getDate()+" "+["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"][d.getMonth()];
+}
+function stLine(){
+  const y=_sync||{};
+  if(y.auth) return ["err",`${ic("cloudoff")} <span>Вход истёк — войди снова. Записи на телефоне целы</span> <button class="linkbtn" id="acRe">Войти</button>`];
+  if(isOld()) return ["warn",`${ic("cloudoff")} <span>Вышла новая версия Магната — обнови, чтобы сохранять</span> <button class="linkbtn" id="acUpd">Обновить</button>`];
+  if(isDemo()) return ["warn",`${ic("eye")} <span>Это пример — в аккаунт он не сохраняется. Нажми «Начать своё»</span>`];
+  if(navigator.onLine===false||ACST.k==="offline") return ["warn",`${ic("cloudoff")} <span>Нет сети — сохраним, когда появится</span>`];
+  if(ACST.k==="down") return ["warn",`${ic("cloudoff")} <span>Сервер не отвечает — всё на телефоне, попробую позже</span>`];
+  if(ACST.k==="quota") return ["warn",`${ic("cloudoff")} <span>Аккаунт заполнен — напиши в поддержку</span>`];
+  if(ACST.k==="disk") return ["warn",`${ic("cloudoff")} <span>Сервер переполнен — всё на телефоне, сохраню позже</span>`];
+  if(syncBusy||ACST.pending||y.first||!y.at) return ["",`${ic("cloud")} <span>Синхронизирую…</span>`];
+  return ["",`${ic("check")} <span>Синхронизировано · ${agoText(y.at)}</span>`];
+}
+function paintAcc(){
+  const e=document.getElementById("acSt"); if(!e||!_sync) return;
+  const [cls,html]=stLine(); e.className="acst"+(cls?" "+cls:""); e.innerHTML=html;
+}
+
+// ---- синхронизация ----
+function syncSoon(ms){ if(!LOGGED()) return; clearTimeout(syncT); syncT=setTimeout(()=>sync(),ms); }
+function afterSave(){ if(!ACCOUNT||QUIET||!LOGGED()) return; ACST.pending=true; paintAcc(); syncSoon(2000); }
+async function sync(o){
+  o=o||{};
+  if(!LOGGED()||_sync.auth||isOld()) return paintAcc();
+  if(navigator.onLine===false) return setSt("offline");
+  if(syncBusy){ syncAgain=true; return; }
+  if(busyUI()&&!o.keep){ syncSoon(2000); return; }
+  syncBusy=true; paintAcc();
+  const run=async()=>{ for(let i=0;i<3;i++) if(!(await syncRound(o))) break; };
+  try{
+    if(navigator.locks&&navigator.locks.request) await navigator.locks.request("magnat-sync",run);
+    else if(document.visibilityState==="visible") await run();   // без замков — только видимая вкладка
+  }catch(e){ console.warn(e); syncFail({err:"down"}); }
+  finally{
+    syncBusy=false; lastSync=Date.now();
+    if(NEEDDRAW&&!busyUI()){ NEEDDRAW=false; render(); } else paintAcc();
+    if(ACST.toast){ toast(ACST.toast); ACST.toast=""; }
+    if(CHOICE&&!busyUI()) openChoice();
+    if(syncAgain){ syncAgain=false; syncSoon(2000); }
+  }
+}
+// один круг: true — нужен ещё один (после слияния отправить итог, после «dup» — догнать голову)
+async function syncRound(o){
+  if(!reread()) return false;                 // своё не записалось — отправлять нечего
+  const y=_sync; if(!LOGGED()||y.auth||isOld()) return false;
+  const who={pv:1, acct:y.acct, dev:y.dev, sv:SV};
+  if(y.first){                                // первый вход: сначала посмотреть, что в аккаунте
+    const r=await api("sync",{...who, base:null, seq:null, hash:null, outHash:null, doc:null, reason:"edit"});
+    if(!r.ok) return syncFail(r);
+    await idle(); reread(); if(!LOGGED()||_sync.acct!==y.acct) return false;
+    return r.st==="pull"&&typeof r.doc==="string"?joinHead(r):r.st==="empty"?joinEmpty(r):syncFail({err:"down"});
+  }
+  if(isDemo()){ setSt(""); return false; }    // пример в аккаунт не уходит
+  const ds=JSON.stringify(docOf(S)), dirty=!y.base||ds!==JSON.stringify(y.base);
+  if(!dirty&&!y.out){
+    const r=await api("sync",{...who, base:y.rid||null, seq:null, hash:null, outHash:null, doc:null, reason:"edit"});
+    return syncDone(r,null,y.acct);
+  }
+  const hash=await sha256hex(ds);
+  if(!reread()||JSON.stringify(docOf(S))!==ds) return true;     // пока считали, поменялось — заново
+  const seq=_sync.out?_sync.out.seq:(_sync.seq||0)+1, outHash=_sync.out?_sync.out.hash:null;
+  const reason=_sync.reset||(_sync.merge?"merge":_sync.rid?"edit":"first");
+  updSync(s=>{ s.out={seq, hash, base:s.rid||null, at:Date.now()}; });
+  if(!SAVED_OK) return false;
+  const r=await api("sync",{...who, base:_sync.rid||null, seq, hash, outHash, doc:ds, reason},!!o.keep);
+  return syncDone(r,{ds,seq},y.acct);
+}
+function syncDone(r,sent,acct){
+  if(!r.ok) return syncFail(r);
+  return idle().then(()=>{
+    reread(); if(!_sync||_sync.acct!==acct||_sync.off) return false;   // вышли, пока шёл запрос
+    const h=r.head||{};
+    const head=s=>{ s.rid=h.rid; s.rev=h.rev; s.hsv=h.sv; };
+    if(r.st==="ok"||r.st==="same"){
+      updSync(s=>{ if(sent){ s.base=JSON.parse(sent.ds); s.out=null; s.reset=""; s.merge=false; if(r.st==="ok") s.seq=Math.max(s.seq||0,sent.seq); }
+        head(s); s.at=Date.now(); });
+      setSt("ok"); return JSON.stringify(docOf(S))!==JSON.stringify(_sync.base);
+    }
+    if(r.st==="dup"){
+      updSync(s=>{ s.base=r.doc?docOf(JSON.parse(r.doc)):null; s.rid=r.mine.rid; s.seq=Math.max(s.seq||0,sent?sent.seq:0); s.out=null; });
+      return true;
+    }
+    if(r.st==="pull") return typeof r.doc==="string"?applyPull(r):syncFail({err:"down"});
+    if(r.st==="empty"){ updSync(s=>{ s.rid=null; s.base=null; s.out=null; s.seq=Math.max(s.seq||0,r.seqMax||0); }); return true; }
+    return false;
+  });
+}
+function syncFail(r){
+  const e=r.err;
+  if(e==="auth"||e==="acct"){ updSync(s=>{ s.auth=true; }); setSt(""); return false; }
+  if(e==="old_app"){ updSync(s=>{ s.old=SV; }); setSt(""); return false; }
+  if(e==="offline"){ setSt("offline"); return false; }
+  if(e==="slow"){ syncSoon(Math.max(5,+r.retryIn||60)*1000); paintAcc(); return false; }
+  if(e==="quota"||e==="big"||e==="disk"){ syncSoon(30*60000); setSt(e==="disk"?"disk":"quota"); return false; }
+  backoff=Math.min(300000,backoff?backoff*2:5000); syncSoon(backoff); setSt("down"); return false;
+}
+// чужое изменение: слить с тем, что на телефоне сейчас, и отправить итог следующим кругом
+function applyPull(r){
+  const y=_sync, H=docOf(JSON.parse(r.doc)), L=docOf(S);
+  const M=docOf(merge3(r.known&&y.base?y.base:null, L, H, y.wsv||SV, r.head.sv));
+  // защита итога: слияние оставило меньше половины дней с отметками или привычек ОБЕИХ сторон,
+  // а сброса не было — не применяем молча, спрашиваем, какую сторону взять
+  const d=x=>Object.keys(x.checks).length, hb=x=>x.habits.length;
+  if(!y.reset&&((d(M)<d(L)/2&&d(M)<d(H)/2)||(hb(M)<hb(L)/2&&hb(M)<hb(H)/2))){ CHOICE={r,H}; return false; }
+  const was=JSON.stringify(L);
+  S=normalize({...M, body:S.body}); invalidate();
+  updSync(s=>{ s.base=H; s.rid=r.head.rid; s.rev=r.head.rev; s.hsv=r.head.sv; s.out=null; s.seq=Math.max(s.seq||0,r.seqMax||0); s.merge=true; });
+  if(JSON.stringify(docOf(S))!==was){ NEEDDRAW=true; ACST.toast="Подтянули изменения с другого устройства"; }
+  return true;
+}
+// первый вход, в аккаунте уже есть записи. Пример, нетронутый первый запуск или пустое — берём
+// аккаунт молча («Тело» своё, у примера — чистое). Одинаково — ничего не делаем. Разное — слияние
+// без базы: объединение, ничего не пропадает, счётчики — максимум; итог уходит как «join» —
+// прежняя голова закрепляется на сервере на 90 дней
+function joinHead(r){
+  const H=docOf(JSON.parse(r.doc)), L=docOf(S), demo=isDemo();
+  let why="";
+  if(demo||blankDoc(L)){
+    S=normalize({...H, body:demo?freshStart().body:S.body}); PRISTINE=false; invalidate();
+    const ob=document.querySelector("#obFresh"); if(ob) ob.closest(".ovl").remove();
+    const st=curStreak();
+    ACST.toast=`С возвращением! Уровень ${levelOf(totalXP())}, серия ${st} дн. Данные «Тела» хранятся только в телефоне`;
+  }
+  else if(JSON.stringify(L)===JSON.stringify(H)) ACST.toast="Вход выполнен";
+  else { S=normalize({...docOf(merge3(null,L,H,SV,r.head.sv)), body:S.body}); invalidate(); why="join";
+    ACST.toast="Записи телефона и аккаунта объединены — ничего не пропало"; }
+  updSync(s=>{ s.first=false; s.base=H; s.rid=r.head.rid; s.rev=r.head.rev; s.hsv=r.head.sv; s.out=null; s.seq=Math.max(s.seq||0,r.seqMax||0); if(why) s.reset=why; });
+  NEEDDRAW=true; setSt("");
+  return true;
+}
+// первый вход, аккаунт пуст: свои записи отправляем; пример и первый запуск — нет
+function joinEmpty(r){
+  updSync(s=>{ s.first=false; s.rid=null; s.base=null; s.out=null; s.seq=Math.max(s.seq||0,r.seqMax||0); });
+  if(isDemo()){ ACST.toast="Вход выполнен. Начни своё — и прогресс начнёт сохраняться в аккаунте"; setSt(""); return false; }
+  ACST.toast="Готово — прогресс этого телефона сохранён в аккаунте";
+  return true;
+}
+// записи сильно разошлись — человек выбирает, какую сторону взять; вторая остаётся на сервере
+function openChoice(){
+  const {r,H}=CHOICE; CHOICE=null;
+  const ovl=el(`<div class="ovl accovl"><div class="modal" role="dialog" aria-modal="true" style="max-width:380px">
+    <h4>${ic("cloud")} Записи на двух устройствах сильно разошлись</h4>
+    <p class="mtxt">Слить их без потерь не получилось. Выбери, какие оставить, — вторые останутся на сервере.</p>
+    <div class="btns" style="flex-direction:column"><button class="ok" id="chAcc">Взять из аккаунта</button><button class="no" id="chMine">Оставить этот телефон</button></div></div></div>`);
+  document.body.appendChild(ovl);
+  const done=fn=>{ ovl.remove(); reread(); if(!LOGGED()) return; fn(); NEEDDRAW=false; render(); syncSoon(300); };
+  ovl.querySelector("#chAcc").onclick=()=>done(()=>{ S=normalize({...H, body:S.body}); invalidate();
+    updSync(s=>{ s.base=H; s.rid=r.head.rid; s.rev=r.head.rev; s.hsv=r.head.sv; s.out=null; s.seq=Math.max(s.seq||0,r.seqMax||0); }); });
+  ovl.querySelector("#chMine").onclick=()=>done(()=>
+    updSync(s=>{ s.base=H; s.rid=r.head.rid; s.rev=r.head.rev; s.hsv=r.head.sv; s.out=null; s.seq=Math.max(s.seq||0,r.seqMax||0); s.reset="join"; }));
+}
+
+// ---- вход ----
+const ACC_ERR={
+  bad_email:"Проверь адрес — нужен вид имя@почта.ru",
+  bad_local:"Адрес с русскими буквами до @ почта часто не принимает — укажи латинский",
+  closed:"Вход пока закрыт — открывается позже",
+  paused:"Вход по почте временно на паузе — записи на телефоне в порядке. Попробуй через пару часов",
+  mail_cap:"Вход по почте временно на паузе — записи на телефоне в порядке. Попробуй через пару часов",
+  mail_off:"Вход по почте ещё настраивается",
+  mail_fail:"Не получилось отправить письмо. Попробуй через минуту",
+  busy:"Не получилось отправить письмо. Попробуй через минуту",
+  replaced:"Этот код уже заменён — введи код из последнего письма",
+  expired:"Срок кода истёк — запроси новый код",
+  tries_over:"Слишком много неверных попыток. Запроси новый код",
+  locked:"Вход на этот адрес закрыт на час — слишком много неверных кодов",
+  offline:"Нет интернета. Войти можно только онлайн — а Магнат работает и без сети.",
+  down:"Сервер Магната сейчас не отвечает. Записи на телефоне в порядке — попробуй позже",
+};
+const mmss=s=>Math.floor(s/60)+":"+pad(Math.max(0,s%60));
+const waitText=s=>s<90?Math.max(1,Math.round(s))+" сек":Math.ceil(s/60)+" мин";
+function accErr(r){
+  const e=r.err;
+  if(e==="code") return "Код не подходит"+(r.left>0?". Осталось попыток: "+r.left:"");
+  if(e==="wait") return "Код уже отправлен. Новый — через "+mmss(Math.ceil(+r.retryIn||60));
+  if(e==="slow") return "Слишком много попыток — подожди "+waitText(+r.retryIn||60);
+  return ACC_ERR[e]||ACC_ERR.down;
+}
+// опечатка в домене: «mail.ry», «gmial.com» — расстояние Дамерау 1 до частых почт
+const MAILDOMS=["mail.ru","bk.ru","list.ru","inbox.ru","yandex.ru","ya.ru","gmail.com","rambler.ru","icloud.com"];
+function dist1(a,b){
+  if(a===b||Math.abs(a.length-b.length)>1) return false;
+  let i=0; while(i<a.length&&a[i]===b[i]) i++;
+  const A=a.slice(i), B=b.slice(i);
+  return A.slice(1)===B.slice(1)||A.slice(1)===B||A===B.slice(1)||(A.length>1&&A[0]===B[1]&&A[1]===B[0]&&A.slice(2)===B.slice(2));
+}
+function mailFix(v){
+  const m=/^([^@\s]+)@([^@\s]+)$/.exec(v.trim().toLowerCase()); if(!m||MAILDOMS.includes(m[2])) return "";
+  const d=MAILDOMS.find(x=>dist1(m[2],x)); return d?m[1]+"@"+d:"";
+}
+function webmail(mail){
+  const d=(mail.split("@")[1]||"").toLowerCase();
+  if(/^(mail|bk|list|inbox|internet)\.ru$/.test(d)) return ["Открыть Почту Mail.ru","https://e.mail.ru/inbox/"];
+  if(/^(yandex\.(ru|com|by|kz)|ya\.ru)$/.test(d)) return ["Открыть Яндекс Почту","https://mail.yandex.ru/"];
+  if(d==="gmail.com") return ["Открыть Gmail","https://mail.google.com/"];
+  return null;
+}
+function openLogin(o){
+  o=o||{};
+  if(!ACCOUNT||document.querySelector(".accovl")) return;
+  const ovl=el(`<div class="ovl accovl"><form class="modal" role="dialog" aria-modal="true" aria-labelledby="acH" novalidate style="max-width:380px"></form></div>`);
+  const f=ovl.querySelector("form");
+  let mail=o.mail||(_sync&&_sync.mail)||"", timer=0, left=0, busy=false, netFn=null;
+  const onNet=()=>{ if(netFn&&f.querySelector("#acMail")) netFn(); };
+  addEventListener("online",onNet); addEventListener("offline",onNet);
+  // закрыл сам — код больше не ждём (после перезагрузки лист не всплывёт); перезагрузка без
+  // закрытия — снова шаг кода
+  const close=()=>{ clearInterval(timer); removeEventListener("online",onNet); removeEventListener("offline",onNet); ovl.remove();
+    try{ sessionStorage.removeItem(PEND_KEY); }catch(e){} };
+  const err=t=>{ const e=f.querySelector("#acErr"); if(e){ e.textContent=t||""; e.classList.toggle("on",!!t); } };
+  const tick=()=>{ const b=f.querySelector("#acResend"); if(!b){ clearInterval(timer); return; }
+    if(left>0){ b.disabled=true; b.textContent="Отправить ещё раз через "+mmss(left); left--; }
+    else { b.disabled=false; b.textContent="Отправить код ещё раз"; clearInterval(timer); } };
+  const startTimer=s=>{ left=Math.max(0,Math.ceil(s)); clearInterval(timer); tick(); timer=setInterval(tick,1000); };
+  async function ask(again){
+    if(busy) return; busy=true;
+    const go=f.querySelector("#acGo"); if(go&&!again){ go.disabled=true; go.textContent="Отправляю…"; }
+    const r=await api("code",{email:mail, purpose:"login"});
+    busy=false;
+    if(r.ok||r.err==="wait"){
+      try{ sessionStorage.setItem(PEND_KEY,JSON.stringify({mail, at:Date.now()})); }catch(e){}
+      if(!f.querySelector("#acCode")) step2(r.ok?r.ttl:900);
+      startTimer(r.ok?(r.resend||60):(+r.retryIn||60));
+      err(r.ok?"":accErr(r)); return;
+    }
+    if(go&&!again){ go.disabled=false; go.textContent="Получить код"; }
+    err(accErr(r));
+  }
+  function step1(){
+    clearInterval(timer);
+    f.innerHTML=`<h4 id="acH">${ic("mail")} Вход по почте</h4>
+      <p class="mtxt">Пароль не нужен — пришлём код на почту. Прогресс будет храниться на нашем сервере в России, а на телефоне останется копия — Магнат работает и без интернета.</p>
+      <label class="lab" for="acMail">Почта</label>
+      <input id="acMail" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" enterkeyhint="send" maxlength="254" placeholder="ivan@mail.ru">
+      <p class="acfix" id="acFix" hidden>Может, <b></b>? <button type="button" class="linkbtn" id="acFixGo">Да, исправить</button></p>
+      <p class="ferr" id="acErr" aria-live="polite"></p>
+      <p class="acsm">Входя, ты принимаешь <a href="${SITE}terms.html" target="_blank" rel="noopener">Пользовательское соглашение</a>. Как мы храним данные — в <a href="${SITE}privacy.html" target="_blank" rel="noopener">Политике конфиденциальности</a>. Данные «Тела» остаются только в телефоне.</p>
+      <div class="btns"><button type="button" class="no" id="acNo">Отмена</button><button type="submit" class="ok" id="acGo">Получить код</button></div>`;
+    const inp=f.querySelector("#acMail"), fix=f.querySelector("#acFix"), go=f.querySelector("#acGo");
+    inp.value=mail;
+    const hint=()=>{ const v=mailFix(inp.value); fix.hidden=!v; if(v) fix.querySelector("b").textContent=v; };
+    const net=()=>{ const off=navigator.onLine===false; go.disabled=off; if(off) err(ACC_ERR.offline); else if(f.querySelector("#acErr").textContent===ACC_ERR.offline) err(""); };
+    inp.addEventListener("input",()=>{ err(""); hint(); });
+    f.querySelector("#acFixGo").onclick=()=>{ inp.value=mailFix(inp.value); hint(); inp.focus(); };
+    f.querySelector("#acNo").onclick=close;
+    f.onsubmit=e=>{ e.preventDefault(); if(go.disabled) return;
+      const v=inp.value.trim(); if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){ err(ACC_ERR.bad_email); inp.focus(); return; }
+      mail=v; ask(false); };
+    net(); hint(); netFn=net;
+    setTimeout(()=>inp.focus(),50);
+  }
+  function step2(ttl){
+    const wm=webmail(mail);
+    f.innerHTML=`<h4 id="acH">${ic("mail")} Код из письма</h4>
+      <p class="mtxt">Отправили 6 цифр на <b>${esc(mail)}</b>. Код действует ${Math.round((ttl||900)/60)} минут.</p>
+      <label class="lab" for="acCode">Код</label>
+      <input id="acCode" class="codein" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="7" placeholder="000000">
+      <p class="ferr" id="acErr" aria-live="polite"></p>
+      <p class="acsm">Письма нет? Проверь «Спам» и «Рассылки». Отправитель — Магнат.</p>
+      <div class="aclinks">${wm?`<a class="linkbtn" href="${wm[1]}" target="_blank" rel="noopener">${wm[0]}</a>`:""}<button type="button" class="linkbtn" id="acResend" disabled>Отправить ещё раз</button><button type="button" class="linkbtn sub" id="acEdit">Изменить почту</button></div>
+      <div class="btns"><button type="button" class="no" id="acBack">Отмена</button><button type="submit" class="ok" id="acGo">Войти</button></div>`;
+    const inp=f.querySelector("#acCode"), go=f.querySelector("#acGo");
+    const back=()=>{ try{ sessionStorage.removeItem(PEND_KEY); }catch(e){} step1(); };
+    f.querySelector("#acEdit").onclick=back; f.querySelector("#acBack").onclick=close;
+    f.querySelector("#acResend").onclick=()=>{ err(""); ask(true); };
+    const send=async()=>{
+      const code=inp.value.replace(/\D/g,"");
+      if(code.length!==6){ err("Нужно 6 цифр из письма"); inp.focus(); return; }
+      if(busy) return; busy=true; go.disabled=true; go.textContent="Вхожу…"; err("");
+      const dev=_sync&&_sync.acct&&_sync.mail===mail.trim().toLowerCase()&&_sync.dev?_sync.dev:(whoGet().devs||{})[mail.trim().toLowerCase()]||newDev();
+      const r=await api("login",{email:mail, code, dev, label:devLabel()});
+      busy=false; go.disabled=false; go.textContent="Войти";
+      if(!r.ok){ err(accErr(r)); if(r.err==="code"||r.err==="replaced"){ inp.value=""; inp.focus(); }
+        if((r.err==="expired"||r.err==="tries_over")&&left<=0) startTimer(0); return; }
+      close(); await finishLogin(r,dev);
+    };
+    inp.addEventListener("input",()=>{ const d=inp.value.replace(/\D/g,"").slice(0,6); if(inp.value!==d) inp.value=d; if(d.length===6) send(); });
+    f.onsubmit=e=>{ e.preventDefault(); send(); };
+    setTimeout(()=>inp.focus(),50);
+  }
+  ovl.onclick=e=>{ if(e.target===ovl) close(); };
+  ovl.addEventListener("keydown",e=>{ if(e.key==="Escape") close(); });
+  document.body.appendChild(ovl);
+  if(o.code&&mail){ step2(900); startTimer(o.wait||0); } else step1();
+}
+// вход удался: какой аккаунт был на телефоне — тот же (продолжаем), другой (спрашиваем), никакого
+async function finishLogin(r,dev){
+  try{ sessionStorage.removeItem(PEND_KEY); }catch(e){}
+  const w=whoGet(); w.devs=w.devs&&typeof w.devs==="object"?w.devs:{}; w.devs[r.email]=dev; w.acct=r.acct; w.mail=r.email; w.dev=dev; whoSet(w);
+  reread();
+  if(_sync&&_sync.acct===r.acct){ updSync(s=>{ s.off=false; s.auth=false; s.mail=r.email; s.dev=dev; }); }
+  else {
+    if(_sync&&_sync.acct&&_sync.mail!==r.email&&!isDemo()&&!blankDoc(docOf(S))
+       &&!await askConfirm(`На этом телефоне записи аккаунта ${_sync.mail}. Перенести их в ${r.email}? В прежнем аккаунте они тоже останутся.`,"Перенести")){
+      await api("logout",{}); return; }
+    reread();
+    _sync={v:1, acct:r.acct, mail:r.email, dev, rid:null, rev:0, hsv:0, base:null, seq:0, out:null, wsv:SV, reset:"", merge:false, auth:false, old:false, off:false, first:true, at:0};
+    if(!PRISTINE){ QUIET=true; try{ save(); } finally{ QUIET=false; } }
+  }
+  backoff=0; render(); await sync();
+}
+async function logout(){
+  if(!LOGGED()) return;
+  if(navigator.onLine!==false&&!_sync.auth) await sync();
+  reread(); if(!LOGGED()) return;
+  const unsent=!!(_sync.out||_sync.first||(!isDemo()&&(!_sync.base||JSON.stringify(docOf(S))!==JSON.stringify(_sync.base))));
+  if(!await askConfirm(unsent?"Последние изменения ещё не на сервере. Выйти всё равно? Записи останутся на этом телефоне."
+                            :"Выйти из аккаунта? Записи останутся на этом телефоне, синхронизация остановится.","Выйти",unsent)) return;
+  updSync(s=>{ s.off=true; });
+  const w=whoGet(); delete w.acct; whoSet(w);
+  clearTimeout(syncT); render(); toast("Ты вышел из аккаунта");
+  await api("logout",{});
+}
+// карточка на «Обзоре» вместо «Скачать копию / Восстановить»: копия остаётся ссылками
+function accCard(){
+  const links=`<button class="linkbtn sub" id="bkSave">${ic("download")} Скачать копию</button><button class="linkbtn sub" id="bkLoad">${ic("inbox")} Восстановить из копии</button>`;
+  if(!LOGGED()) return `<div class="glass card acc" id="acc"><h3>Вход по почте</h3>
+    <p class="acp">${ic("cloud")} <span>Прогресс откроется на втором телефоне и не пропадёт при смене телефона.</span></p>
+    <button class="share-btn acbtn" id="acLogin">${ic("mail")} Войти по почте</button>
+    <div class="aclinks">${links}</div></div>`;
+  return `<div class="glass card acc" id="acc"><h3>Аккаунт</h3>
+    <div class="acrow">${ic("mail")}<span class="acm">${esc(_sync.mail||"")}</span><button class="linkbtn" id="acOut">${ic("logout")} Выйти</button></div>
+    <div class="acst" id="acSt"></div>
+    <div class="aclinks">${links}</div></div>`;
+}
+function accBind(root){
+  const c=root.querySelector("#acc"); if(!c) return;
+  const lg=c.querySelector("#acLogin"); if(lg) lg.onclick=()=>openLogin();
+  const out=c.querySelector("#acOut"); if(out) out.onclick=logout;
+  c.addEventListener("click",e=>{ const t=e.target.closest("button"); if(!t) return;
+    if(t.id==="acRe") openLogin({mail:_sync&&_sync.mail}); else if(t.id==="acUpd") location.reload(); });
+  paintAcc();
 }
 
 // normalize() раздал при загрузке новые id (старые данные без id) — сохраняем сразу,
@@ -3096,6 +3562,23 @@ function takeStore(){
   render();
 }
 addEventListener("storage",e=>{ if((e.key===KEY||e.key===null)&&!storeT) takeStore(); });
+// Синхронизация (только при входе по почте): через секунду после первой отрисовки, после правки,
+// при возвращении во вкладку и появлении сети, раз в две минуты, пока видно; при уходе со
+// страницы с неотправленным — одна отправка keepalive. До нажатия «Войти» — ни одного запроса
+if(ACCOUNT){
+  setTimeout(()=>sync(),1000);
+  addEventListener("online",()=>{ backoff=0; paintAcc(); syncSoon(300); });
+  addEventListener("offline",()=>setSt("offline"));
+  addEventListener("focus",()=>{ if(Date.now()-lastSync>20000) syncSoon(300); });
+  document.addEventListener("visibilitychange",()=>{
+    if(document.visibilityState==="visible"){ backoff=0; if(Date.now()-lastSync>20000) syncSoon(300); }
+    else if(LOGGED()&&ACST.pending) sync({keep:true});
+  });
+  setInterval(()=>{ paintAcc(); if(document.visibilityState==="visible"&&Date.now()-lastSync>110000) sync(); },60000);
+  // код запрошен, а страницу перезагрузили — снова шаг «Код из письма» (15 минут)
+  try{ const pd=JSON.parse(sessionStorage.getItem(PEND_KEY)||"null");
+    if(pd&&pd.mail&&Date.now()-pd.at<15*60000&&!(LOGGED()&&!_sync.auth)) openLogin({mail:pd.mail, code:true}); }catch(e){}
+}
 
 // офлайн: с домашнего экрана приложение должно открываться и без сети
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
