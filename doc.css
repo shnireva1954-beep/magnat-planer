@@ -36,6 +36,7 @@ ol,ul{padding-left:22px; margin-top:8px;}
 li+li{margin-top:6px;}
 b{color:var(--ink); font-weight:700;}
 .num{font-variant-numeric:tabular-nums;}
+code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.92em; color:var(--ink); background:rgba(255,255,255,.06); border:1px solid var(--line); border-radius:6px; padding:1px 5px;}
 
 .box{background:linear-gradient(168deg,rgba(20,28,42,.62),rgba(15,21,32,.62)); border:1px solid var(--line2); border-radius:16px; padding:18px; margin-top:16px;}
 .note{border-color:#6e5320; background:linear-gradient(180deg,#1d1707cc,#120d04cc); color:#f2dfae; font-size:15px;}
