@@ -844,8 +844,9 @@ class PayMode(unittest.TestCase):
         self.assertEqual(c('/api/order', {'o': r['o']}), {'ok': True, 'status': 'paid', 'plan': 'month', 'until': u,
                                                           'email': 'b•••@example.ru'})
         self.assertEqual(c('/api/order', {'o': 'Z' * 22}), {'ok': False, 'err': 'order'})
-        # неизвестный номер — 200 (Платега не будет повторять), в журнале «callback unknown»
-        self.assertEqual(self.hook(str(uuid.uuid4()))[::2], (200, {'ok': True}))
+        # номер не знаем ни мы, ни Платега (GET не дал статуса) — 503: ничего не узнали, Платега повторит
+        # (не больше трёх раз); в журнале «callback unknown»
+        self.assertEqual(self.hook(str(uuid.uuid4()))[::2], (503, {'ok': False, 'err': 'platega'}))
 
     def test_checkout_bad(self):
         c = self.client()
@@ -1151,12 +1152,12 @@ class PayMode(unittest.TestCase):
         self.assertEqual(len(self.pg.gets(ghost)), 2)
 
     def test_maintain_retention(self):
-        # maintain: неоплаченный старше 30 дней — без почты, Telegram, IP и тела уведомления; старше 5 лет — прочь.
+        # maintain: неоплаченный старше 30 дней с оформления — без почты, Telegram, IP и тела уведомления; старше 5 лет — прочь.
         now = int(time.time())
         ins = ("INSERT INTO orders(pub, at, email, tg, plan, days, amount_kop, consent, terms_ed, ip, tx, status, checked, "
                "paid_at, until, updated) VALUES(?, ?, 'old-unpaid@example.ru', '@old_unpaid', 'month', 30, 29900, 'c', ?, "
                "'198.18.251.1', NULL, ?, 0, NULL, NULL, ?)")
-        for pub, st, at, upd in (('ret-failed-31', 'failed', 40, 31), ('ret-expired-29', 'expired', 40, 29),
+        for pub, st, at, upd in (('ret-failed-31', 'failed', 31, 1), ('ret-expired-29', 'expired', 29, 29),
                                  ('ret-paid-ancient', 'paid', 1828, 1828)):
             self.api.sql(ins, pub, now - at * DAY, TERMS, st, now - upd * DAY)
             self.api.sql("INSERT INTO payment_events(order_id, tx, status, src, at, raw) SELECT id, NULL, 'CONFIRMED', "

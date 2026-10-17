@@ -442,6 +442,9 @@ exit 0
     let bOk = false; try { bOk = (fs.statSync(path.join(BD, today)).mode & 0o777) === 0o600 && zlib.gunzipSync(fs.readFileSync(path.join(BD, today))).slice(0, 15).toString() === "SQLite format 3"; } catch (e) {}
     bOk && left.length === 7 && left.includes(today) && !left.includes("magnat-2026-01-03.db.gz") && left.includes("magnat-2026-01-04.db.gz")
       ? ok("копия базы раз в сутки: свежая (gzip, 0600, SQLite), хранится семь последних") : bad(`копия базы: ${left.join(" ")}\n    ` + (r.stdout + r.stderr).trim().slice(-300));
+    // после копии — обслуживание базы (сроки хранения политики); до 17.10.2026 maintain не звал никто
+    /magnat: обслуживание базы: codes=\d+ .*unpaid_wiped=\d+/.test(r.stdout) && !/обслуживание базы НЕ прошло/.test(r.stdout + r.stderr)
+      ? ok("api-backup: после копии — maintain («обслуживание базы: codes=… unpaid_wiped=…»)") : bad("api-backup без обслуживания базы:\n    " + (r.stdout + r.stderr).trim().slice(-300));
     st = deploy("status");
     /Копия базы:\s+\d\d\.\d\d \d\d:\d\d UTC ✅ \(всего 7/.test(st.stdout) ? ok("magnat status: «Копия базы: … ✅ (всего 7…)»") : bad("status копии: " + (st.stdout.match(/Копия базы.*/) || ["нет"])[0]);
 
@@ -900,12 +903,14 @@ exit 0
         // тот же api.py с оплатой: колбэк приходит без Origin — Caddy его не режет, ключи сверяет api.py
         const pf = path.join(T, "platega-3b.env");
         fs.writeFileSync(pf, "PLATEGA_MERCHANT_ID=m-3b-merchant\nPLATEGA_SECRET=s3b-Secret_01\n", { mode: 0o600 });
-        await A2.restart({ MAGNAT_PAYMENTS: "1", MAGNAT_PLATEGA_FILE: pf });
+        // Платега — мёртвый местный адрес: тест не ходит в настоящую app.platega.io
+        await A2.restart({ MAGNAT_PAYMENTS: "1", MAGNAT_PLATEGA_FILE: pf, MAGNAT_PLATEGA_URL: "http://127.0.0.1:9" });
         const hook = (sec) => L.request(C.port, { method: "POST", path: "/api/platega/callback", body: { id: "3fa85f64-0000-4000-8000-000000000001", status: "CONFIRMED" },
           headers: { "X-MerchantId": "m-3b-merchant", "X-Secret": sec } });
         const cbBad = await hook("wrong-secret"), cbOk = await hook("s3b-Secret_01");
-        cbBad.status === 403 && cbBad.json && cbBad.json.err === "origin" && cbOk.status === 200 && cbOk.json && cbOk.json.ok === true && /callback unknown/.test(A2.log())
-          ? ok("настоящий api.py за Caddy: колбэк без Origin — чужой секрет 403 «origin», верный — 200 (такого счёта нет — «callback unknown» в журнале)")
+        // верный ключ дошёл до api.py: счёта нет, статус перечитать не у кого — 503, Платега повторит
+        cbBad.status === 403 && cbBad.json && cbBad.json.err === "origin" && cbOk.status === 503 && cbOk.json && cbOk.json.err === "platega" && /callback unknown/.test(A2.log())
+          ? ok("настоящий api.py за Caddy: колбэк без Origin — чужой секрет 403 «origin», верный дошёл (счёта нет — «callback unknown», Платега молчит — 503 на повтор)")
           : bad(`колбэк в api.py через Caddy: чужой ${cbBad.status} ${cbBad.text.slice(0, 80)}, верный ${cbOk.status} ${cbOk.text.slice(0, 80)}`);
       } catch (e) { bad("3б упал: " + (e.stack || e)); }
       finally { await L.cleanup(); stub.close(); }

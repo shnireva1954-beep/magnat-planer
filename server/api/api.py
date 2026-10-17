@@ -1529,6 +1529,8 @@ class App:
             res = self._status_of(keys, tx)
         finally:
             self.pay_sem.release()
+        if res is None:
+            return fail('platega', 503)     # ничего не узнали — Платега повторит уведомление
         if row is None:
             # счёта нет в базе (восстановили копию старше оплаты), а Платега говорит «оплачен» — деньги есть,
             # доступа нет: одно письмо владельцу на этот номер
@@ -1541,8 +1543,6 @@ class App:
                             '(magnat grant)' % tx)
                     self.notify(None, lambda conf, to: letter_alert(conf, 'pay_unknown', text))
             return ok()
-        if res is None:
-            return fail('platega', 503)
         self.apply_status(row[0], res, 'callback')
         return ok()
 
@@ -2457,13 +2457,13 @@ class App:
 
     def retain_payments(self, now):
         """Сроки хранения оплаты (политика, раздел 5): неоплаченный заказ (failed, canceled, expired) — 30 дней
-        с последней перемены, потом почта, Telegram, IP и тела уведомлений из него стираются; заказы с событиями
+        с оформления (так обещает политика; висящий счёт живёт не дольше 7 дней), потом почта, Telegram, IP и тела уведомлений из него стираются; заказы с событиями
         и сроки доступа старше 5 лет (учёт) — удаляются. Возвращает (стёрто заказов, удалено заказов)."""
         dead, cut, old = "status IN ('failed', 'canceled', 'expired')", now - UNPAID_KEEP, now - PAY_KEEP
         with self.store.tx() as c:
             c.execute('UPDATE payment_events SET raw=NULL WHERE raw IS NOT NULL AND order_id IN '
-                      '(SELECT id FROM orders WHERE %s AND updated<?)' % dead, (cut,))
-            wiped = c.execute('UPDATE orders SET email=NULL, tg=NULL, ip=NULL WHERE %s AND updated<? AND '
+                      '(SELECT id FROM orders WHERE %s AND at<?)' % dead, (cut,))
+            wiped = c.execute('UPDATE orders SET email=NULL, tg=NULL, ip=NULL WHERE %s AND at<? AND '
                               '(email IS NOT NULL OR tg IS NOT NULL OR ip IS NOT NULL)' % dead, (cut,)).rowcount
             c.execute('DELETE FROM payment_events WHERE at<? OR order_id IN (SELECT id FROM orders WHERE at<?)',
                       (old, old))
@@ -4223,7 +4223,8 @@ class SelfTest:
            '/api/order: paid, срок и маскированная почта %r' % r)
         ok(cl.call('/api/order', {'o': 'A' * 22}).obj == {'ok': False, 'err': 'order'} and
            cl.call('/api/order', {'o': 'короткий'}).status == 400, '/api/order: чужой ключ — order, кривой — 400')
-        # неизвестный номер: 200 и строка журнала без данных
+        # неизвестный нам номер (Платега его знает): 200 и строка журнала без данных
+        pay.st['tx-nobody'] = 'CANCELED'
         old, buf = sys.stderr, io.StringIO()
         sys.stderr = buf
         try:
@@ -4695,6 +4696,15 @@ class SelfTest:
             '(magnat grant)'], 'колбэк: неизвестный оплаченный платёж — одна тревога владельцу на номер %r' % (al,))
         ok([c for c in pay.calls if c[0] == 'status'] == [('status', 'tx-ghost-1')] * 2 + [('status', 'tx-ghost-2')],
            'колбэк: неизвестный номер — статус перечитан GET-ом')
+        # GET молчит — 503: Платега повторит, и оплата по неизвестному счёту не пропадёт без тревоги
+        pay.st['tx-ghost-3'] = 'CONFIRMED'
+        pay.down = True
+        h1 = self.quiet(lambda: self.hook(app, {'id': 'tx-ghost-3', 'status': 'CONFIRMED'}))
+        pay.down = False
+        h2 = self.quiet(lambda: self.hook(app, {'id': 'tx-ghost-3', 'status': 'CONFIRMED'}))
+        al = [str(m['Subject']) for m in self.support(app)]
+        ok(h1.status == 503 and h1.obj.get('err') == 'platega' and h2.status == 200
+           and sum('tx-ghost-3' in a for a in al) == 1, 'колбэк: неизвестный номер, GET молчит — 503, повтор — тревога %r' % (al,))
 
     def t_pay_tombstone(self):
         """SEC-6: user delete без аккаунта пишет надгробие; replay стирает ПДн заказов по нему — кроме новых."""
@@ -4736,8 +4746,8 @@ class SelfTest:
         app, pay = self.payapp()
         now = app.now()
         with app.store.tx() as c:
-            for pub, st, at, upd in (('dead-31', 'failed', 40, 31), ('canc-31', 'canceled', 40, 31),
-                                     ('exp-29', 'expired', 40, 29), ('paid-31', 'paid', 40, 31),
+            for pub, st, at, upd in (('dead-31', 'failed', 31, 1), ('canc-31', 'canceled', 40, 31),
+                                     ('exp-29', 'expired', 29, 29), ('paid-31', 'paid', 40, 31),
                                      ('old-5y', 'paid', PAY_KEEP // DAY + 1, PAY_KEEP // DAY + 1),
                                      ('young-5y', 'paid', PAY_KEEP // DAY - 1, PAY_KEEP // DAY - 1)):
                 oid = c.execute("INSERT INTO orders(pub, at, email, tg, plan, days, amount_kop, consent, terms_ed, ip, tx, "
