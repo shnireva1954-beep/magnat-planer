@@ -420,13 +420,33 @@ def slowloris(port, result):
 
 # ───────────────────────── проверки ─────────────────────────
 
+class LiveDefaults(unittest.TestCase):
+    """С 17.10.2026 вход и оплата включены по умолчанию (OPEN = True, PAYMENTS = True в api.py)."""
+
+    def test_health_defaults(self):
+        api = Api(None)
+        try:
+            st, hs, r = req(api.port, 'GET', '/api/health', ip=None)
+            self.assertEqual(st, 200)
+            self.assertEqual((r.get('open'), r.get('pay'), r.get('payKeys')), (True, True, False))
+            # ключей нет — счёт не создаётся, оформление говорит «оплата не подключена», в базе ничего
+            c = Client(api, '192.0.2.40')
+            r = c('/api/checkout', {'plan': 'month', 'email': 'buyer@example.ru', 'telegram': '', 'terms': TERMS,
+                                    'consent': CONSENT})
+            self.assertEqual(r, {'ok': False, 'err': 'pay_off'})
+            self.assertNotIn(b'buyer', api.raw_db())
+        finally:
+            api.stop()
+            shutil.rmtree(api.state, ignore_errors=True)
+
+
 class ClosedMode(unittest.TestCase):
-    """R1: API закрыт (OPEN=False) — код получают только два ящика владельца."""
+    """Выключатель R1: API закрыт (MAGNAT_OPEN=0, оплата выключена) — код получают только два ящика владельца."""
 
     @classmethod
     def setUpClass(cls):
         cls.smtp = FakeSMTP()
-        cls.api = Api(cls.smtp)
+        cls.api = Api(cls.smtp, MAGNAT_OPEN=0, MAGNAT_PAYMENTS=0)
 
     @classmethod
     def tearDownClass(cls):

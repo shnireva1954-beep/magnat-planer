@@ -34,13 +34,19 @@ const ACCT = 'a_0123456789abcdef', DEV = 'd_0123456789abcdef', RID0 = 'r_aaaaaaa
 const hex16 = (n) => n.toString(16).padStart(16, '0');
 const TODAY_YMD = (d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'))(new Date());
 
-// статика из корня репозитория
+// статика из корня репозитория. С 17.10.2026 вход и оплата включены для всех (ACCOUNT_ON и PAY_ON —
+// true); OFF.on — app.html отдаётся с обоими false: выключатель, разбор меток предпросмотра (блок 1)
+const OFF = { on: false };
 function staticServer() {
   const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.css': 'text/css', '.woff2': 'font/woff2', '.webp': 'image/webp' };
   const s = http.createServer((q, r) => {
     const u = decodeURIComponent(q.url.split('?')[0]), f = path.join(APP_DIR, u === '/' ? '/app.html' : u);
     if (!f.startsWith(APP_DIR) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); return r.end('nope'); }
     r.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+    if (OFF.on && u === '/app.html') {
+      const t = fs.readFileSync(f, 'utf8'), o = t.replace('const ACCOUNT_ON=true,', 'const ACCOUNT_ON=false,').replace('const PAY_ON=true,', 'const PAY_ON=false,');
+      return r.end(o === t ? '<!doctype html><title>нет строк ACCOUNT_ON=true и PAY_ON=true</title>' : o);
+    }
     fs.createReadStream(f).pipe(r);
   });
   return new Promise(res => s.listen(0, '127.0.0.1', () => res({ url: 'http://127.0.0.1:' + s.address().port, close: () => new Promise(r => { s.close(r); s.closeAllConnections(); }) })));
@@ -157,7 +163,9 @@ const HB = (extra = {}) => ({ habits: [{ id: 101, ico: '', name: 'Бег', since
   const URL = SRV.url + '/app.html';
   const step = async (title, fn) => { console.log('\n' + title); try { await fn(); } catch (e) { bad(`${title}: упал — ${(e.stack || e).toString().split('\n').slice(0, 3).join(' / ')}`); } };
   try {
-    await step('1) Предпросмотр включается только явно: ?account и ?account=1 — да, ?account=false — нет, ?account=0 — снимает', async () => {
+    await step('1) Выключатель (ACCOUNT_ON=false): предпросмотр включается только явно — ?account и ?account=1 да, ?account=false нет, ?account=0 снимает', async () => {
+      OFF.on = true;
+      try {
       const api = miniApi();
       const { ctx, p, reqs } = await mk({ api });
       const look = async (q) => { await p.goto(URL + q); await p.waitForTimeout(250);
@@ -174,6 +182,7 @@ const HB = (extra = {}) => ({ habits: [{ id: 101, ico: '', name: 'Бег', since
       (!reqs.length) ? ok('ни одного запроса к /api за все заходы') : bad('запросы к /api: ' + J(reqs));
       errCheck(p, 'метка предпросмотра');
       await ctx.close();
+      } finally { OFF.on = false; }
     });
 
     await step('2) Ушёл со страницы при открытом окне правки — данные под окном не подменяются, «Сохранить» не теряется', async () => {

@@ -280,7 +280,7 @@ ok "Сайт скачан: версия $(basename "$(readlink "$BASE/current")"
 # проверка на копии базы → копия базы → переключение → ответ /api/health,
 # иначе — прежний. Почта для кодов — отдельно, руками: magnat mail; ключи
 # Платеги для оплаты — так же: magnat platega.
-echo; echo "--- 5/8 API входа по почте (закрыт: код — только ящикам владельца) ---"
+echo; echo "--- 5/8 API входа по почте ---"
 id magnat-api >/dev/null 2>&1 ||
   useradd --system --home-dir /var/lib/magnat-api --no-create-home --shell /usr/sbin/nologin magnat-api
 install -d -o magnat-api -g magnat-api -m 0700 /var/lib/magnat-api /var/lib/magnat-api/tmp /var/lib/magnat-api/backup
@@ -416,8 +416,10 @@ for _ in $(seq 20); do
   curl --noproxy '*' -fsS --max-time 2 http://127.0.0.1:8787/api/health 2>/dev/null | grep -q '"ok":true' && break
   sleep 1
 done
-if curl --noproxy '*' -fsS --max-time 2 http://127.0.0.1:8787/api/health 2>/dev/null | grep -q '"ok":true'; then
-  ok "API входа работает (закрыт: код получают только ящики владельца)."
+api_h="$(curl --noproxy '*' -fsS --max-time 2 http://127.0.0.1:8787/api/health 2>/dev/null || true)"
+if grep -q '"ok": *true' <<<"$api_h"; then
+  if grep -q '"open": *true' <<<"$api_h"; then ok "API входа работает (вход открыт: код получает любой адрес)."
+  else ok "API входа работает (закрыт: код получают только ящики владельца)."; fi
 else
   warn "API входа пока не отвечает — сайт работает и без него. Пришли вывод magnat status."
 fi

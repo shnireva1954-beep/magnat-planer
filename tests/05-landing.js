@@ -118,7 +118,11 @@ function serve() {
   ok(pp("month").startsWith(`${nf(cfg.month)} ₽`) && pp("year").startsWith(`${nf(cfg.year)} ₽`) && new RegExp(`${cfg.trialDays} (дней|дня|день)`).test(pricing),
     `CFG = тарифы: ${cfg.month} ₽ в месяц, ${nf(cfg.year)} ₽ в год, ${cfg.trialDays} дней бесплатно`);
   ok(t.includes(`${nf(cfg.year)} ₽`) && t.includes(`${nf(cfg.month)} ₽`), "цены из CFG — на странице");
-  ok(/Оплата на сайте подключается/.test(t) && /открыт целиком и бесплатно/.test(t), "честная плашка: оплата подключается, пока всё бесплатно (как в тарифах)");
+  // оплата включена 17.10.2026: плашки «подключается» и «пока бесплатно» нет ни на главной, ни в тарифах
+  const faq = await p.evaluate(() => [...document.querySelectorAll("details")].map(d => d.textContent.replace(/[\u00a0\u202f]/g, " ")).find(x => /Сколько это стоит/.test(x)) || "");
+  ok(!/подключается|открыт целиком|Сейчас — бесплатно|Когда она заработает/.test(t + faq) && !/подключается|открыт целиком|заработает/.test(prT),
+    "оплата включена: ни «подключается», ни «пока бесплатно» — ни на главной (и в ответах), ни в тарифах");
+  ok(/3 дня бесплатно/.test(faq) && /разовой оплатой/.test(faq), "«Сколько это стоит?» — 3 дня бесплатно, дальше разовая оплата");
   await p.evaluate(() => { CFG.month = 399; CFG.year = 2990; CFG.trialDays = 3; CFG.start = "./x?start"; fillPrices(); });
   t = await txt();
   const stale = await p.evaluate(() => [...document.querySelectorAll('[data-app="start"]')].filter(a => a.getAttribute("href") !== "./x?start").length);

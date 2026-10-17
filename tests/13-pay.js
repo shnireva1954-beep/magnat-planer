@@ -2,9 +2,14 @@
 // 13-pay: пробный период и экран оплаты в приложении (разовая оплата через Платегу, 17.10.2026) —
 // против ПОДСТАВНОГО /api, как 12-sync: /api/me отдаёт sub {plan, until, active}, какой задан в
 // тесте. Всё это живёт только при PAYWALL = ACCOUNT && (PAY_ON || ?pay); каждый блок краснеет без
-// своей правки в app.html:
-//   1) посетитель без меток (и с одной ?pay без ?account) — ни строки, ни экрана, ни запроса, ни
-//      метки пробного периода; ?pay=false — не метка, ?pay=0 — снимает;
+// своей правки в app.html. С 17.10.2026 вход и оплата включены для всех (ACCOUNT_ON и PAY_ON —
+// true); выключатель (оба false — прежний предпросмотр владельца) проверяется подменой строк в
+// ответе сервера теста (OFF.on — блоки 1, 9 и 15):
+//   1) выключатель: посетитель без меток (и с одной ?pay без ?account) — ни строки, ни экрана, ни
+//      запроса, ни метки пробного периода; ?pay=false — не метка, ?pay=0 — снимает;
+//  1а) включено для всех: посетитель без меток — строка пробного периода, день 4 — экран без
+//      «предпросмотр» и без «Выключить предпросмотр», ?account=0&pay=0 его не снимают; без входа
+//      ни одного запроса и ни одной куки;
 //   2) рамка Claude и file:// с метками и кончившимся пробным периодом — ничего;
 //   3) дни 1–3 — тихая строка «осталось N дня · Оформить» на «Обзоре», экрана нет, запросов нет;
 //   4) день 4 — экран оплаты: заголовок, цены = PLANS в api.py, приложение под ним недоступно
@@ -53,12 +58,18 @@ const PLANS = (() => {
   return o;
 })();
 
+// выключатель: OFF.on — app.html отдаётся с ACCOUNT_ON=false и PAY_ON=false (предпросмотр владельца)
+const OFF = { on: false };
 function staticServer() {
   const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.css': 'text/css', '.woff2': 'font/woff2', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
   const s = http.createServer((q, r) => {
     const u = decodeURIComponent(q.url.split('?')[0]), f = path.join(APP_DIR, u === '/' ? '/app.html' : u);
     if (!f.startsWith(APP_DIR) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); return r.end('nope'); }
     r.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+    if (OFF.on && u === '/app.html') {
+      const t = fs.readFileSync(f, 'utf8'), o = t.replace('const ACCOUNT_ON=true,', 'const ACCOUNT_ON=false,').replace('const PAY_ON=true,', 'const PAY_ON=false,');
+      return r.end(o === t ? '<!doctype html><title>нет строк ACCOUNT_ON=true и PAY_ON=true</title>' : o);
+    }
     fs.createReadStream(f).pipe(r);
   });
   return new Promise(res => s.listen(0, '127.0.0.1', () => res({ s, url: 'http://127.0.0.1:' + s.address().port, close: () => new Promise(r => { s.close(r); s.closeAllConnections(); }) })));
@@ -199,7 +210,9 @@ const overflow = (p) => p.evaluate(() => {
         : bad('PLANS в server/api/api.py не разобран: ' + J(PLANS));
     });
 
-    await step('1) Посетитель без меток: ни строки, ни экрана, ни запроса — даже с кончившимся пробным периодом в хранилище', async () => {
+    await step('1) Выключатель (ACCOUNT_ON и PAY_ON — false): посетитель без меток — ни строки, ни экрана, ни запроса, даже с кончившимся пробным периодом', async () => {
+      OFF.on = true;
+      try {
       const api = miniApi();
       const { ctx, p, reqs } = await mk({ api });
       await p.goto(URL); await p.waitForTimeout(300);
@@ -227,6 +240,30 @@ const overflow = (p) => p.evaluate(() => {
       (!f2.PAYWALL && !pv.wall && !pv.note) ? ok('одна ?pay без ?account — ни строки, ни экрана') : bad('?pay без входа: ' + J({ f2, pv }));
       (!reqs.length && !api.calls.length) ? ok('ни одного запроса к /api за все заходы') : bad('запросы к /api: ' + J(reqs));
       errCheck(p, 'посетитель');
+      await ctx.close();
+      } finally { OFF.on = false; }
+    });
+
+    await step('1а) Включено для всех (17.10.2026): посетитель без меток — пробный период и экран оплаты; без входа ни запроса, ни куки', async () => {
+      const api = miniApi();
+      const { ctx, p, reqs } = await mk({ api });
+      await p.goto(URL); await p.waitForTimeout(300);
+      await startClean(p);
+      const d1 = await look(p), fl = await p.evaluate(() => ({ ACCOUNT_ON, PAY_ON, ACCOUNT, PAYWALL, acc: localStorage.getItem('magnat_acc_preview'), pay: localStorage.getItem('magnat_pay_preview') }));
+      (fl.ACCOUNT_ON && fl.PAY_ON && fl.ACCOUNT && fl.PAYWALL && fl.acc === null && fl.pay === null) ? ok('ACCOUNT_ON и PAY_ON включены: вход и пейвол у посетителя без меток предпросмотра')
+        : bad('флаги включения: ' + J(fl));
+      (d1.trial === dayAgo(0) && /^Пробный период: осталось 3 дня · Оформить$/.test(d1.note) && d1.noteHref === 'checkout.html' && !d1.wall)
+        ? ok(`день 1: «${d1.note}» → ${d1.noteHref}`) : bad('посетитель, день 1: ' + J(d1));
+      await trialFrom(p, 3);
+      const d4 = await look(p), pwOff = await p.evaluate(() => !!document.querySelector('#pwOff'));
+      (d4.wall && d4.inert && d4.title === 'Пробные 3 дня закончились' && !pwOff)
+        ? ok(`день 4: экран «${d4.title}» — без метки «предпросмотр» и без «Выключить предпросмотр»`) : bad('посетитель, день 4: ' + J({ d4, pwOff }));
+      await p.goto(URL + '?account=0&pay=0'); await p.waitForTimeout(500);
+      const d5 = await look(p);
+      (d5.wall && d5.inert) ? ok('?account=0&pay=0 из чужой ссылки экран не снимают') : bad('?account=0&pay=0: ' + J(d5));
+      const ck = await ctx.cookies();
+      (!reqs.length && !api.calls.length && !ck.length) ? ok('без входа — ни одного запроса к /api и ни одной куки') : bad('посетитель без входа: ' + J({ reqs, ck: ck.length }));
+      errCheck(p, 'включено для всех');
       await ctx.close();
     });
 
@@ -280,7 +317,7 @@ const overflow = (p) => p.evaluate(() => {
       const before = await p.evaluate(() => localStorage.getItem('magnat_app_v2'));
       await trialFrom(p, 3);
       const v = await look(p);
-      (v.wall && /^Пробные 3 дня закончились/.test(v.title) && /предпросмотр/.test(v.title) && v.inert) ? ok(`экран: «${v.title}», приложение под ним inert`) : bad('день 4: ' + J(v));
+      (v.wall && /^Пробные 3 дня закончились/.test(v.title) && !/предпросмотр/.test(v.title) && v.inert) ? ok(`экран: «${v.title}», приложение под ним inert`) : bad('день 4: ' + J(v));
       // тап по вкладке «Привычки» — попадает в экран, вкладка не переключается
       const tab = await p.$eval('.tab[data-t="habits"]', e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
       const hit = await p.evaluate(({ x, y }) => !!document.elementFromPoint(x, y).closest('#payWall'), tab);
@@ -408,12 +445,14 @@ const overflow = (p) => p.evaluate(() => {
     await step('9) Вошёл, срок кончился: «Уже оплатил» сначала спрашивает сервер; с одной ?account /api/me не зовётся', async () => {
       const api = miniApi();
       const { ctx, p } = await mk({ api });
+      OFF.on = true;              // «только ?account» — это выключатель: при включённой оплате пейвол у всех
       await p.goto(URL + '?account'); await p.waitForTimeout(300);
       await seedLogged(p, api, 'box@example.ru', HB());
       await p.evaluate((d) => localStorage.setItem('magnat_trial_v1', d), dayAgo(5));
       await p.reload(); await until(p, SETTLED, null, 8000); await p.waitForTimeout(1300);
       const acc = await look(p);
-      (!api.paths().includes('me') && !acc.wall && !acc.note) ? ok('только ?account: /api/me не звали, ни строки, ни экрана') : bad('?account без ?pay: ' + J({ paths: api.paths(), acc }));
+      OFF.on = false;
+      (!api.paths().includes('me') && !acc.wall && !acc.note) ? ok('выключатель, только ?account: /api/me не звали, ни строки, ни экрана') : bad('?account без ?pay: ' + J({ paths: api.paths(), acc }));
       await p.goto(URL + '?pay'); await until(p, () => !!document.querySelector('#payWall'), null, 5000);
       await until(p, () => !meQ && ME_AT > 0, null, 5000);
       const w = await look(p);
@@ -545,7 +584,9 @@ const overflow = (p) => p.evaluate(() => {
       await ctx.close();
     });
 
-    await step('15) Предпросмотр: «Выключить предпросмотр» на экране — метка снята, приложение прежнее, без вопроса', async () => {
+    await step('15) Выключатель, предпросмотр: «Выключить предпросмотр» на экране — метка снята, приложение прежнее, без вопроса', async () => {
+      OFF.on = true;
+      try {
       const api = miniApi();
       const { ctx, p } = await mk({ api });
       await p.goto(URL + '?account&pay'); await p.waitForTimeout(300);
@@ -559,6 +600,7 @@ const overflow = (p) => p.evaluate(() => {
         ? ok('метка magnat_pay_preview снята, страница перезагружена — ни экрана, ни строки, вопроса не было') : bad('после «Выключить предпросмотр»: ' + J({ f, v, dialogs: p.dialogs }));
       errCheck(p, 'выключить предпросмотр');
       await ctx.close();
+      } finally { OFF.on = false; }
     });
 
     await step('16) «Удалить аккаунт» при оплаченном доступе: срок пропадёт, деньги за остаток — через поддержку', async () => {

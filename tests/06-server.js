@@ -345,7 +345,7 @@ exit 0
     untouched && apiCur() === t1 && h.ok === true && h.v === t1 && mark("api-tree") === t1 && /API .* работает/.test(mark("api-last"))
       ? ok(`API не поставлен (шаг 4 установки) — не тронут; поставлен — встаёт из выложенного коммита без нового: current → ${t1}, /api/health отвечает этой версией`)
       : bad(`API не встал (до установки не тронут: ${untouched}): current=${apiCur()} health=${JSON.stringify(h)}\n    ` + (r.stdout + r.stderr).trim().slice(-400));
-    h.open === false ? ok("API закрыт (open:false) — код получают только ящики владельца") : bad("API открыт: " + JSON.stringify(h));
+    h.open === true && h.pay === true ? ok("API открыт и с оплатой (open:true, pay:true — включено 17.10.2026)") : bad("API не включён: " + JSON.stringify(h));
 
     const apiPy = path.join(REPO, "server/api/api.py"), apiSrc = fs.readFileSync(apiPy, "utf8");
     // (б) синтаксическая ошибка — не переключать, сайт выложить
@@ -408,8 +408,8 @@ exit 0
       ? ok("пароля нет в аргументах программ (runuser, python, systemctl) — проверка получила его через stdin") : bad("пароль в аргументах или проверки не было");
     mailed && !fs.existsSync(path.join(ETC, "smtp.env.new")) ? ok("временного файла с паролем не осталось") : bad("остался smtp.env.new или почта не настроилась");
     st = deploy("status");
-    /API входа:\s+работает ✅ версия \w{12}, вход закрыт/.test(st.stdout) && /Почта для кодов: настроена — box@example\.ru ✅/.test(st.stdout) && !st.stdout.includes(PASS)
-      ? ok("magnat status: «API входа: работает ✅ … закрыт», «Почта для кодов: настроена» — и без пароля") : bad("status:\n    " + st.stdout.split("\n").filter(l => /API|Почта/.test(l)).join("\n    "));
+    /API входа:\s+работает ✅ версия \w{12}, вход ОТКРЫТ \(код получает любой адрес\)/.test(st.stdout) && /Почта для кодов: настроена — box@example\.ru ✅/.test(st.stdout) && !st.stdout.includes(PASS)
+      ? ok("magnat status: «API входа: работает ✅ … вход ОТКРЫТ», «Почта для кодов: настроена» — и без пароля") : bad("status:\n    " + st.stdout.split("\n").filter(l => /API|Почта/.test(l)).join("\n    "));
 
     // не ушло — прежний smtp.env байт в байт
     const good = smtpEnv(); smtp.mode = "535";
@@ -624,12 +624,12 @@ exit 0
   try {
     // служба стартовала с пустым platega.env, как после install.sh (2б и дальше)
     let h = await health();
-    h.ok === true && h.pay === false && h.payKeys === false && pfile() === "" && pmode() === 0o600
-      ? ok("служба стартует с пустым platega.env (0600): /api/health — ok, pay:false, payKeys:false")
+    h.ok === true && h.pay === true && h.payKeys === false && pfile() === "" && pmode() === 0o600
+      ? ok("служба стартует с пустым platega.env (0600): /api/health — ok, pay:true (оплата включена), payKeys:false")
       : bad("служба с пустым platega.env: " + JSON.stringify(h) + " файл " + JSON.stringify(pfile()) + " права " + pmode().toString(8));
     st = prun(["status"]);
-    /^Платега:\s+ключи не заданы → magnat platega · оплата выключена · ждут оплаты 0 · оплат за месяц 0 на 0 ₽ · последнее уведомление не было$/m.test(st.stdout)
-      ? ok("magnat status без ключей: «Платега: ключи не заданы → magnat platega · оплата выключена · ждут оплаты 0 · …»") : bad("status без ключей: " + payLine(st.stdout));
+    /^Платега:\s+ключи не заданы → magnat platega · оплата включена · ждут оплаты 0 · оплат за месяц 0 на 0 ₽ · последнее уведомление не было$/m.test(st.stdout)
+      ? ok("magnat status без ключей: «Платега: ключи не заданы → magnat platega · оплата включена · ждут оплаты 0 · …»") : bad("status без ключей: " + payLine(st.stdout));
 
     // плохой формат — отказ, файл и служба не тронуты; введённое (мог быть секрет) не повторяется
     let n0 = restarts();

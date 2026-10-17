@@ -472,10 +472,7 @@ section{position:relative;}
 
 /* ── тарифы ────────────────────────────────────────────────── */
 .price-box{max-width:620px; margin:48px auto 0; padding:22px;}
-.note{display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-radius:16px; border:1px solid #6e5320; background:linear-gradient(180deg,#1d1707,#120d04); color:#f2dfae; font-size:14.5px; line-height:1.5;}
-.note .ico{color:var(--gold); margin-top:1px;}
-.note b{color:var(--gold);}
-.plans{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;}
+.plans{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
 .plan{position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-height:44px; padding:18px 16px 16px; border-radius:20px; border:1.5px solid var(--line-3);
   background:#0f1520; text-align:left; cursor:pointer; transition:border-color .3s, background-color .3s, box-shadow .3s; -webkit-tap-highlight-color:transparent;}
 .plan .pn{font-size:15px; font-weight:700; color:var(--mut);}
@@ -575,7 +572,6 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15.5H5.5A1.5 1.5 0 0 0 4 21Z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15.5h5.5A1.5 1.5 0 0 1 20 21Z"/></symbol>
   <symbol id="i-offline" viewBox="0 0 24 24"><path d="M12 20h.01M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 14 0M2 9.3a14.5 14.5 0 0 1 20 0"/></symbol>
   <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.6 3.6-5.6 7-5.6s6.2 2 7 5.6"/><path d="m4 4 16 16"/></symbol>
-  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.01"/></symbol>
   <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
   <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.2 19 6v5.6c0 4.4-2.9 7.8-7 9.2-4.1-1.4-7-4.8-7-9.2V6Z"/><path d="m8.8 12.2 2.2 2.2 4.2-4.4"/></symbol>
   <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m4 7 8 6 8-6"/></symbol>
@@ -857,7 +853,6 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
       <p class="lead" data-reveal style="--d:.16s">Без карты и без почты. Понравится — выберешь тариф.</p>
     </div>
     <div class="card price-box" data-reveal="scale" style="--d:.1s">
-      <p class="note"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg><span><b>Оплата на сайте подключается.</b> Пока она не включена, Магнат открыт целиком и бесплатно.</span></p>
       <div class="plans" role="radiogroup" aria-label="Тариф">
         <button class="plan" type="button" role="radio" aria-checked="true" data-plan="year">
           <span class="save">−<span data-k="save">58</span>%</span><span class="rd" aria-hidden="true"></span>
@@ -895,7 +890,7 @@ footer{margin-top:80px; padding:48px 0 calc(110px + env(safe-area-inset-bottom))
       <details><summary>Что за уроки и откуда они?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>43 урока по 23 книгам: «Атомные привычки», «Меня не сломать», «Самый богатый человек в Вавилоне», «48 законов власти», «Трансерфинг реальности» и другие. В каждом — главная мысль своими словами и задание на день за +20 монет. Новый урок открывается с каждым уровнем.</p></div></details>
       <details><summary>Нужно что-то скачивать?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>Нет. Магнат открывается в браузере, а на телефоне ставится значком на экран «Домой» — и дальше открывается как обычное приложение, даже без интернета.</p></div></details>
       <details><summary>Где хранится мой прогресс?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>Без входа — только в браузере твоего телефона: к нам ничего не отправляется, регистрации не нужно. Войдёшь по почте (так включается оплаченный доступ) — копия будет храниться на нашем сервере в России и откроется на любом телефоне, а данные «Тела» всё равно останутся только на телефоне. Чтобы ничего не потерять, открывай Магнат значком с экрана «Домой» и иногда сохраняй копию данных (Обзор → «Скачать копию данных»): с ней прогресс переезжает и на новый телефон.</p></div></details>
-      <details><summary>Сколько это стоит?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>Сейчас — бесплатно: оплата на сайте подключается, и пока Магнат открыт целиком. Когда она заработает, у каждого будет <span data-k="trial">3&nbsp;дня</span> бесплатно — календарных, считая день первого запуска; дальше — <span data-k="month">299</span>&nbsp;₽ за 30 дней или <span data-k="year">1 490</span>&nbsp;₽ за год, разовой оплатой.</p></div></details>
+      <details><summary>Сколько это стоит?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>Сначала <span data-k="trial">3&nbsp;дня</span> бесплатно — календарных, считая день первого запуска; дальше — <span data-k="month">299</span>&nbsp;₽ за 30 дней или <span data-k="year">1 490</span>&nbsp;₽ за год, разовой оплатой.</p></div></details>
       <details><summary>Это подписка? Спишут ли деньги сами?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>Нет. Оплата разовая: платишь за 30 дней или за год — и больше ничего не списывается, автосписаний нет. За 3 дня до конца срока пришлём письмо; продлить — оплатить снова, новые дни прибавятся к оставшимся. Передумал — вернём деньги за неиспользованные полные дни. Подробно — в <a href="terms.html">пользовательском соглашении</a>.</p></div></details>
       <details><summary>Кому подойдёт Магнат?<span class="pm" aria-hidden="true"></span></summary><div class="a"><p>Тому, кто устал начинать заново каждый понедельник. Кто хочет держать режим — тренировки, учёбу, работу, деньги — и видеть, как растёт, а не просто ставить галочки.</p></div></details>
     </div>

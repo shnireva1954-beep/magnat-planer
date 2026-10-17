@@ -8,9 +8,11 @@
 //      Telegram не отправить; Telegram — по желанию; сумма и текст согласия — по тарифу; про
 //      автопродление ни слова — оплата разовая; вошёл в приложении (magnat_app_v2 → _sync) —
 //      почта входа сама в пустом поле и «Ты вошёл в Магнат как …», битые данные — мимо;
-//   4. честность: пока CFG.pay пустой, форма никуда не уходит (ни одного запроса) и страница
-//      говорит «оплата не подключена»; возврат ?o=… тоже ничего не спрашивает;
-//   5. оплата подключена (CFG.pay подменяется в ответе сервера, файл остаётся с pay: ""):
+//   4. выключатель: с 17.10.2026 в файле pay: "/api/checkout" (оплата включена); пустой CFG.pay
+//      (подмена строки в ответе сервера) — форма никуда не уходит (ни одного запроса), плашка
+//      «подключается» видна и страница говорит «оплата не подключена»; возврат ?o=… тоже
+//      ничего не спрашивает;
+//   5. оплата подключена (так в файле — без подмены):
 //      уходит ровно один POST JSON {plan, email, telegram, consent, terms}, согласие — видимым
 //      текстом; ok — заказ запомнен (magnat_pay_v1) и переход только на https://; ошибки
 //      сервера — своими словами, кнопка снова живая;
@@ -70,16 +72,16 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
   const base = `http://127.0.0.1:${srv.address().port}/`;
   const b = await chromium.launch({ executablePath: chromePath() });
   const errs = [];
-  // live — CFG.pay = "/api/checkout" (подмена строки в ответе сервера); api — поддельный /api;
+  // off — CFG.pay = "" (выключатель: подмена строки в ответе сервера, в файле оплата включена); api — поддельный /api;
   // clock — часы страницы стоят и идут только по runFor/fastForward; quiet — ожидаемые ошибки
   // консоли (оборванный запрос в проверке «нет сети»); tz — часовой пояс телефона; ls — ключи
   // localStorage, лежащие на телефоне до открытия страницы
   const open = async (url, o = {}) => {
     const ctx = await b.newContext({ viewport: { width: o.w || 390, height: 844 }, ...(o.tz ? { timezoneId: o.tz } : {}) });
     if (o.ls) await ctx.addInitScript(ls => { for (const [k, v] of Object.entries(ls)) try { localStorage.setItem(k, v); } catch (e) {} }, o.ls);
-    if (o.live) await ctx.route(u => u.pathname === "/checkout.html", async route => {
+    if (o.off) await ctx.route(u => u.pathname === "/checkout.html", async route => {
       const r = await route.fetch(), t = await r.text();
-      await route.fulfill({ response: r, body: t.replace('pay: "",', 'pay: "/api/checkout",') });
+      await route.fulfill({ response: r, body: t.replace('pay: "/api/checkout",', 'pay: "",') });
     });
     if (o.api) await ctx.route(u => u.pathname.startsWith("/api/"), o.api);
     await ctx.route(u => u.hostname === "pay.example", route => route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: '<!doctype html><title>Платега</title><link rel="icon" href="data:,">' }));
@@ -89,7 +91,8 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
     p.on("pageerror", e => errs.push(url + ": " + e.message));
     p.on("console", m => { if (m.type() === "error" && !(o.quiet && o.quiet.test(m.text()))) errs.push(url + ": " + m.text()); });
     await p.goto(base + url); await p.waitForTimeout(300);
-    if (o.live && await p.evaluate(() => CFG.pay) !== "/api/checkout") bad(`${url}: подмена CFG.pay не сработала — в checkout.html нет строки pay: "",`);
+    if (/^checkout\.html/.test(url) && await p.evaluate(() => CFG.pay) !== (o.off ? "" : "/api/checkout"))
+      bad(`${url}: CFG.pay не тот — в checkout.html нет строки pay: "/api/checkout", (оплата включена 17.10.2026)`);
     return p;
   };
   try {
@@ -122,7 +125,7 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
 
     // ---- 2. Цена одна, дата соглашения та же ---------------------------------------
     console.log("\n2. Цена одна везде (и на сервере), дата соглашения та же");
-    p = await open("checkout.html");
+    p = await open("checkout.html", { off: true });
     const cfg = await p.evaluate(() => JSON.parse(JSON.stringify(CFG)));
     const pricing = read("pricing.html").replace(/&nbsp;| /g, " ");
     const pp = k => ((pricing.match(new RegExp(`data-price="${k}"[^>]*>([^<]+)`)) || [])[1] || "").replace(/\s+/g, " ").trim();
@@ -210,7 +213,7 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
     check(!junkBad.length, "не вошёл, вышел или данные битые — поле пустое, подсказки нет, страница живая" + (junkBad.length ? ": " + junkBad.join("; ") : ""));
 
     // ---- 4. Честность: оплата не подключена — ничего не уходит ---------------------
-    console.log("\n4. Пока оплата не подключена — ничего не уходит");
+    console.log("\n4. Выключатель: CFG.pay пустой — ничего не уходит");
     check(!cfg.pay && await p.isVisible("#soon"), "CFG.pay пустой, плашка «Оплата на сайте подключается» видна");
     const reqs = []; p.on("request", r => reqs.push(r.method() + " " + r.url()));
     await p.check("#agree"); await p.click("#payBtn"); await p.waitForTimeout(400); s = await st();
@@ -220,7 +223,7 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
     check(reqs.length === 0 && posted.length === 0, "ни одного запроса при отправке" + (reqs.length ? ": " + reqs.join(", ") : ""));
     check(await p.getAttribute("#done a.pay", "href") === "app.html?start", "дальше — «Открыть Магнат» (бесплатно)");
     await p.context().close();
-    p = await open(`checkout.html?o=${PUB}`);
+    p = await open(`checkout.html?o=${PUB}`, { off: true });
     const offAsk = p.reqs.filter(r => r.method() !== "GET" || /fetch|xhr/.test(r.resourceType()) || /\/api\//.test(r.url())).map(r => r.method() + " " + r.url());
     const offTxt = await p.textContent("#back");
     check(!offAsk.length && await p.isVisible("#back") && !(await p.isVisible("#buy")) && /не подключена/.test(offTxt),
@@ -230,12 +233,13 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
     // ---- 5. Оплата подключена: заказ уходит целиком, ошибки словами --------------------
     console.log("\n5. Оплата подключена: один POST JSON, переход только на https://, ошибки словами");
     let reply = null; const calls = [];
-    p = await open("checkout.html?plan=month", { live: true, quiet: /ERR_INTERNET_DISCONNECTED|Failed to load resource/, api: async (route, rq) => {
+    p = await open("checkout.html?plan=month", { quiet: /ERR_INTERNET_DISCONNECTED|Failed to load resource/, api: async (route, rq) => {
       calls.push(rq);
       if (reply === "abort") return route.abort("internetdisconnected");
       return json(route, reply);
     } });
-    check(!(await p.isVisible("#soon")) && !(await p.isChecked("#agree")), "вписан адрес оплаты — плашка «подключается» спрятана, флажок согласия не отмечен");
+    check(!(await p.isVisible("#soon")) && !(await p.isChecked("#agree")) && await p.evaluate(() => document.getElementById("soon").hasAttribute("hidden")),
+      "оплата включена — плашка «подключается» спрятана (и в разметке, без скрипта), флажок согласия не отмечен");
     await p.click("#payBtn"); await p.waitForTimeout(150);
     await p.fill("#email", "ivan@mail.ru"); await p.fill("#tg", "@ab"); await p.click("#payBtn"); await p.waitForTimeout(150);
     await p.fill("#tg", "magnat_user"); await p.click("#payBtn"); await p.waitForTimeout(150);
@@ -271,7 +275,7 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
 
     // успешный заказ: двойное нажатие — один запрос; тело — ровно пять полей; переход на ссылку
     const sentReq = [];
-    p = await open("checkout.html?plan=month", { live: true, api: async (route, rq) => {
+    p = await open("checkout.html?plan=month", { api: async (route, rq) => {
       sentReq.push(rq); await sleep(300); return json(route, { ok: true, url: PAYURL, o: PUB });
     } });
     await p.fill("#email", "  ivan@mail.ru "); await p.fill("#tg", "magnat_user"); await p.check("#agree");
@@ -302,7 +306,7 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
     let seq = [], asked = [];
     const orderApi = async (route, rq) => { asked.push(rq); const x = seq.length > 1 ? seq.shift() : seq[0]; return x === "abort" ? route.abort("internetdisconnected") : json(route, x); };
     seq = [{ ok: true, status: "pending", plan: "month" }, { ok: true, status: "paid", plan: "month", until: UNTIL, email: "i•••@mail.ru" }];
-    p = await open(`checkout.html?o=${PUB}`, { live: true, clock: true, api: orderApi });
+    p = await open(`checkout.html?o=${PUB}`, { clock: true, api: orderApi });
     await until(() => asked.length >= 1);
     s = await backSt(p);
     const ab = asked[0] ? asked[0].postDataJSON() : {};
@@ -322,7 +326,7 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
 
     // три минуты без ответа — опрос встаёт, дальше «Проверить ещё раз»
     seq = [{ ok: true, status: "pending", plan: "year" }]; asked = [];
-    p = await open(`checkout.html?o=${PUB}`, { live: true, clock: true, api: orderApi });
+    p = await open(`checkout.html?o=${PUB}`, { clock: true, api: orderApi });
     await until(() => asked.length >= 1);
     await p.clock.fastForward(170000); await until(() => asked.length >= 2); await sleep(100);
     const s170 = await backSt(p);
@@ -347,7 +351,7 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
       [`checkout.html?o=${PUB}&fail=1`, { ok: true, status: "pending", plan: "year" }, "year", MAYBE, "fail=1 при pending"],
       [`checkout.html?o=${PUB}&fail=1`, "abort", "", MAYBE, "fail=1 без связи"]]) {
       seq = [rep]; asked = [];
-      p = await open(url, { live: true, clock: true, api: orderApi, quiet: /ERR_INTERNET_DISCONNECTED|Failed to load resource/ });
+      p = await open(url, { clock: true, api: orderApi, quiet: /ERR_INTERNET_DISCONNECTED|Failed to load resource/ });
       await until(() => asked.length >= 1); await sleep(100);
       await p.clock.runFor(15000); await sleep(250);
       s = await backSt(p);
@@ -357,7 +361,7 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
     }
     // fail=1, сервер ещё не ответил — «не списаны» не обещаем; ответил failed — уже можно
     let release = null; const gate = new Promise(r => { release = r; }); asked = [];
-    p = await open(`checkout.html?o=${PUB}&fail=1`, { live: true, api: async (route, rq) => { asked.push(rq); await gate; return json(route, { ok: true, status: "failed", plan: "month" }); } });
+    p = await open(`checkout.html?o=${PUB}&fail=1`, { api: async (route, rq) => { asked.push(rq); await gate; return json(route, { ok: true, status: "failed", plan: "month" }); } });
     await until(() => asked.length >= 1);
     const s0 = await backSt(p);
     release(); await until(() => p.evaluate(() => /не списаны/.test(document.getElementById("backTxt").textContent)));
@@ -366,12 +370,12 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
       `fail=1 до ответа сервера — «${s0.txt}», после failed — «${s.txt}»`);
     await p.context().close();
     seq = [{ ok: true, status: "paid", plan: "year", until: UNTIL, email: "i•••@mail.ru" }]; asked = [];
-    p = await open(`checkout.html?o=${PUB}&fail=1`, { live: true, api: orderApi });
+    p = await open(`checkout.html?o=${PUB}&fail=1`, { api: orderApi });
     await until(() => asked.length >= 1); await sleep(100); s = await backSt(p);
     check(s.title === "Оплата прошла", "fail=1, но сервер говорит «оплачено» — верим серверу: " + s.title);
     await p.context().close();
     seq = [{ ok: false, err: "order" }]; asked = [];
-    p = await open(`checkout.html?o=${PUB}`, { live: true, api: orderApi });
+    p = await open(`checkout.html?o=${PUB}`, { api: orderApi });
     await until(() => asked.length >= 1); await sleep(100); s = await backSt(p);
     check(/не найден/.test(s.title) && s.go && s.go[1] === "checkout.html", `сервер не знает заказ — «${s.title}», «${s.go && s.go[0]}»`);
     await p.context().close();
@@ -379,7 +383,7 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
     // оплачено, а почты у заказа нет (аккаунт удалён, пока счёт ждал) — входа не обещаем, в поддержку
     const sup = (pricing.match(/href="mailto:([^"?]+)/) || [])[1] || "?";
     seq = [{ ok: true, status: "paid", plan: "year", until: UNTIL, email: "" }]; asked = [];
-    p = await open(`checkout.html?o=${PUB}`, { live: true, api: orderApi });
+    p = await open(`checkout.html?o=${PUB}`, { api: orderApi });
     await until(() => asked.length >= 1); await sleep(100); s = await backSt(p);
     check(s.title === "Оплата прошла" && s.txt === `Напиши в поддержку (${sup}) с номером платежа — включим доступ вручную.` && !s.hint && !/войд|войти|Доступ до|включён/.test(s.txt) &&
       s.go && s.go[0] === "Написать в поддержку" && s.go[1].startsWith(`mailto:${sup}?`) && decodeURIComponent(s.go[1]).includes(PUB),
@@ -390,7 +394,7 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
     const dayBad = [];
     for (const [tz, t, want] of [["Asia/Chita", Date.UTC(2026, 10, 16, 18) / 1000, "16.11.2026"], ["Europe/Kaliningrad", Date.UTC(2026, 10, 16, 21, 30) / 1000, "17.11.2026"]]) {
       seq = [{ ok: true, status: "paid", plan: "year", until: t, email: "i•••@mail.ru" }]; asked = [];
-      p = await open(`checkout.html?o=${PUB}`, { live: true, tz, api: orderApi });
+      p = await open(`checkout.html?o=${PUB}`, { tz, api: orderApi });
       await until(() => asked.length >= 1); await sleep(100); s = await backSt(p);
       if (s.txt !== `Доступ до ${want}.`) dayBad.push(`${tz}: «${s.txt}», а по Москве ${want}`);
       await p.context().close();
@@ -400,7 +404,7 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
     // кривой номер — обычная форма, к серверу ни слова
     for (const o of ["abc", "A".repeat(23), "A".repeat(21) + "."]) {
       asked = [];
-      p = await open("checkout.html?o=" + encodeURIComponent(o), { live: true, api: orderApi });
+      p = await open("checkout.html?o=" + encodeURIComponent(o), { api: orderApi });
       s = await backSt(p);
       check(s.form && !s.back && !asked.length, `?o=${o.length > 8 ? o.slice(0, 4) + "…(" + o.length + ")" : o} — обычная форма, к серверу не спрашивали`);
       await p.context().close();
@@ -408,13 +412,13 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
 
     // данные сервера — только текстом: <script> в почте и тарифе не исполняется
     seq = [{ ok: true, status: "paid", plan: '"><img src=x onerror="window.__xss=3">', until: UNTIL, email: '<img src=x onerror="window.__xss=1"><script>window.__xss=2<\/script>p•••@gmail.com' }]; asked = [];
-    p = await open(`checkout.html?o=${PUB}`, { live: true, api: orderApi });
+    p = await open(`checkout.html?o=${PUB}`, { api: orderApi });
     await until(() => asked.length >= 1); await sleep(200);
     const x = await p.evaluate(() => ({ xss: window.__xss, tags: document.querySelectorAll("#back img, #back script").length, hint: document.getElementById("backHint").textContent }));
     check(x.xss === undefined && x.tags === 0 && x.hint.includes("<script>"), "почта с <script> и <img onerror> от сервера — показана текстом, не исполнена");
     await p.context().close();
     seq = [{ ok: true, status: "failed", plan: "<script>" }]; asked = [];
-    p = await open(`checkout.html?o=${PUB}`, { live: true, api: orderApi });
+    p = await open(`checkout.html?o=${PUB}`, { api: orderApi });
     await until(() => asked.length >= 1); await sleep(100); s = await backSt(p);
     check(s.go && s.go[1] === "checkout.html", "чужой тариф от сервера в ссылку «Попробовать снова» не попадает: " + (s.go && s.go[1]));
     await p.context().close();
@@ -445,7 +449,7 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
       await q.context().close();
     }
     seq = [{ ok: true, status: "paid", plan: "year", until: UNTIL, email: "konstantin.konstantinopolsky•••@verylongdomain-example.ru" }]; asked = [];
-    const qp = await open(`checkout.html?o=${PUB}`, { w: 320, live: true, api: orderApi });
+    const qp = await open(`checkout.html?o=${PUB}`, { w: 320, api: orderApi });
     await until(() => asked.length >= 1); await qp.evaluate(() => document.fonts.ready);
     await look(qp, "320 (оплата прошла, длинная почта)");
     await qp.context().close();

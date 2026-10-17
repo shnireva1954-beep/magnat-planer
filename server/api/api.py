@@ -88,8 +88,8 @@ from email.utils import formataddr, formatdate, make_msgid
 
 # ═══════════════════════════ Config ═══════════════════════════
 
-OPEN = False        # R3 «включай»: True — код получает любой адрес (вместе с ACCOUNT_ON в app.html)
-PAYMENTS = False    # «включай» оплаты: True — маршруты оплаты живы (вместе с PAY_ON в app.html и CFG.pay)
+OPEN = True         # вход для всех (R3, слово Артёма 17.10.2026): код получает любой адрес; False — только ящики владельца
+PAYMENTS = True     # оплата включена (17.10.2026, вместе с ACCOUNT_ON/PAY_ON в app.html и CFG.pay); False — маршрутов нет
 SCHEMA = 2          # схема, которую знает этот код (последняя миграция)
 
 # Цены — единственный источник на сервере (08-checkout сверяет с ним checkout.html):

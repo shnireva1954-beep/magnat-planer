@@ -1751,12 +1751,12 @@ function celebrateLevel(L,prev,intro){
 // «Поделиться»: confirm() там сразу отвечает «нет» — молча не работали покупка наград,
 // удаление и сброс. Поэтому в рамке — свои окна, а на сайте всё как было и проверено тестами.
 const FRAMED=(()=>{ try{ return window.self!==window.top; }catch(e){ return true; } })();
-// Вход по почте (R2, 12.10.2026) выключен для всех: ACCOUNT_ON=false до слова Артёма (R3).
-// Владелец смотрит заранее: app.html?account (или ?account=1) ставит в этом браузере метку
-// magnat_acc_preview, app.html?account=0 снимает; любое другое значение (?account=false из
-// чужой ссылки) ничего не делает. В окне Claude и на file:// аккаунта нет совсем — ни карточки,
-// ни одного запроса. Посетитель без метки видит ровно прежнее приложение
-const ACCOUNT_ON=false, ACC_PREVIEW_KEY="magnat_acc_preview";
+// Вход по почте (R2, 12.10.2026) включён для всех 17.10.2026 — слово Артёма (R3), тем же коммитом,
+// что оплата. ACCOUNT_ON=false вернёт прежнее: вход только по метке предпросмотра — app.html?account
+// (или ?account=1) ставит в этом браузере magnat_acc_preview, ?account=0 снимает; любое другое
+// значение (?account=false из чужой ссылки) ничего не делает. В окне Claude и на file:// аккаунта
+// нет совсем — ни карточки, ни одного запроса. Без входа — ни одного запроса к /api
+const ACCOUNT_ON=true, ACC_PREVIEW_KEY="magnat_acc_preview";
 const ACC_WEB=!FRAMED&&/^https?:$/.test(location.protocol);
 // метка предпросмотра из адреса: ?name или ?name=1 ставит её в этом браузере, ?name=0 снимает,
 // другие значения ничего не делают; параметр из адреса убирается
@@ -1773,12 +1773,12 @@ function previewMark(name,key){
 }
 const PREVIEW=previewMark("account",ACC_PREVIEW_KEY);
 const ACCOUNT=(ACCOUNT_ON||PREVIEW)&&ACC_WEB&&!!window.isSecureContext&&!!(window.crypto&&crypto.subtle)&&typeof AbortController==="function";
-// Разовая оплата (17.10.2026: Платега без автосписаний — месяц или год) выключена для всех:
-// PAY_ON=false до слова Артёма. Владелец смотрит заранее: app.html?pay (или ?pay=1) ставит метку
+// Разовая оплата (17.10.2026: Платега без автосписаний — месяц или год) включена для всех 17.10.2026
+// — слово Артёма. PAY_ON=false вернёт предпросмотр: app.html?pay (или ?pay=1) ставит метку
 // magnat_pay_preview, ?pay=0 снимает — разбор тот же, что у ?account. Пробный период и экран
 // оплаты живут только вместе со входом (ACCOUNT): в окне Claude и на file:// их нет совсем, а
-// посетитель без меток видит прежнее приложение и не шлёт ни одного нового запроса
-const PAY_ON=false, PAY_PREVIEW_KEY="magnat_pay_preview";
+// пробный период считает телефон — без входа ни одного запроса
+const PAY_ON=true, PAY_PREVIEW_KEY="magnat_pay_preview";
 const PAY_PREVIEW=previewMark("pay",PAY_PREVIEW_KEY);
 const PAYWALL=ACCOUNT&&(PAY_ON||PAY_PREVIEW);
 // iPhone/iPad во ВКЛАДКЕ браузера: WebKit стирает данные сайта (localStorage), если его не
@@ -3655,12 +3655,13 @@ function logoutSend(){
 }
 const logoutRetry=()=>{ if(logoutBusy||!logoutPending()||LOGGED()||navigator.onLine===false) return;
   logoutBusy=true; logoutSend().finally(()=>{ logoutBusy=false; }); };
-// карточка на «Обзоре» вместо «Скачать копию / Восстановить»: копия остаётся ссылками.
-// Пока вход выключен для всех (ACCOUNT_ON=false), на карточке метка «предпросмотр» — владелец
-// не спутает свой экран с тем, что видит посетитель
+// карточка на «Обзоре» вместо кнопок «Скачать копию данных / Восстановить»: копия остаётся
+// ссылками и зовётся как у посетителя (политика, раздел 2; соглашение, 7.2). Если вход снова
+// выключат для всех (ACCOUNT_ON=false), на карточке метка «предпросмотр» — владелец не спутает
+// свой экран с тем, что видит посетитель
 const ACCPREV=!ACCOUNT_ON?' <span class="tag md">предпросмотр</span>':"";
 function accCard(){
-  const links=`<button class="linkbtn sub" id="bkSave">${ic("download")} Скачать копию</button><button class="linkbtn sub" id="bkLoad">${ic("inbox")} Восстановить из копии</button>`;
+  const links=`<button class="linkbtn sub" id="bkSave">${ic("download")} Скачать копию данных</button><button class="linkbtn sub" id="bkLoad">${ic("inbox")} Восстановить из копии</button>`;
   if(!LOGGED()) return `<div class="glass card acc" id="acc"><h3>Вход по почте${ACCPREV}</h3>
     <p class="acp">${ic("cloud")} <span>Прогресс откроется на втором телефоне и не пропадёт при смене телефона.</span></p>
     <button class="share-btn acbtn" id="acLogin">${ic("mail")} Войти по почте</button>

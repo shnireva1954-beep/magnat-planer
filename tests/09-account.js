@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // 09-account: вход по почте и синхронизация — сквозная проверка на НАСТОЯЩЕМ сервере.
-// Настоящий server/api/api.py (вход закрыт, как на magnat-planer.ru: код получают только два
-// ящика владельца из smtp.env — здесь box@example.ru и support@example.ru, почта — поддельная)
+// Настоящий server/api/api.py (с 17.10.2026 вход открыт для всех, как на magnat-planer.ru; ящики
+// владельца из smtp.env — box@example.ru и support@example.ru, почта — поддельная)
 // за настоящим server/Caddyfile: приложение и /api — один адрес, как на сайте. Между Caddy и
 // API — dropProxy из lib.js: он видит каждый запрос к API и умеет «проглотить» ответ.
-// В выпуске R2 вход выключен (ACCOUNT_ON=false): посетитель — ни карточки, ни запроса, ни куки.
-// Включает его только предпросмотр владельца (?account), в рамке Claude и на file:// — никогда.
+// С 17.10.2026 вход включён для всех (ACCOUNT_ON=true): посетитель видит карточку и «Войти», но
+// пока не вошёл — ни запроса, ни куки. В рамке Claude и на file:// аккаунта нет никогда. Блок 7 —
+// и выключатель: API перезапускается с MAGNAT_OPEN=0 («Вход пока закрыт», код — только владельцу).
 // Порядок блоков важен: посетитель идёт первым, пока к API не ушёл ни один запрос. В конце — «Версии»
 // и удаление аккаунта на B: настоящие ревизии, письмо «Код для удаления», БД без следа.
 const path = require('path'), { spawnSync } = require('child_process');
@@ -112,7 +113,7 @@ async function login(p, mail, { from = '#acLogin', wrong = false } = {}) {
     const apiPort = await freePort();
     proxy = await dropProxy(apiPort);
     caddy = await startCaddy({ api: proxy });
-    // вход закрыт (OPEN по умолчанию False): разрешены SMTP_USER и SUPPORT из smtp.env, это fakeSmtp.
+    // вход открыт (OPEN по умолчанию True с 17.10.2026); ящики владельца SMTP_USER и SUPPORT — fakeSmtp.
     // Пауза между кодами на один адрес — 0: два телефона входят одним ящиком подряд
     api = await startApi({ port: apiPort, origin: caddy.origin, smtp, env: { MAGNAT_CODE_GAP: '0' } });
     URL = caddy.url + '/app.html';
@@ -126,8 +127,8 @@ async function login(p, mail, { from = '#acLogin', wrong = false } = {}) {
   const step = async (title, fn) => { console.log('\n' + title); try { await fn(); } catch (e) { bad(`${title}: упал — ${(e.stack || e).toString().split('\n').slice(0, 3).join(' / ')}`); } };
 
   try {
-    // ───────────── 1. посетитель: ровно прежнее приложение ─────────────
-    await step('1) Посетитель без метки: ни карточки, ни запроса к /api, ни куки', async () => {
+    // ───────────── 1. посетитель: вход виден, но без входа — ни запроса, ни куки ─────────────
+    await step('1) Посетитель без метки: карточка «Вход по почте» и «Войти» есть, запросов к /api и кук нет', async () => {
       const { ctx, p } = await mk('посетитель');
       await p.goto(URL); await p.waitForTimeout(500);
       const v0 = await snap(p);
@@ -136,8 +137,8 @@ async function login(p, mail, { from = '#acLogin', wrong = false } = {}) {
       for (const t of ['habits', 'tasks', 'money', 'body', 'shop', 'home']) { await p.click(`.tab[data-t="${t}"]`); await p.waitForTimeout(150); }
       await p.reload(); await p.waitForTimeout(1600);                     // загрузка: sync() звался бы через 1 с
       const v1 = await snap(p), ck = await ctx.cookies();
-      (!v0.on && !v0.obLogin && v0.ob && !v1.acc && v1.bk && v1.flag === null && !p.api.length && proxy.count('/api') === 0 && !ck.length)
-        ? ok('приветствие без «Войти», на «Обзоре» «Скачать копию / Восстановить», 0 запросов из браузера, 0 на сервере, 0 кук')
+      (v0.on && v0.obLogin && v0.ob && v1.acc && v1.login && v1.bk && v1.flag === null && !p.api.length && proxy.count('/api') === 0 && !ck.length)
+        ? ok('в приветствии «Войти», на «Обзоре» карточка «Вход по почте» (копия — ссылками), 0 запросов из браузера, 0 на сервере, 0 кук')
         : bad('посетитель: ' + J({ v0: { on: v0.on, obLogin: v0.obLogin }, acc: v1.acc, bk: v1.bk, flag: v1.flag, api: p.api, srv: proxy.count('/api'), ck }));
       errCheck(p, 'посетитель');
       await ctx.close();
@@ -312,16 +313,27 @@ async function login(p, mail, { from = '#acLogin', wrong = false } = {}) {
     });
 
     // ───────────── 7. вход закрыт для чужого адреса ─────────────
-    await step('7) Вход закрыт: чужой адрес — «Вход пока закрыт», письма нет; ящик поддержки владельца — код уходит', async () => {
+    await step('7) Вход открыт: чужой адрес получает код; выключатель MAGNAT_OPEN=0 — «Вход пока закрыт», письма нет, ящику поддержки — код', async () => {
       const { ctx, p } = await mk('C');
-      await p.goto(URL + '?account'); await p.waitForTimeout(600);
-      const n0 = proxy.log.length;
+      await p.goto(URL); await p.waitForTimeout(600);
+      const s0 = smtp.to(STRANGER).length;
+      await p.click('#obLogin'); await p.waitForSelector('#acMail');
+      await p.fill('#acMail', STRANGER); await p.click('#acGo');
+      const open1 = await p.waitForSelector('#acCode', { timeout: 10000 }).then(() => true, () => false);
+      const sc = await waitCode(smtp, STRANGER, { kind: 'login', after: s0 });
+      (open1 && sc) ? ok('вход открыт для всех: чужой адрес — шаг «Код из письма», письмо с кодом ушло') : bad('открытый вход: ' + J({ open1, sc: !!sc }));
+      await p.click('#acBack'); await ctx.close();
+      await api.restart({ MAGNAT_OPEN: '0' });
+      try {
+      const { ctx, p } = await mk('C');
+      await p.goto(URL); await p.waitForTimeout(600);
+      const n0 = proxy.log.length, s1 = smtp.to(STRANGER).length;
       await p.click('#obLogin'); await p.waitForSelector('#acMail');
       await p.fill('#acMail', STRANGER); await p.click('#acGo');
       await until(p, () => /\S/.test(document.querySelector('#acErr').textContent), null, 10000);
       const v = await p.evaluate(() => ({ err: document.querySelector('#acErr').textContent, code: !!document.querySelector('#acCode'), go: document.querySelector('#acGo').textContent, dis: document.querySelector('#acGo').disabled }));
       const r = srv(n0).find(e => e.path === '/api/code');
-      (v.err === 'Вход пока закрыт — открывается позже' && !v.code && !v.dis && r && r.resJson && r.resJson.err === 'closed' && smtp.to(STRANGER).length === 0 && !(await ctx.cookies()).length)
+      (v.err === 'Вход пока закрыт — открывается позже' && !v.code && !v.dis && r && r.resJson && r.resJson.err === 'closed' && smtp.to(STRANGER).length === s1 && !(await ctx.cookies()).length)
         ? ok(`«${v.err}»: шага кода нет, кнопка снова «${v.go}», письма на чужой адрес нет, куки нет`)
         : bad('закрытый вход: ' + J({ v, res: r && r.resJson, mails: smtp.to(STRANGER).length }));
       const before = smtp.to(SUPPORT).length;
@@ -332,6 +344,7 @@ async function login(p, mail, { from = '#acLogin', wrong = false } = {}) {
       await p.click('#acBack');
       errCheck(p, 'закрытый вход');
       await ctx.close();
+      } finally { await api.restart({ MAGNAT_OPEN: null }); }
     });
 
     // ───────────── 8. рамка Claude и file:// ─────────────
