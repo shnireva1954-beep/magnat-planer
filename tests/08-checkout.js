@@ -6,7 +6,8 @@
 //      (иначе в споре с банком не доказать, что принято);
 //   3. правила формы: флажок согласия заранее НЕ отмечен; без него, без e-mail или с неверным
 //      Telegram не отправить; Telegram — по желанию; сумма и текст согласия — по тарифу; про
-//      автопродление ни слова — оплата разовая;
+//      автопродление ни слова — оплата разовая; вошёл в приложении (magnat_app_v2 → _sync) —
+//      почта входа сама в пустом поле и «Ты вошёл в Магнат как …», битые данные — мимо;
 //   4. честность: пока CFG.pay пустой, форма никуда не уходит (ни одного запроса) и страница
 //      говорит «оплата не подключена»; возврат ?o=… тоже ничего не спрашивает;
 //   5. оплата подключена (CFG.pay подменяется в ответе сервера, файл остаётся с pay: ""):
@@ -14,9 +15,12 @@
 //      текстом; ok — заказ запомнен (magnat_pay_v1) и переход только на https://; ошибки
 //      сервера — своими словами, кнопка снова живая;
 //   6. возврат со страницы оплаты ?o=<номер>[&fail=1]: опрос /api/order сразу, каждые 3 с,
-//      до 3 минут, дальше «Проверить ещё раз»; pending → paid — «Доступ до ДД.ММ.ГГГГ» и
-//      почта маской; failed и fail=1 — «не прошла» и «Попробовать снова» с тарифом; кривой
-//      номер — обычная форма; данные сервера не исполняются (никакого innerHTML);
+//      до 3 минут, дальше «Проверить ещё раз»; pending → paid — «Доступ до ДД.ММ.ГГГГ» по
+//      Москве (как в письмах) и почта маской; оплачено, а почты нет — в поддержку, без
+//      обещания входа; failed и fail=1 — «не прошла» и «Попробовать снова» с тарифом, но
+//      «деньги не списаны» — только при failed от сервера (fail=1 при «ждём», без связи и до
+//      ответа — «если всё же списались…»); кривой номер — обычная форма; данные сервера не
+//      исполняются (никакого innerHTML);
 //   7. в браузере под CSP сервера: без ошибок, без прокрутки вбок на 320–1280, кнопки ≥ 44 px.
 const { chromium, chromePath, APP_DIR } = require("./lib");
 const fs = require("fs"), path = require("path"), http = require("http");
@@ -68,9 +72,11 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
   const errs = [];
   // live — CFG.pay = "/api/checkout" (подмена строки в ответе сервера); api — поддельный /api;
   // clock — часы страницы стоят и идут только по runFor/fastForward; quiet — ожидаемые ошибки
-  // консоли (оборванный запрос в проверке «нет сети»)
+  // консоли (оборванный запрос в проверке «нет сети»); tz — часовой пояс телефона; ls — ключи
+  // localStorage, лежащие на телефоне до открытия страницы
   const open = async (url, o = {}) => {
-    const ctx = await b.newContext({ viewport: { width: o.w || 390, height: 844 } });
+    const ctx = await b.newContext({ viewport: { width: o.w || 390, height: 844 }, ...(o.tz ? { timezoneId: o.tz } : {}) });
+    if (o.ls) await ctx.addInitScript(ls => { for (const [k, v] of Object.entries(ls)) try { localStorage.setItem(k, v); } catch (e) {} }, o.ls);
     if (o.live) await ctx.route(u => u.pathname === "/checkout.html", async route => {
       const r = await route.fetch(), t = await r.text();
       await route.fulfill({ response: r, body: t.replace('pay: "",', 'pay: "/api/checkout",') });
@@ -181,6 +187,28 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
     }
     ok("проверка e-mail и Telegram на краях (домен, кириллица, @, t.me/, длина)");
 
+    // вошёл в приложении по почте — оплата привяжется к этому аккаунту: почта входа в пустом поле
+    const ACC = "Ты вошёл в Магнат как ivan@mail.ru: доступ привяжется к этому аккаунту.";
+    const em = pg => pg.evaluate(() => { const h = document.getElementById("emailAcct"); return { v: document.getElementById("email").value, h: h.hidden ? "" : h.textContent, btn: !document.getElementById("payBtn").disabled }; });
+    let pa = await open("checkout.html", { ls: { magnat_app_v2: JSON.stringify({ habits: [], _sync: { v: 1, acct: "a_7f3k", mail: "ivan@mail.ru", dev: "d1", off: false } }) } });
+    let e0 = await em(pa);
+    await pa.fill("#email", "petr@mail.ru"); const e1 = await em(pa);
+    await pa.fill("#email", " Ivan@mail.ru "); const e2 = await em(pa);
+    check(e0.v === "ivan@mail.ru" && e0.h === ACC && e1.h === "" && e2.h === ACC,
+      `вошёл в приложении — почта входа в поле и «${e0.h}»; другая почта — подсказка прячется`);
+    await pa.context().close();
+    const junkAcc = [["вышел (off)", JSON.stringify({ _sync: { acct: "a_7f3k", mail: "ivan@mail.ru", off: true } })], ["без acct", JSON.stringify({ _sync: { mail: "ivan@mail.ru" } })],
+      ["почта не строка", JSON.stringify({ _sync: { acct: "a_7f3k", mail: { x: 1 } } })], ["кривая почта", JSON.stringify({ _sync: { acct: "a_7f3k", mail: "ivan" } })],
+      ["_sync строкой", JSON.stringify({ _sync: "a" })], ["битая строка", "{не JSON"], ["null", "null"], ["число", "5"]];
+    const junkBad = [];
+    for (const [what, v] of junkAcc) {
+      pa = await open("checkout.html", { ls: { magnat_app_v2: v } });
+      e0 = await em(pa);
+      if (e0.v || e0.h || !e0.btn) junkBad.push(`${what}: «${e0.v}» «${e0.h}»${e0.btn ? "" : ", кнопка мёртвая"}`);
+      await pa.context().close();
+    }
+    check(!junkBad.length, "не вошёл, вышел или данные битые — поле пустое, подсказки нет, страница живая" + (junkBad.length ? ": " + junkBad.join("; ") : ""));
+
     // ---- 4. Честность: оплата не подключена — ничего не уходит ---------------------
     console.log("\n4. Пока оплата не подключена — ничего не уходит");
     check(!cfg.pay && await p.isVisible("#soon"), "CFG.pay пустой, плашка «Оплата на сайте подключается» видна");
@@ -272,7 +300,7 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
     });
     const UNTIL = Date.UTC(2026, 10, 16, 12) / 1000;   // полдень по UTC — 16.11.2026 в любом поясе России
     let seq = [], asked = [];
-    const orderApi = async (route, rq) => { asked.push(rq); return json(route, seq.length > 1 ? seq.shift() : seq[0]); };
+    const orderApi = async (route, rq) => { asked.push(rq); const x = seq.length > 1 ? seq.shift() : seq[0]; return x === "abort" ? route.abort("internetdisconnected") : json(route, x); };
     seq = [{ ok: true, status: "pending", plan: "month" }, { ok: true, status: "paid", plan: "month", until: UNTIL, email: "i•••@mail.ru" }];
     p = await open(`checkout.html?o=${PUB}`, { live: true, clock: true, api: orderApi });
     await until(() => asked.length >= 1);
@@ -310,18 +338,33 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
     check(asked.length === 4 && !s.again && /Ждём/.test(s.title), "«Проверить ещё раз» — сразу спрашивает снова, кнопка прячется");
     await p.context().close();
 
-    // не прошла: статус failed — и fail=1 из адреса Платеги, даже если сервер ещё ждёт
-    for (const [url, rep, k] of [[`checkout.html?o=${PUB}`, { ok: true, status: "failed", plan: "month" }, "month"],
-      [`checkout.html?o=${PUB}&fail=1`, { ok: true, status: "pending", plan: "year" }, "year"]]) {
+    // не прошла: статус failed — и fail=1 из адреса Платеги, даже если сервер ещё ждёт.
+    // «Деньги не списаны» — только со слов сервера; одна Платега — «если всё же списались…»
+    const SURE = "Деньги не списаны. Можно попробовать ещё раз — тем же или другим способом.";
+    const MAYBE = "Если деньги всё же списались, доступ включится сам — придёт письмо. Иначе можно попробовать ещё раз.";
+    for (const [url, rep, k, txt, what] of [[`checkout.html?o=${PUB}`, { ok: true, status: "failed", plan: "month" }, "month", SURE, "failed"],
+      [`checkout.html?o=${PUB}&fail=1`, { ok: true, status: "failed", plan: "month" }, "month", SURE, "fail=1 и failed"],
+      [`checkout.html?o=${PUB}&fail=1`, { ok: true, status: "pending", plan: "year" }, "year", MAYBE, "fail=1 при pending"],
+      [`checkout.html?o=${PUB}&fail=1`, "abort", "", MAYBE, "fail=1 без связи"]]) {
       seq = [rep]; asked = [];
-      p = await open(url, { live: true, clock: true, api: orderApi });
+      p = await open(url, { live: true, clock: true, api: orderApi, quiet: /ERR_INTERNET_DISCONNECTED|Failed to load resource/ });
       await until(() => asked.length >= 1); await sleep(100);
       await p.clock.runFor(15000); await sleep(250);
       s = await backSt(p);
-      check(/не прошла/.test(s.title) && /не списаны/.test(s.txt) && s.go && s.go.join() === `Попробовать снова,checkout.html?plan=${k}` && asked.length === 1,
-        `${url.includes("fail=1") ? "fail=1 при pending" : "failed"} — «${s.title}. ${s.txt}», «Попробовать снова» → ${s.go && s.go[1]}, больше не спрашиваем`);
+      check(s.title === "Оплата не прошла" && s.txt === txt && s.go && s.go.join() === "Попробовать снова,checkout.html" + (k ? "?plan=" + k : "") && asked.length === 1,
+        `${what} — «${s.title}. ${s.txt}», «Попробовать снова» → ${s.go && s.go[1]}, больше не спрашиваем`);
       await p.context().close();
     }
+    // fail=1, сервер ещё не ответил — «не списаны» не обещаем; ответил failed — уже можно
+    let release = null; const gate = new Promise(r => { release = r; }); asked = [];
+    p = await open(`checkout.html?o=${PUB}&fail=1`, { live: true, api: async (route, rq) => { asked.push(rq); await gate; return json(route, { ok: true, status: "failed", plan: "month" }); } });
+    await until(() => asked.length >= 1);
+    const s0 = await backSt(p);
+    release(); await until(() => p.evaluate(() => /не списаны/.test(document.getElementById("backTxt").textContent)));
+    s = await backSt(p);
+    check(s0.title === "Оплата не прошла" && s0.txt === MAYBE && s.txt === SURE,
+      `fail=1 до ответа сервера — «${s0.txt}», после failed — «${s.txt}»`);
+    await p.context().close();
     seq = [{ ok: true, status: "paid", plan: "year", until: UNTIL, email: "i•••@mail.ru" }]; asked = [];
     p = await open(`checkout.html?o=${PUB}&fail=1`, { live: true, api: orderApi });
     await until(() => asked.length >= 1); await sleep(100); s = await backSt(p);
@@ -332,6 +375,27 @@ const json = (route, x) => route.fulfill({ status: 200, contentType: "applicatio
     await until(() => asked.length >= 1); await sleep(100); s = await backSt(p);
     check(/не найден/.test(s.title) && s.go && s.go[1] === "checkout.html", `сервер не знает заказ — «${s.title}», «${s.go && s.go[0]}»`);
     await p.context().close();
+
+    // оплачено, а почты у заказа нет (аккаунт удалён, пока счёт ждал) — входа не обещаем, в поддержку
+    const sup = (pricing.match(/href="mailto:([^"?]+)/) || [])[1] || "?";
+    seq = [{ ok: true, status: "paid", plan: "year", until: UNTIL, email: "" }]; asked = [];
+    p = await open(`checkout.html?o=${PUB}`, { live: true, api: orderApi });
+    await until(() => asked.length >= 1); await sleep(100); s = await backSt(p);
+    check(s.title === "Оплата прошла" && s.txt === `Напиши в поддержку (${sup}) с номером платежа — включим доступ вручную.` && !s.hint && !/войд|войти|Доступ до|включён/.test(s.txt) &&
+      s.go && s.go[0] === "Написать в поддержку" && s.go[1].startsWith(`mailto:${sup}?`) && decodeURIComponent(s.go[1]).includes(PUB),
+      `оплачено без почты — «${s.title}. ${s.txt}», вход не обещан, кнопка → ${s.go && s.go[1]}`);
+    await p.context().close();
+
+    // «Доступ до» — день по Москве, как в письмах сервера, а не по часам телефона
+    const dayBad = [];
+    for (const [tz, t, want] of [["Asia/Chita", Date.UTC(2026, 10, 16, 18) / 1000, "16.11.2026"], ["Europe/Kaliningrad", Date.UTC(2026, 10, 16, 21, 30) / 1000, "17.11.2026"]]) {
+      seq = [{ ok: true, status: "paid", plan: "year", until: t, email: "i•••@mail.ru" }]; asked = [];
+      p = await open(`checkout.html?o=${PUB}`, { live: true, tz, api: orderApi });
+      await until(() => asked.length >= 1); await sleep(100); s = await backSt(p);
+      if (s.txt !== `Доступ до ${want}.`) dayBad.push(`${tz}: «${s.txt}», а по Москве ${want}`);
+      await p.context().close();
+    }
+    check(!dayBad.length, "«Доступ до» — день по Москве и в Чите, и в Калининграде" + (dayBad.length ? ": " + dayBad.join("; ") : ""));
 
     // кривой номер — обычная форма, к серверу ни слова
     for (const o of ["abc", "A".repeat(23), "A".repeat(21) + "."]) {

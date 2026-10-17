@@ -15,7 +15,8 @@
 // сайтом с проверкой и откатом (2б), magnat mail / status / upgrade и копия
 // базы (2в), копия на Яндекс Диск (поддельный REST API), запросы людей о
 // данных и оплата сервера (2г), ключи Платеги, ручная выдача доступа, оплаты
-// месяца и строка «Платега:» (2д, поддельная Платега), /api через Caddy — прокси,
+// месяца (и полностью — для чеков), возврат, удаление покупателя без аккаунта и
+// строка «Платега:» со сбоями счетов (2д, поддельная Платега), /api через Caddy — прокси,
 // заголовки, колбэк Платеги без Origin, 413 и 503 JSON (3б).
 // Caddy берётся из PATH, из CADDY= или скачивается с официального
 // репозитория в node_modules/.cache (он в .gitignore) — tests/lib.js.
@@ -596,7 +597,7 @@ exit 0
   // ---- 2д. ключи Платеги, ручная выдача доступа, оплаты месяца, строка «Платега:» ---
   // Настоящий api.py (служба — двойник systemctl), Платега — поддельная, в этом же
   // процессе: по её журналу видно, с какими ключами api.py к ней пришёл.
-  console.log("\n2д. magnat platega / grant / orders, строка «Платега:» в magnat status");
+  console.log("\n2д. magnat platega / grant / orders / refund, user delete без аккаунта, строка «Платега:» в magnat status");
   const MID = "3fa85f64-5717-4562-b3fc-2c963f66afa6", SEC = "pk_Live-8f3Q2zX9!vR7#mT4@wL6";
   const PEF = path.join(ETC, "platega.env"), XENV = path.join(T, "api-extra.env"), SITE = "https://magnat-planer.ru";
   const pg = { reqs: [], status: "PENDING", tx: crypto.randomUUID() };
@@ -604,7 +605,7 @@ exit 0
     const keysOk = q.headers["x-merchantid"] === MID && q.headers["x-secret"] === SEC;
     pg.reqs.push({ method: q.method, url: q.url, keysOk, body: b });
     const send = (code, o) => { s.writeHead(code, { "Content-Type": "application/json" }); s.end(JSON.stringify(o)); };
-    if (!keysOk) return send(401, { error: "unauthorized" });
+    if (!keysOk || (pg.reject && q.method === "POST")) return send(401, { error: "unauthorized" });   // reject — как неверный ключ в кабинете
     if (q.method === "POST" && q.url === "/v2/transaction/process") return send(200, { transactionId: pg.tx, status: "PENDING", redirect: "https://pay.platega.test/" + pg.tx });
     if (q.method === "GET" && q.url === "/transaction/" + pg.tx) return send(200, { id: pg.tx, status: pg.status });
     send(404, { error: "not found" });
@@ -686,6 +687,14 @@ exit 0
     const om = prun(["orders", "2026-13"]), oe = prun(["orders", "2001-01"]);
     om.status === 1 && /не похоже на месяц — нужно ГГГГ-ММ/.test(om.stdout) && oe.status === 0 && /^За 2001-01 оплат нет\.$/m.test(oe.stdout)
       ? ok("magnat orders 2026-13 — «не похоже на месяц»; 2001-01 — «За 2001-01 оплат нет.»") : bad("orders месяц: " + om.stdout + " | " + oe.stdout);
+    // чек самозанятого уходит покупателю на почту — нужен полный адрес, и вывод не для чата
+    const WARN = "⚠ здесь полные адреса — в чат не присылать";
+    const of = prun(["orders", ym, "полностью"]), of2 = prun(["orders", "--full"]), ofBad = prun(["orders", ym, "всем"]);
+    const fullOk = (x) => x.status === 0 && x.stdout.split("\n")[0] === WARN
+      && /^\d\d\.\d\d\.\d{4} \d\d:\d\d UTC · 299 ₽ · месяц · заказ \d+ · buyer@example\.ru$/m.test(x.stdout) && !x.stdout.includes("•••");
+    fullOk(of) && fullOk(of2) && !m.stdout.includes(WARN) && !om.stdout.includes(WARN) && ofBad.status === 1 && /«всем» не похоже на месяц/.test(ofBad.stdout)
+      ? ok(`magnat orders ${ym} полностью (и --full) — первой строкой «${WARN}», дальше полный адрес buyer@example.ru; без слова — маска и без предупреждения`)
+      : bad(`orders полностью (коды ${of.status}/${of2.status}/${ofBad.status}): ` + (of.stdout + of.stderr).trim().slice(-300) + " | " + of2.stdout.trim().slice(-200) + " | " + ofBad.stdout.trim());
 
     // ручная выдача: на настоящем api.py, срок — к остатку
     const grants = () => (rdT("py.log").match(/ grant /g) || []).length, g0 = grants();
@@ -702,9 +711,31 @@ exit 0
     m = prun(["grant", BUYER, "10"]); us = prun(["user", "show", BUYER]);
     m.status === 0 && new RegExp(`^Доступ: до ${esc(msk(40))}, действует\\.$`, "m").test(us.stdout) && /месяц · 299 ₽ · оплачен/.test(us.stdout)
       ? ok(`оплатил 30 дней + magnat grant 10 — доступ до ${msk(40)}: дни прибавились к остатку`) : bad("grant к остатку: " + us.stdout.trim().slice(-300));
+    // адрес на кириллическом домене оформление принимает (api.py приводит к xn--…) — grant и user не отвергают его сами;
+    // строгая проверка остаётся одна, в api.py: «x@» доходит до него и им же отвергается
+    const IDN = "ivan@почта.рф", g1 = grants();
+    m = prun(["grant", IDN, "5"]); us = prun(["user", "show", "ivan@xn--80a1acny.xn--p1ai"]);
+    const gx = prun(["grant", "x@", "5"]), ux = prun(["user", "export", "x@"]);
+    m.status === 0 && new RegExp(`^ДОСТУП ВЫДАН: ivan@почта\\.рф — до ${esc(msk(5))} `, "m").test(m.stdout)
+      && new RegExp(`^Доступ: до ${esc(msk(5))}, действует\\.$`, "m").test(us.stdout)
+      && gx.status === 1 && /^НЕ ВЫДАНО: Это не похоже на адрес почты\.$/m.test(gx.stdout) && grants() === g1 + 2
+      && ux.status === 1 && /^Это не похоже на адрес почты\.$/m.test(ux.stdout)
+      ? ok(`magnat grant ${IDN} 5 — выдано, user show по xn--… видит тот же доступ; «x@» отвергает api.py (НЕ ВЫДАНО, export — код 1)`)
+      : bad(`адрес IDN (код ${m.status}): ${(m.stdout + m.stderr).trim().slice(-200)} | user show: ${us.stdout.trim().slice(-200)} | x@: ${gx.status} ${gx.stdout.trim()} | export x@: ${ux.status} ${ux.stdout.trim()}`);
     const pyPay = rdT("py.log").trim().split("\n").filter(c => / (grant|orders|stats) /.test(c)), ruPay = rdT("runuser.log").split("\n");
     pyPay.length >= 6 && pyPay.every(c => ruPay.some(l => l.startsWith("-u ") && l.endsWith(c)))
       ? ok(`api.py grant/orders/stats — ${pyPay.length} вызовов, все через runuser`) : bad("grant/orders/stats мимо runuser: " + pyPay.length);
+
+    // ключи в файле есть, но Платега их не принимает (сменили в кабинете) — счета не создаются, status это видно
+    pg.reject = true;
+    const fco = await L.postJson(APORT, "/api/checkout", { plan: "month", email: "fail@example.ru", telegram: "", consent, terms: TERMS }, { origin: SITE });
+    pg.reject = false;
+    st = prun(["status"]);
+    fco.json && fco.json.err === "platega"
+      && /^Платега:\s+ключи заданы · оплата включена · ждут оплаты 0 · оплат за месяц 1 на 299 ₽ · последнее уведомление \d\d\.\d\d \d\d:\d\d UTC · ⚠ счета не создаются: 1 за сутки → проверь ключи: magnat platega$/m.test(st.stdout)
+      && !st.stdout.includes("fail@example.ru")
+      ? ok("Платега отказала в счёте (401) → в строке «Платега:» — «⚠ счета не создаются: 1 за сутки → проверь ключи: magnat platega»")
+      : bad(`счёт не создан (оформление ${fco.text}): ` + payLine(st.stdout));
 
     // magnat platega off — файл пуст (не удалён: без него служба не стартует), ключей у API нет
     n0 = restarts();
@@ -715,6 +746,56 @@ exit 0
       && off.json && off.json.err === "pay_off"
       ? ok("magnat platega off — platega.env пуст (0600, на месте), API перезапущен без ключей, оформление отвечает pay_off, оплаты месяца в status целы")
       : bad(`platega off (код ${m.status}, файл ${JSON.stringify(pfile())}, health ${JSON.stringify(h)}, checkout ${off.text}):\n    ` + (m.stdout + m.stderr).trim().slice(-300) + "\n    " + payLine(st.stdout));
+
+    // magnat refund N: деньги вернули в кабинете Платеги — заказ «возвращён», доступ за его остаток снят,
+    // в оплатах месяца — «чек аннулировать» и не в итоге. Покупатель: 30 дней оплатил + 10 выдано → остаётся 10.
+    const oid = (/· заказ (\d+) · b•••@example\.ru$/m.exec(prun(["orders"]).stdout) || [])[1];
+    const refunds = () => (rdT("py.log").match(/ refund /g) || []).length, r0 = refunds();
+    const utc = (days) => new Date(Date.now() + days * 86400e3).toISOString().slice(0, 10).split("-").reverse().join(".");
+    const rNo = prun(["refund", oid], "нет\n"), rUse = prun(["refund"]), rBad = prun(["refund", "12abc"], "ДА\n");
+    const oNo = prun(["orders"]);
+    oid && rNo.status === 1 && new RegExp(`^Вернул деньги в кабинете Платеги\\? Снять доступ за остаток заказа ${oid}\\?$`, "m").test(rNo.stdout)
+      && /^Отмена — ничего не изменено\.$/m.test(rNo.stdout) && rUse.status === 2 && rBad.status === 1 && /«12abc» — нужен номер заказа/.test(rBad.stdout)
+      && refunds() === r0 && new RegExp(`^Итого за ${ym}: 1 оплата на 299 ₽\\.$`, "m").test(oNo.stdout)
+      ? ok(`magnat refund ${oid} — вопрос «Вернул деньги в кабинете Платеги? Снять доступ за остаток заказа ${oid}?», без «ДА» отмена; без номера и «12abc» — отказ, api.py не запускался`)
+      : bad(`refund без ДА (заказ ${oid}, коды ${rNo.status}/${rUse.status}/${rBad.status}, вызовов ${refunds() - r0}): ${rNo.stdout.trim().slice(-200)} | ${rBad.stdout.trim()}`);
+    const d0 = msk(10);
+    m = prun(["refund", oid], "ДА\n");
+    const d1 = msk(10);
+    us = prun(["user", "show", BUYER]);
+    const oR = prun(["orders"]), rAgain = prun(["refund", oid], "ДА\n"), rNone = prun(["refund", "999999"], "ДА\n");
+    m.status === 0 && [d0, d1].some(d => m.stdout.includes(`ВОЗВРАТ ЗАПИСАН: заказ ${oid} — возвращён, доступ теперь до ${d} (дни других оплат остались).`))
+      && /^Чек по этому заказу аннулируй в «Мой налог»/m.test(m.stdout)
+      && new RegExp(`^Доступ: до ${esc(msk(10))}, действует\\.$`, "m").test(us.stdout) && new RegExp(`месяц · 299 ₽ · возвращён · заказ ${oid}`).test(us.stdout)
+      && new RegExp(`· заказ ${oid} · b•••@example\\.ru · возврат — чек аннулировать$`, "m").test(oR.stdout)
+      && new RegExp(`^Итого за ${ym}: 0 оплат на 0 ₽\\.$`, "m").test(oR.stdout)
+      && rAgain.status === 1 && new RegExp(`^НЕ ЗАПИСАНО: Заказ ${oid} уже возвращён\\.$`, "m").test(rAgain.stdout)
+      && rNone.status === 1 && /^НЕ ЗАПИСАНО: Заказа 999999 нет\.$/m.test(rNone.stdout)
+      ? ok(`magnat refund ${oid} с «ДА» — «ВОЗВРАТ ЗАПИСАН … доступ теперь до ${d1}», user show: доступ до ${msk(10)}, заказ «возвращён»; orders — «возврат — чек аннулировать», итог 0; повтор и чужой номер — «НЕ ЗАПИСАНО»`)
+      : bad(`refund ДА (код ${m.status}): ${(m.stdout + m.stderr).trim().slice(-300)}\n    user show: ${us.stdout.trim().slice(-300)}\n    orders: ${oR.stdout.trim().slice(-300)}\n    повтор: ${rAgain.stdout.trim()} | 999999: ${rNone.stdout.trim()}`);
+    const pyRef = rdT("py.log").trim().split("\n").filter(c => / refund /.test(c)), ruRef = rdT("runuser.log").split("\n");
+    pyRef.length === 3 && pyRef.every(c => ruRef.some(l => l.startsWith("-u ") && l.endsWith(c)))
+      ? ok("api.py refund — 3 вызова, все через runuser") : bad("refund мимо runuser или не столько вызовов: " + pyRef.length);
+
+    // magnat user delete покупателя без аккаунта (оплатил, не входил): вопрос, потом почта, Telegram и IP
+    // отвязаны от заказов, срок доступа снят — а не молчаливое «ничего»
+    const dNo = prun(["user", "delete", BUYER], "нет\n"), keep = prun(["user", "show", BUYER]);
+    m = prun(["user", "delete", BUYER], "ДА\n");
+    us = prun(["user", "show", BUYER]);
+    const oD = prun(["orders", "полностью"]), dNobody = prun(["user", "delete", "nikogo@example.ru"], "ДА\n");
+    dNo.status === 1 && /^Отвязать почту, Telegram и IP от заказов и снять срок доступа\?/m.test(dNo.stdout) && /^Отмена — ничего не удалено\.$/m.test(dNo.stdout)
+      && !/Удалить аккаунт/.test(dNo.stdout) && /^Заказы \(\d+\)/m.test(keep.stdout)
+      && m.status === 0 && /^Аккаунта не было; заказы \(2\) отвязаны от адреса, доступ снят, надгробие записано\.$/m.test(m.stdout)
+      && /^Аккаунта с этим адресом нет\.$/m.test(us.stdout) && !/Заказы|Доступ/.test(us.stdout)
+      && !oD.stdout.includes(BUYER) && new RegExp(`· заказ ${oid} · адрес стёрт · возврат — чек аннулировать$`, "m").test(oD.stdout)
+      && dNobody.status === 0 && /^Аккаунта с этим адресом нет\.$/m.test(dNobody.stdout) && !/Напиши|Отвязать|Удалить/.test(dNobody.stdout)
+      ? ok("magnat user delete без аккаунта — вопрос «Отвязать почту, Telegram и IP…», с «ДА» заказы (2) отвязаны, доступа нет, в orders — «адрес стёрт»; кого нет вовсе — без вопроса")
+      : bad(`delete без аккаунта (коды ${dNo.status}/${m.status}/${dNobody.status}): ${dNo.stdout.trim().slice(-200)} | ${(m.stdout + m.stderr).trim().slice(-300)}\n    user show: ${us.stdout.trim()} | orders: ${oD.stdout.trim().slice(-200)}`);
+
+    // справка — с новыми командами
+    const help = prun(["справка"]);
+    help.status === 2 && /magnat refund НОМЕР_ЗАКАЗА/.test(help.stdout) && /magnat orders ГГГГ-ММ полностью/.test(help.stdout) && /delete и без аккаунта/.test(help.stdout)
+      ? ok("magnat с незнакомым словом — справка с magnat refund НОМЕР_ЗАКАЗА и magnat orders ГГГГ-ММ полностью") : bad("справка: " + help.stdout.trim().slice(-400));
   } catch (e) { bad("2д упал: " + (e.stack || e)); }
   fs.rmSync(XENV, { force: true });
   pgSrv.close();

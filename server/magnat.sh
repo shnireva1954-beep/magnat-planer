@@ -13,12 +13,17 @@
 #    magnat backup   копия базы: на этой машине и, если настроено, на Яндекс Диск;
 #                    ночью её зовёт таймер — руками не нужно. Плюс письма-напоминания.
 #    magnat backup-setup  один раз: копии на Яндекс Диск (токен и фраза-ключ).
-#    magnat user show|export|delete АДРЕС  запрос человека о своих данных.
+#    magnat user show|export|delete АДРЕС  запрос человека о своих данных
+#                    (delete и без аккаунта: отвязать почту от заказов, снять доступ).
 #    magnat paid-until ДД.ММ.ГГГГ  до какого числа оплачен сервер (напомнит письмом).
 #    magnat platega  ключи Платеги для оплаты Магната (ID мерчанта и секрет);
 #                    magnat platega off — стереть их, новые счета не создаются.
 #    magnat grant АДРЕС ДНЕЙ  выдать доступ вручную (оплата не включилась сама).
-#    magnat orders [ГГГГ-ММ]  оплаты месяца для чеков самозанятого (адреса скрыты).
+#    magnat orders [ГГГГ-ММ]  оплаты месяца для чеков самозанятого (адреса скрыты);
+#                    magnat orders ГГГГ-ММ полностью — с полными адресами, чтобы
+#                    отправить чек покупателю (такой вывод в чат не присылать).
+#    magnat refund НОМЕР_ЗАКАЗА  деньги вернул в кабинете Платеги — заказ
+#                    «возвращён», доступ за его остаток снимается.
 #
 #  Как устроена выкладка (порядок важен, и каждый шаг откатный):
 #   1. git fetch `main` под пользователем magnat (не root): сначала ключом
@@ -435,6 +440,10 @@ api_status() {
 # --- почта для кодов -------------------------------------------------------------
 lower_trim() { local v="${1//[[:space:]]/}"; printf '%s' "${v,,}"; }
 is_email()   { [[ "$1" =~ ^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$ ]]; }
+# Адрес покупателя (grant, user): здесь — только «есть @ и нет пробелов». Строгая проверка
+# и нормализация (Почта.рф → xn--…) — в api.py, та же, что при оформлении: иначе адрес,
+# с которым человек оплатил, здесь не находился бы.
+soft_email() { [[ "$1" == *@* && "$1" != *[[:space:]]* ]]; }
 # safe_ascii ОТ ДО СТРОКА: печатный ASCII без пробела, кавычек, \ $ ` — в .env
 # такая строка не ломается. Строка идёт в tr через stdin, не аргументом.
 safe_ascii() {
@@ -777,7 +786,7 @@ rub_kop() { # копейки → «1 490 ₽», как rub() в api.py
 }
 stat_num() { sed -n "s/.*\"$1\": *\([0-9][0-9]*\).*/\1/p" <<<"$2" | head -n 1; }
 pay_line() {
-  local h="$1" keys on line s n paid sum cb
+  local h="$1" keys on line s n paid sum cb fd
   if grep -q '"payKeys": *true' <<<"$h"; then keys="ключи заданы"
   elif ! platega_in_file; then keys="ключи не заданы → magnat platega"
   elif grep -q '"payKeys": *false' <<<"$h"; then keys="⚠ ключи записаны, но API их не видит → magnat upgrade"
@@ -791,6 +800,9 @@ pay_line() {
     paid="$(stat_num pay_paid_month "$s")"; sum="$(stat_num pay_sum_month_kop "$s")"; cb="$(stat_num pay_last_callback "$s")"
     line="$line · ждут оплаты $n · оплат за месяц ${paid:-0} на $(rub_kop "${sum:-0}") · последнее уведомление "
     if [ "${cb:-0}" -gt 0 ]; then line="$line$(date -u -d "@$cb" '+%d.%m %H:%M UTC')"; else line="${line}не было"; fi
+    # «ключи заданы» ещё не значит «ключи верные»: Платега отказывает — счёт failed, покупатель ушёл ни с чем
+    fd="$(stat_num pay_failed_day "$s")"
+    [ "${fd:-0}" -eq 0 ] || line="$line · ⚠ счета не создаются: $fd за сутки → проверь ключи: magnat platega"
   fi
   echo "$line"
 }
@@ -804,7 +816,7 @@ do_grant() {
   if [ -z "$em" ] || [ -z "$2" ]; then
     echo "magnat grant АДРЕС ДНЕЙ — выдать доступ вручную, например: magnat grant ivan@mail.ru 30"; exit 2
   fi
-  is_email "$em" || { echo "«$em» не похоже на адрес почты. Ничего не выдано."; exit 1; }
+  soft_email "$em" || { echo "«$em» не похоже на адрес почты. Ничего не выдано."; exit 1; }
   if ! [[ "$2" =~ ^[0-9]{1,4}$ ]] || [ $(( 10#$2 )) -lt 1 ] || [ $(( 10#$2 )) -gt 3660 ]; then
     echo "«$2» — нужно число дней от 1 до 3660, например 30. Ничего не выдано."; exit 1
   fi
@@ -824,16 +836,48 @@ do_grant() {
   exit 1
 }
 
-# magnat orders [ГГГГ-ММ]: оплаты месяца (UTC) для чеков — строкой на оплату, адрес скрыт, итог.
+# magnat orders [ГГГГ-ММ] [полностью]: оплаты месяца (UTC) для чеков — строкой на оплату, адрес
+# скрыт, итог. «полностью» (или --full) — полный адрес: чек надо отправить покупателю.
 do_orders() {
   [ "$(id -u)" -eq 0 ] || { log "запускать от root"; exit 1; }
-  local a=()
-  if [ -n "$1" ]; then
-    [[ "$1" =~ ^[0-9]{4}-(0[1-9]|1[0-2])$ ]] || { echo "«$1» не похоже на месяц — нужно ГГГГ-ММ, например $(date -u +%Y-%m)."; exit 1; }
-    a=(--month "$1")
-  fi
+  local a=() w
+  for w in "$@"; do
+    case "$w" in
+      '') ;;
+      полностью|--full) a+=(--full) ;;
+      *) [[ "$w" =~ ^[0-9]{4}-(0[1-9]|1[0-2])$ ]] ||
+           { echo "«$w» не похоже на месяц — нужно ГГГГ-ММ, например $(date -u +%Y-%m) (и «полностью» — с полными адресами)."; exit 1; }
+         a+=(--month "$w") ;;
+    esac
+  done
   if [ ! -s "$API_BASE/current/api.py" ] || [ ! -s "$API_DB" ]; then echo "Базы ещё нет — оплат нет."; exit 1; fi
+  [[ " ${a[*]} " != *" --full "* ]] || echo "⚠ здесь полные адреса — в чат не присылать"
   run_api "$API_BASE/current" orders --db "$API_DB" "${a[@]}"
+}
+
+# magnat refund НОМЕР_ЗАКАЗА: деньги вернул сам в кабинете Платеги (соглашение, раздел 5) — заказ
+# «возвращён», срок доступа уменьшается на остаток ЭТОГО заказа (дни других оплат остаются).
+do_refund() {
+  [ "$(id -u)" -eq 0 ] || { log "запускать от root"; exit 1; }
+  local n res ans
+  if [ -z "$1" ]; then
+    echo "magnat refund НОМЕР_ЗАКАЗА — деньги вернул в кабинете Платеги, снять доступ за остаток заказа; номер — в magnat orders"; exit 2
+  fi
+  [[ "$1" =~ ^[0-9]{1,12}$ ]] || { echo "«$1» — нужен номер заказа (число из magnat orders или magnat user show). Ничего не изменено."; exit 1; }
+  n=$(( 10#$1 ))
+  if [ ! -s "$API_BASE/current/api.py" ] || [ ! -s "$API_DB" ]; then echo "Базы ещё нет — заказов нет."; exit 1; fi
+  echo "Вернул деньги в кабинете Платеги? Снять доступ за остаток заказа $n?"
+  read -rp "Напиши ДА: " ans || true
+  [ "$ans" = "ДА" ] || { echo "Отмена — ничего не изменено."; exit 1; }
+  res="$(run_api "$API_BASE/current" refund "$n" --db "$API_DB" 2>&1)" || true
+  if [[ "$res" =~ refund-ok\ order=[0-9]+\ until=([0-9]{4})-([0-9]{2})-([0-9]{2}) ]]; then
+    echo "ВОЗВРАТ ЗАПИСАН: заказ $n — возвращён, доступ теперь до ${BASH_REMATCH[3]}.${BASH_REMATCH[2]}.${BASH_REMATCH[1]} (дни других оплат остались)."
+  elif [[ "$res" == *"refund-ok order=$n until=нет"* ]]; then
+    echo "ВОЗВРАТ ЗАПИСАН: заказ $n — возвращён, доступа у покупателя больше нет."
+  else
+    echo "НЕ ЗАПИСАНО: $(tail -n 1 <<<"$res")"; exit 1
+  fi
+  echo "Чек по этому заказу аннулируй в «Мой налог» — в magnat orders он помечен «возврат — чек аннулировать»."
 }
 
 # --- оплата сервера -----------------------------------------------------------------
@@ -936,29 +980,36 @@ do_backup_setup() {
 # --- magnat user: запросы людей о своих данных ---------------------------------------
 do_user() {
   [ "$(id -u)" -eq 0 ] || { log "запускать от root"; exit 1; }
-  local act="$1" em res host port ans
+  local act="$1" em res host port ans rc
   em="$(lower_trim "$2")"
-  case "$act" in show|export|delete) ;; *) echo "magnat user show|export|delete АДРЕС — что есть, выслать человеку его данные, удалить аккаунт"; exit 2 ;; esac
-  is_email "$em" || { echo "«$em» не похоже на адрес почты."; exit 1; }
+  case "$act" in show|export|delete) ;; *) echo "magnat user show|export|delete АДРЕС — что есть, выслать человеку его данные, удалить аккаунт или отвязать заказы"; exit 2 ;; esac
+  soft_email "$em" || { echo "«$em» не похоже на адрес почты."; exit 1; }
   if [ ! -s "$API_BASE/current/api.py" ] || [ ! -s "$API_DB" ]; then echo "Базы входа ещё нет — аккаунтов нет."; exit 1; fi
   case "$act" in
     show) run_api "$API_BASE/current" user show "$em" --db "$API_DB" ;;
     export)
       grep -q '^SMTP_PASS=.' "$ETC/smtp.env" 2>/dev/null || { echo "НЕ УШЛО: почта не настроена → magnat mail."; exit 1; }
-      res="$(run_api "$API_BASE/current" user export "$em" --db "$API_DB" --creds - < "$ETC/smtp.env" 2>&1)" || true
+      rc=0; res="$(run_api "$API_BASE/current" user export "$em" --db "$API_DB" --creds - < "$ETC/smtp.env" 2>&1)" || rc=$?
       if grep -q '^export-ok' <<<"$res"; then
         echo "ВЫГРУЗКА ОТПРАВЛЕНА: письмо с данными ушло на $em — только на этот адрес."
       elif grep -q '^mail-fail' <<<"$res"; then
         host="$(sed -n 's/^SMTP_HOST=//p' "$ETC/smtp.env" | head -n 1)"; port="$(sed -n 's/^SMTP_PORT=//p' "$ETC/smtp.env" | head -n 1)"
         echo "НЕ УШЛО: $(mail_fail_hint "$res" "$host" "$port")."; exit 1
       else
-        echo "$res"            # «Аккаунта с этим адресом нет.» и прочее словами api.py
+        echo "$res"            # «Аккаунта с этим адресом нет.», «не похоже на адрес» — словами api.py
+        [ "$rc" -eq 0 ] || exit 1
       fi ;;
     delete)
       res="$(run_api "$API_BASE/current" user show "$em" --db "$API_DB" 2>&1)" || { echo "$res"; exit 1; }
       echo "$res"
-      grep -q '^Аккаунт есть' <<<"$res" || exit 0
-      echo "Удалить аккаунт $em с сервера? Почта и все записи стираются сразу, из копий — в течение 30 дней. Восстановить будет нельзя."
+      if grep -q '^Аккаунт есть' <<<"$res"; then
+        echo "Удалить аккаунт $em с сервера? Почта и все записи стираются сразу, из копий — в течение 30 дней. Восстановить будет нельзя."
+      elif grep -q '^Заказы (' <<<"$res"; then
+        # оплатил, но не входил: аккаунта нет, а почта, Telegram и IP лежат в заказах
+        echo "Отвязать почту, Telegram и IP от заказов и снять срок доступа? Суммы заказов останутся для чеков, без адреса. Восстановить будет нельзя."
+      else
+        exit 0                 # «Аккаунта с этим адресом нет.» — удалять нечего
+      fi
       read -rp "Напиши ДА: " ans || true
       [ "$ans" = "ДА" ] || { echo "Отмена — ничего не удалено."; exit 1; }
       run_api "$API_BASE/current" user delete "$em" --db "$API_DB" ;;
@@ -979,6 +1030,7 @@ case "${1:-status}" in
   paid-until) do_paid_until "${2:-}" ;;
   platega)  do_platega "${2:-}" ;;
   grant)    do_grant "${2:-}" "${3:-}" ;;
-  orders)   do_orders "${2:-}" ;;
+  orders)   do_orders "${2:-}" "${3:-}" ;;
+  refund)   do_refund "${2:-}" ;;
   *) sed -n '2,/^#  Как устроена/{/^#  Как устроена/!p}' "$0" | sed 's/^#//'; exit 2 ;;
 esac

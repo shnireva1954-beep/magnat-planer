@@ -18,7 +18,15 @@
 //   8) «Выйти» — срок и почта заказа сняты, экран снова «Пробные 3 дня закончились»;
 //   9) вошёл и срок кончился: «Уже оплатил» сначала спрашивает сервер (оплата пришла — экран ушёл
 //      без входа; не пришла — «войди по другой почте»); с одной ?account /api/me не зовётся;
-//  10) 320 px — без горизонтальной прокрутки: строка, экран, лист входа поверх экрана.
+//  10) 320 px — без горизонтальной прокрутки: строка, экран, лист входа поверх экрана;
+//  11) вошёл и стоит экран: на нём «Выйти» и «Удалить аккаунт», их листы — поверх экрана (ревью PAY-2);
+//  12) вошёл с записями, оплаты нет: до «Войти по другой почте» — предупреждение, что записи уйдут
+//      в скрытую копию, и что оплату перенесёт поддержка (PAY-1);
+//  13) заказ на телефоне, входа нет: на «Обзоре» «Оплатил? Войди по почте», а не «Оформить» (PAY-3);
+//  14) часы телефона спешат: сервер видит оплату — «часы спешат», а не «оплаты нет» (PAY-4);
+//  15) предпросмотр: «Выключить предпросмотр» на экране снимает метку, без вопроса (SEC-4);
+//  16) «Удалить аккаунт» при оплаченном доступе говорит, что срок пропадёт и как вернуть деньги (T4);
+//  17) даты доступа — по Москве, как в письмах: телефон в Чите видит ту же дату (T9).
 // Страница — http://127.0.0.1 (secure context), service worker выключен: /api ловит route.
 const http = require('http'), fs = require('fs'), path = require('path');
 const { chromium, chromePath, APP_DIR, startClean } = require('./lib');
@@ -30,7 +38,9 @@ const J = (x) => JSON.stringify(x);
 const pad = (n) => String(n).padStart(2, '0');
 const ymd = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 const dayAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return ymd(d); };
-const dmy = (sec) => { const d = new Date(sec * 1000); return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear(); };
+// дата по сдвигу от UTC в часах; приложение и письма сервера (dmy в api.py) — по Москве, UTC+3
+const dmyAt = (sec, h) => { const d = new Date(sec * 1000 + h * 3600e3); return pad(d.getUTCDate()) + '.' + pad(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear(); };
+const dmy = (sec) => dmyAt(sec, 3);
 const NOW = () => Math.floor(Date.now() / 1000), DAY = 86400;
 const sp = (s) => String(s || '').replace(/\s+/g, ' ').trim();     // NBSP из toLocaleString — обычный пробел
 const ACCT = 'a_0123456789abcdef', DEV = 'd_0123456789abcdef', RID0 = 'r_aaaaaaaaaaaaaaaa', GOOD = '482913';
@@ -94,8 +104,11 @@ function miniApi() {
 let browser, SRV;
 // quietFocus: фокус окна в headless приходит от самих действий теста (клик, ввод) и сам звал бы
 // /api/me — глушим его, чтобы проверить, что срок спрашивает именно вход
-async function mk({ api = null, vp = { width: 390, height: 844 }, reduced = false, quietFocus = false } = {}) {
-  const ctx = await browser.newContext({ viewport: vp, serviceWorkers: 'block', acceptDownloads: true, reducedMotion: reduced ? 'reduce' : 'no-preference' });
+// tz — часовой пояс телефона; ahead — на сколько дней спешат его часы (Date.now: им приложение
+// меряет срок доступа)
+async function mk({ api = null, vp = { width: 390, height: 844 }, reduced = false, quietFocus = false, tz = null, ahead = 0 } = {}) {
+  const ctx = await browser.newContext({ viewport: vp, serviceWorkers: 'block', acceptDownloads: true, reducedMotion: reduced ? 'reduce' : 'no-preference', ...(tz ? { timezoneId: tz } : {}) });
+  if (ahead) await ctx.addInitScript((ms) => { const now = Date.now.bind(Date); Date.now = () => now() + ms; }, ahead * 864e5);
   await ctx.addInitScript((q) => {
     window.__quietFocus = q;
     addEventListener('focus', e => { if (e.target === window && window.__quietFocus) e.stopImmediatePropagation(); }, true);
@@ -148,6 +161,23 @@ async function seedLogged(p, api, mail, data) {
   api.add(mail, doc); api.cur = mail;
   return doc;
 }
+// кнопка есть и нажимается: прокрутить к ней — в её середине она сама, а не экран или окно над ней
+const onTop = (p, sel) => p.evaluate((s) => {
+  const e = document.querySelector(s); if (!e) return null;
+  e.scrollIntoView({ block: 'center' });
+  const r = e.getBoundingClientRect(), t = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+  return { txt: e.textContent.replace(/\s+/g, ' ').trim(), top: !!(t && e.contains(t)) };
+}, sel);
+// вошёл (seedLogged), пробный период кончился n дней назад, экран встал и срок уже спрошен
+async function loggedWall(p, api, mail, data, n = 5) {
+  await p.goto(SRV.url + '/app.html?account&pay'); await p.waitForTimeout(300);
+  await seedLogged(p, api, mail, data);
+  await p.evaluate((d) => localStorage.setItem('magnat_trial_v1', d), dayAgo(n));
+  await p.reload();
+  return until(p, () => !!document.querySelector('#payWall') && !meQ && ME_AT > 0, null, 8000);
+}
+const wallMsg = (p) => p.evaluate(() => { const w = document.querySelector('#pwWarn');
+  return { err: document.querySelector('#pwErr').textContent, warn: w && !w.hidden ? w.textContent : null, btn: document.querySelector('#pwLogin').textContent.trim(), sheet: !!document.querySelector('.accovl') }; });
 // нет ли горизонтальной прокрутки и вылезающих за экран кусков
 const overflow = (p) => p.evaluate(() => {
   const w = innerWidth, out = [];
@@ -427,6 +457,154 @@ const overflow = (p) => p.evaluate(() => {
       const c = await overflow(p);
       (c.sw <= 320 && !c.out.length) ? ok('лист входа поверх экрана на 320 px — в экране') : bad('лист входа на 320: ' + J(c));
       errCheck(p, '320 px');
+      await ctx.close();
+    });
+
+    await step('11) Вошёл, стоит экран оплаты: «Выйти» и «Удалить аккаунт» на нём, их листы — поверх экрана', async () => {
+      const api = miniApi();
+      const { ctx, p } = await mk({ api, quietFocus: true });
+      const w = await loggedWall(p, api, 'box@example.ru', HB());
+      const o = await onTop(p, '#pwOut'), d = await onTop(p, '#pwDel');
+      (w && o && o.top && o.txt === 'Выйти' && d && d.top && d.txt === 'Удалить аккаунт') ? ok('на экране оплаты — «Выйти» и «Удалить аккаунт», нажимаются')
+        : bad('кнопки аккаунта на экране: ' + J({ w, o, d }));
+      await p.click('#pwDel'); await p.waitForSelector('.accovl #acDlGo', { timeout: 5000 });
+      const s = await onTop(p, '.accovl #acDlGo'), h = await p.evaluate(() => document.querySelector('.accovl #acH').textContent.trim());
+      (s && s.top && /Удалить аккаунт\?/.test(h) && (await look(p)).wall) ? ok(`«Удалить аккаунт» — лист «${h}» поверх экрана оплаты, «${s.txt}» нажимается`) : bad('лист удаления: ' + J({ s, h }));
+      await p.click('.accovl #acNo');
+      // «Выйти» — тот же выход, что на карточке: вопрос, после — кнопок аккаунта нет, «войти по
+      // другой почте» сброшено, экран снова «Пробные 3 дня закончились»
+      await p.click('#pwLogin'); await until(p, () => /оплаты пока нет/.test(document.querySelector('#pwErr').textContent), null, 5000);
+      await until(p, SETTLED, null, 8000);
+      p.dialogs = [];
+      await p.click('#pwOut');
+      await until(p, () => !LOGGED(), null, 6000);
+      const g = await look(p), m = await wallMsg(p), left = await p.evaluate(() => ['#pwOut', '#pwDel'].filter(x => document.querySelector(x)));
+      (!g.logged && p.dialogs.length === 1 && g.wall && /^Пробные 3 дня закончились/.test(g.title) && !left.length && m.btn === 'Уже оплатил — войти по почте' && !m.err && !m.warn)
+        ? ok('«Выйти» с экрана: вышел после вопроса, кнопок аккаунта нет, «Уже оплатил — войти по почте» снова на месте')
+        : bad('выход с экрана: ' + J({ g, m, left, dialogs: p.dialogs }));
+      // не вошёл — кнопок аккаунта на экране нет (как и было до входа)
+      await p.reload(); await p.waitForSelector('#payWall', { timeout: 5000 });
+      const none = await p.evaluate(() => ['#pwOut', '#pwDel'].filter(x => document.querySelector(x)));
+      (!none.length) ? ok('без входа — ни «Выйти», ни «Удалить аккаунт» на экране') : bad('без входа на экране: ' + J(none));
+      errCheck(p, 'кнопки аккаунта на экране');
+      await ctx.close();
+    });
+
+    await step('12) Вошёл с записями, оплаты на этой почте нет: до входа по другой почте — про скрытую копию и поддержку', async () => {
+      const api = miniApi();
+      const { ctx, p } = await mk({ api, quietFocus: true });
+      await loggedWall(p, api, 'box@example.ru', HB());
+      const m0 = await wallMsg(p);
+      await p.click('#pwLogin'); await until(p, () => /оплаты пока нет/.test(document.querySelector('#pwErr').textContent), null, 5000);
+      const m = await wallMsg(p);
+      (!m0.warn && m.btn === 'Войти по другой почте' && m.warn && /^Вход по другой почте уберёт записи с этого телефона в скрытую копию — они вернутся, когда снова войдёшь по box@example\.ru\. Перенести оплату на эту почту может поддержка$/.test(m.warn))
+        ? ok(`до «${m.btn}» — «${m.warn}»`) : bad('предупреждение про записи: ' + J({ m0, m }));
+      errCheck(p, 'записи и другая почта');
+      await ctx.close();
+      // записей нет (пустой лист) — убирать нечего, предупреждения нет
+      const api2 = miniApi();
+      const b = await mk({ api: api2, quietFocus: true });
+      await loggedWall(b.p, api2, 'empty@example.ru', { habits: [{ id: 101, ico: '', name: 'Бег', since: '' }], checks: {}, rv: 2, lastLv: 1 });
+      await b.p.click('#pwLogin'); await until(b.p, () => /оплаты пока нет/.test(document.querySelector('#pwErr').textContent), null, 5000);
+      const e = await wallMsg(b.p);
+      (e.btn === 'Войти по другой почте' && !e.warn) ? ok('записей нет — «Войти по другой почте» без предупреждения') : bad('пустой лист: ' + J(e));
+      errCheck(b.p, 'пустой лист');
+      await b.ctx.close();
+    });
+
+    await step('13) Заказ на телефоне, входа нет: на «Обзоре» «Оплатил? Войди по почте — доступ включится», а не «Оформить»', async () => {
+      const api = miniApi();
+      const { ctx, p, reqs } = await mk({ api });
+      await p.goto(URL + '?account&pay'); await p.waitForTimeout(300);
+      await startClean(p);
+      await p.evaluate(() => localStorage.setItem('magnat_pay_v1', JSON.stringify({ o: 'AAAAAAAAAAAAAAAAAAAAAA', email: 'buyer@example.ru', plan: 'year', at: Date.now() })));
+      await p.reload(); await p.waitForTimeout(350);
+      const v = await look(p);
+      (v.note === 'Оплатил? Войди по почте — доступ включится' && !v.wall && v.noteHref === null) ? ok(`строка: «${v.note}» — без «Оформить»`) : bad('строка с заказом без входа: ' + J(v));
+      await p.click('#payNoteIn'); await p.waitForSelector('#acMail', { timeout: 5000 });
+      const pre = await p.inputValue('#acMail');
+      (pre === 'buyer@example.ru') ? ok('«Войди по почте» — лист входа с почтой заказа') : bad('почта в листе: «' + pre + '»');
+      await p.click('#acNo');
+      (!reqs.length) ? ok('до входа — ни одного запроса к /api') : bad('запросы: ' + J(reqs));
+      errCheck(p, 'заказ без входа');
+      await ctx.close();
+    });
+
+    await step('14) Часы телефона спешат на 10 дней: сервер видит оплату — «часы спешат», а не «оплаты нет»', async () => {
+      const api = miniApi();
+      const { ctx, p } = await mk({ api, quietFocus: true, ahead: 10 });
+      const u = NOW() + 5 * DAY;
+      api.subs['box@example.ru'] = { plan: 'month', until: u, active: true };
+      const w = await loggedWall(p, api, 'box@example.ru', HB(), 20);
+      const v = await look(p);
+      await p.click('#pwLogin'); await until(p, () => !!document.querySelector('#pwErr').textContent, null, 5000);
+      const m = await wallMsg(p);
+      (w && v.access && v.access.until === u && m.err === `Оплата есть до ${dmy(u)}, но часы на телефоне спешат — проверь дату и время` && m.btn === 'Уже оплатил — войти по почте' && !m.warn && !m.sheet)
+        ? ok(`«${m.err}», кнопка осталась «${m.btn}»`) : bad('часы спешат: ' + J({ w, access: v.access, m }));
+      errCheck(p, 'часы спешат');
+      await ctx.close();
+    });
+
+    await step('15) Предпросмотр: «Выключить предпросмотр» на экране — метка снята, приложение прежнее, без вопроса', async () => {
+      const api = miniApi();
+      const { ctx, p } = await mk({ api });
+      await p.goto(URL + '?account&pay'); await p.waitForTimeout(300);
+      await startClean(p); await trialFrom(p, 3);
+      const b = await onTop(p, '#pwOff');
+      (b && b.top && b.txt === 'Выключить предпросмотр') ? ok('на экране предпросмотра — «Выключить предпросмотр»') : bad('кнопка предпросмотра: ' + J(b));
+      p.dialogs = [];
+      await Promise.all([p.waitForEvent('load', { timeout: 5000 }), p.click('#pwOff')]); await p.waitForTimeout(400);
+      const v = await look(p), f = await p.evaluate(() => ({ mark: localStorage.getItem('magnat_pay_preview'), PAYWALL, ACCOUNT }));
+      (f.mark === null && !f.PAYWALL && f.ACCOUNT && !v.wall && !v.note && !v.inert && !p.dialogs.length)
+        ? ok('метка magnat_pay_preview снята, страница перезагружена — ни экрана, ни строки, вопроса не было') : bad('после «Выключить предпросмотр»: ' + J({ f, v, dialogs: p.dialogs }));
+      errCheck(p, 'выключить предпросмотр');
+      await ctx.close();
+    });
+
+    await step('16) «Удалить аккаунт» при оплаченном доступе: срок пропадёт, деньги за остаток — через поддержку', async () => {
+      const api = miniApi();
+      const { ctx, p } = await mk({ api, quietFocus: true });
+      const u = NOW() + 20 * DAY;
+      api.subs['box@example.ru'] = { plan: 'month', until: u, active: true };
+      await p.goto(URL + '?account&pay'); await p.waitForTimeout(300);
+      await seedLogged(p, api, 'box@example.ru', HB());
+      await p.evaluate((d) => localStorage.setItem('magnat_trial_v1', d), dayAgo(5));
+      await p.reload(); await until(p, () => !!document.querySelector('#acSub') && !document.querySelector('#payWall'), null, 8000);
+      await p.click('#acDel'); await p.waitForSelector('.accovl #acDlGo', { timeout: 5000 });
+      const t = sp(await p.evaluate(() => document.querySelector('.accovl').textContent));
+      const need = `Оплаченный доступ до ${dmy(u)} пропадёт вместе с аккаунтом. Вернуть деньги за остаток — напиши в поддержку и назови номер заказа из письма об оплате.`;
+      (t.includes(need)) ? ok(`оплачено — в окне удаления: «${need}»`) : bad('окно удаления при оплате: ' + t);
+      await p.click('.accovl #acNo');
+      // оплаты нет — этой строки нет (окно — с экрана оплаты)
+      api.subs['box@example.ru'] = null;
+      await p.reload(); await until(p, () => !!document.querySelector('#payWall') && !meQ && ME_AT > 0, null, 8000);
+      await p.click('#pwDel'); await p.waitForSelector('.accovl #acDlGo', { timeout: 5000 });
+      const t2 = sp(await p.evaluate(() => document.querySelector('.accovl').textContent));
+      (!/Оплаченный доступ/.test(t2) && /Удалить аккаунт\?/.test(t2)) ? ok('не оплачено — окно удаления без строки про доступ') : bad('окно удаления без оплаты: ' + t2);
+      errCheck(p, 'удаление при оплате');
+      await ctx.close();
+    });
+
+    await step('17) Даты доступа — по Москве, как в письмах: телефон в Чите (UTC+9) видит дату письма', async () => {
+      const api = miniApi();
+      const { ctx, p } = await mk({ api, quietFocus: true, tz: 'Asia/Chita' });
+      // 22:30 по Москве — в Чите уже 04:30 следующего дня
+      const msk0 = Math.floor((NOW() + 3 * 3600) / DAY) * DAY - 3 * 3600;
+      const u = msk0 + 40 * DAY + 22.5 * 3600, gone = msk0 - 2 * DAY + 22.5 * 3600;
+      (dmyAt(u, 9) !== dmy(u)) ? ok(`проверка с толком: в письме ${dmy(u)}, по часам Читы ${dmyAt(u, 9)}`) : bad('даты Москвы и Читы совпали — проверка пустая');
+      api.subs['box@example.ru'] = { plan: 'year', until: u, active: true };
+      await p.goto(URL + '?account&pay'); await p.waitForTimeout(300);
+      await seedLogged(p, api, 'box@example.ru', HB());
+      await p.evaluate((d) => localStorage.setItem('magnat_trial_v1', d), dayAgo(5));
+      await p.reload(); await until(p, () => !!document.querySelector('#acSub'), null, 8000);
+      const v = await look(p);
+      (v.sub === `Доступ до ${dmy(u)} · Продлить`) ? ok(`на карточке «${v.sub}» — как в письме`) : bad('дата на карточке: ' + J(v.sub));
+      api.subs['box@example.ru'] = { plan: 'year', until: gone, active: false };
+      await p.reload();
+      const w = await until(p, (t) => { const h = document.querySelector('#pwH'); return !!h && h.textContent.includes(t); }, 'Доступ закончился ' + dmy(gone), 6000);
+      const e = await look(p);
+      (w) ? ok(`экран: «${e.title.replace(/ предпросмотр$/, '')}» — по Москве`) : bad('дата на экране: ' + J(e.title));
+      errCheck(p, 'даты по Москве');
       await ctx.close();
     });
   } finally {

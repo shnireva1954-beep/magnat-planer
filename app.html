@@ -326,7 +326,7 @@
   .pwplan b{font-size:15px;} .pwplan>span{color:var(--mut); min-width:0;} .pwplan small{flex-basis:100%; font-size:11.5px; color:var(--mut2);}
   .pwplan.best{border-color:#1c7a54;} .pwplan:hover,.pwplan:focus-visible{border-color:var(--emerald);} .pwplan:active{transform:scale(.98);}
   .pwmore{display:flex; flex-direction:column; align-items:center; margin-top:4px;}
-  .payw .ferr{text-align:center;}
+  .payw .ferr{text-align:center;} .payw .pwwarn{text-align:center; color:var(--gold);}
   /* пробный период и срок доступа — тихой строкой на «Обзоре» и на карточке аккаунта */
   .paynote{display:flex; flex-wrap:wrap; align-items:center; gap:0 6px; margin:-4px 2px 6px; font-size:12.5px; color:var(--mut2); line-height:1.45;}
   .paynote>span{min-width:0;} .paynote.warn{color:var(--gold);} .paynote .linkbtn{min-height:40px;}
@@ -2089,6 +2089,7 @@ function vHome(root){
   root.querySelector("#bkSave").addEventListener("click",downloadBackup);
   root.querySelector("#bkLoad").addEventListener("click",restoreBackup);
   if(ACCOUNT) accBind(root);
+  const pn=root.querySelector("#payNoteIn"); if(pn) pn.addEventListener("click",()=>openLogin());   // почту заказа подставит сам
   root.querySelector("#resetBtn").addEventListener("click",async()=>{
     // с аккаунтом сброс уходит на все телефоны — сказать прямо
     if(await askConfirm(ACCOUNT&&LOGGED()?"Стереть весь прогресс — в аккаунте и на всех телефонах — и начать с чистого листа?"
@@ -3832,8 +3833,11 @@ function openDelete(){
     sh.err(accErr(r));
   }
   function step1(){
+    // оплаченный срок привязан к почте аккаунта: удалил — пропал и он (соглашение 3.6, возврат — по 5.1)
+    const st=PAYWALL?payState():null;
     f.innerHTML=`<h4 id="acH">${ic("trash")} Удалить аккаунт?</h4>
       <p class="mtxt">С сервера сотрём почту и все записи — сразу, из резервных копий — в течение 30 дней. Восстановить будет нельзя. На этом телефоне записи останутся.</p>
+      ${st&&st.k==="paid"?`<p class="mtxt" id="acDlPaid">Оплаченный доступ до ${dmyOf(st.a.until)} пропадёт вместе с аккаунтом. Вернуть деньги за остаток — напиши в поддержку и назови номер заказа из письма об оплате.</p>`:""}
       <p class="ferr" id="acErr" aria-live="polite"></p>
       <div class="aclinks"><button type="button" class="linkbtn" id="acDlSave">${ic("download")} Сначала скачать мои данные</button></div>
       <div class="btns"><button type="button" class="no" id="acNo">Отмена</button><button type="submit" class="ok danger" id="acDlGo">Прислать код</button></div>`;
@@ -3899,8 +3903,9 @@ const TRIAL_KEY="magnat_trial_v1", ACCESS_KEY="magnat_access_v1", PAYORDER_KEY="
 // тарифы — те же, что PLANS в server/api/api.py (сверяет 13-pay): название, ₽, дней
 const PAYPLANS={month:["Месяц",299,30], year:["Год",1490,365]};
 const planOf=a=>a&&PAYPLANS[a.plan]?a.plan:"month";
-// секунды Unix от сервера → «16.11.2026», местный день
-const dmyOf=sec=>{ const d=new Date(sec*1000); return pad(d.getDate())+"."+pad(d.getMonth()+1)+"."+d.getFullYear(); };
+// секунды Unix от сервера → «16.11.2026», день по Москве (UTC+3) — как в письмах сервера (dmy в
+// api.py): восточнее Москвы по часам телефона дата в приложении и в письме разошлась бы на день
+const dmyOf=sec=>{ const d=new Date(sec*1000+3*3600e3); return pad(d.getUTCDate())+"."+pad(d.getUTCMonth()+1)+"."+d.getUTCFullYear(); };
 // день первого запуска с пробным периодом. Часы на телефоне ушли назад раньше него — с сегодня
 function trialStart(){
   let s=null; try{ s=localStorage.getItem(TRIAL_KEY); }catch(e){}
@@ -3929,8 +3934,10 @@ function payState(){
   const left=trialLeft();
   return left>0?{k:"trial", left}:{k:"wall", a};
 }
-// тихая строка на «Обзоре»: пробные дни или «продли», когда до конца срока 3 дня и меньше
+// тихая строка на «Обзоре»: пробные дни или «продли», когда до конца срока 3 дня и меньше. Заказ
+// на этом телефоне есть, а входа нет — не «Оформить» (заплатил бы дважды), а вход по почте заказа
 function payNote(){
+  if(!LOGGED()&&payMail()) return `<div class="paynote" id="payNote">${ic("mail")} <span>Оплатил?</span> <button type="button" class="linkbtn" id="payNoteIn">Войди по почте</button> <span>— доступ включится</span></div>`;
   const st=payState();
   if(st.k==="trial") return `<div class="paynote" id="payNote">${ic("clock")} <span>Пробный период: ${st.left===1?"остался":"осталось"} ${st.left} ${pl(st.left,"день","дня","дней")}</span> · <a class="linkbtn" href="checkout.html">Оформить</a></div>`;
   if(st.k==="paid"&&st.days<=3) return `<div class="paynote warn" id="payNote">${ic("clock")} <span>Доступ до ${dmyOf(st.a.until).slice(0,5)}</span> — <a class="linkbtn" href="checkout.html?plan=${planOf(st.a)}">продли</a></div>`;
@@ -3975,6 +3982,31 @@ function payPaint(){
   if(!PW) payWallOpen();
   const h=PW.querySelector("#pwH"), t=st.a?"Доступ закончился "+dmyOf(st.a.until):`Пробные ${TRIAL_DAYS} ${pl(TRIAL_DAYS,"день","дня","дней")} закончились`;
   if(h.dataset.t!==t){ h.dataset.t=t; h.innerHTML=`${ic("crown")} ${t}${!PAY_ON?' <span class="tag md">предпросмотр</span>':""}`; }
+  // вошёл, вышел или сменил аккаунт, пока экран стоит, — кнопки внизу заново
+  const who=LOGGED()?_sync.acct+"|"+_sync.mail:"";
+  if(PW.dataset.who!==who){ PW.dataset.who=who; pwMore(); }
+}
+// строка под тарифами: ошибка (pwErr) или предупреждение (pwWarn)
+function pwSay(t,warn){
+  const e=PW&&PW.querySelector(warn?"#pwWarn":"#pwErr"); if(!e) return;
+  e.textContent=t||""; if(warn) e.hidden=!t; else e.classList.toggle("on",!!t);
+}
+// кнопки внизу экрана. Вошедшему — «Выйти» и «Удалить аккаунт»: их листы встают поверх экрана, и
+// удалить аккаунт можно всегда, как обещает политика. В предпросмотре — «Выключить предпросмотр»:
+// экран по чужой ссылке ?account&pay иначе не снять ничем, кроме ?pay=0 в адресе
+function pwMore(){
+  const box=PW.querySelector("#pwMore"), had=box.contains(document.activeElement);
+  PWOTHER=false; pwSay(""); pwSay("",true);
+  box.innerHTML=`<button type="button" class="linkbtn" id="pwLogin">${ic("mail")} Уже оплатил — войти по почте</button><button type="button" class="linkbtn sub" id="pwSave">${ic("download")} Скачать копию данных</button>`
+    +(LOGGED()?`<button type="button" class="linkbtn sub" id="pwOut">${ic("logout")} Выйти</button><button type="button" class="linkbtn sub" id="pwDel">${ic("trash")} Удалить аккаунт</button>`:"")
+    +(!PAY_ON?`<button type="button" class="linkbtn sub" id="pwOff">${ic("eye")} Выключить предпросмотр</button>`:"");
+  box.querySelector("#pwLogin").onclick=payLogin;
+  box.querySelector("#pwSave").onclick=downloadBackup;
+  const out=box.querySelector("#pwOut"); if(out) out.onclick=logout;
+  const del=box.querySelector("#pwDel"); if(del) del.onclick=openDelete;
+  const off=box.querySelector("#pwOff");
+  if(off) off.onclick=()=>{ try{ localStorage.removeItem(PAY_PREVIEW_KEY); }catch(e){} location.reload(); };
+  if(had) PW.firstElementChild.focus({preventScroll:true});      // кнопка под фокусом исчезла — фокус на экран
 }
 function payWallOpen(){
   PWOTHER=false;
@@ -3985,10 +4017,9 @@ function payWallOpen(){
       return `<a class="pwplan${k==="year"?" best":""}" id="pw_${k}" href="checkout.html?plan=${k}"><b>${n}</b><span>${nf(rub)} ₽ за ${d} ${pl(d,"день","дня","дней")}</span>${k==="year"?`<small>≈ ${nf(rub/12)} ₽ в месяц</small>`:""}</a>`; }).join("")}</div>
     <p class="acsm" style="text-align:center">Разовая оплата, без автосписаний. Продлить — оплатить снова, дни прибавятся.</p>
     <p class="ferr" id="pwErr" aria-live="polite"></p>
-    <div class="pwmore"><button type="button" class="linkbtn" id="pwLogin">${ic("mail")} Уже оплатил — войти по почте</button><button type="button" class="linkbtn sub" id="pwSave">${ic("download")} Скачать копию данных</button></div>
+    <p class="acsm pwwarn" id="pwWarn" aria-live="polite" hidden></p>
+    <div class="pwmore" id="pwMore"></div>
     ${legalLinks()}</div></div>`);
-  PW.querySelector("#pwLogin").onclick=payLogin;
-  PW.querySelector("#pwSave").onclick=downloadBackup;
   document.body.appendChild(PW);
   document.querySelectorAll(UNDER).forEach(n=>{ n.inert=true; });
   const m=PW.firstElementChild;
@@ -4001,19 +4032,25 @@ function payWallOpen(){
 // платили с другой почты, и кнопка открывает вход по другой
 async function payLogin(){
   const b=PW&&PW.querySelector("#pwLogin"); if(!b||b.disabled) return;
-  const say=t=>{ const e=PW&&PW.querySelector("#pwErr"); if(e){ e.textContent=t||""; e.classList.toggle("on",!!t); } };
-  say("");
+  pwSay("");
   if(!LOGGED()) return openLogin();
   if(_sync.auth) return openLogin({mail:_sync.mail});
   if(PWOTHER) return openLogin({other:true});
   b.disabled=true;
   const r=await meCheck();
-  if(!PW||!b.isConnected) return;               // доступ открылся — экрана больше нет
+  if(!PW||!b.isConnected) return;               // доступ открылся или кнопки пересобраны — не наше
   b.disabled=false;
-  if(!r||!r.ok) return say(r&&r.err==="offline"?"Нет интернета — проверить оплату можно только онлайн":accErr(r||{}));
+  if(!r||!r.ok) return pwSay(r&&r.err==="offline"?"Нет интернета — проверить оплату можно только онлайн":accErr(r||{}));
   if(!r.auth) return openLogin({mail:_sync.mail});
+  // сервер видит оплату, а по часам телефона срок уже прошёл — часы спешат; «оплаты нет» было бы неправдой
+  const s=r.sub;
+  if(s&&typeof s==="object"&&s.active&&Number.isFinite(s.until)&&payState().k==="wall")
+    return pwSay(`Оплата есть до ${dmyOf(s.until)}, но часы на телефоне спешат — проверь дату и время`);
   PWOTHER=true; b.innerHTML=`${ic("mail")} Войти по другой почте`;
-  say(`Для ${_sync.mail} оплаты пока нет. Если платил с другой почты — войди по ней`);
+  pwSay(`Для ${_sync.mail} оплаты пока нет. Если платил с другой почты — войди по ней`);
+  // свои записи на телефоне: вход по другой почте уберёт их в скрытую копию (finishLogin) — сказать
+  // до входа, и что есть путь без этого: поддержка перенесёт оплату на почту, где записи
+  if(!isDemo()&&!blankDoc(docOf(S))) pwSay(`Вход по другой почте уберёт записи с этого телефона в скрытую копию — они вернутся, когда снова войдёшь по ${_sync.mail}. Перенести оплату на эту почту может поддержка`,true);
 }
 
 // normalize() раздал при загрузке новые id (старые данные без id) — сохраняем сразу,

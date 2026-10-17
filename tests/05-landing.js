@@ -104,6 +104,10 @@ function serve() {
   let t = await txt();
   const lw = (n => n % 10 === 1 && n % 100 !== 11 ? 'урок' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'урока' : 'уроков')(app.LESSONS.length);   // склонение: «43 урока» (11.10.2026)
   ok(t.includes(`${app.LESSONS.length} ${lw} из ${appBooks.length} книг`), `«${app.LESSONS.length} ${lw} из ${appBooks.length} книг» — число сходится с приложением`);
+  // тарифы говорили «40 уроков» и после третьего метода Трейси (17.10.2026): число — то же, что в приложении
+  const prT = fs.readFileSync(path.join(ROOT, "pricing.html"), "utf8").replace(/&nbsp;| /g, " ").replace(/<[^>]+>/g, "");
+  const prN = [...prT.matchAll(/(\d+) урок\S* из (\d+) книг/g)].map(m => m[1] + "/" + m[2]);
+  ok(prN.length > 0 && prN.every(x => x === `${app.LESSONS.length}/${appBooks.length}`), `в тарифах «${app.LESSONS.length} ${lw} из ${appBooks.length} книг» — как в приложении (нашлось: ${prN.join(", ") || "ничего"})`);
 
   // ── 2) цена ──────────────────────────────────────────────────────────────
   console.log("\n2) Цена из одного места и та же, что в тарифах");
