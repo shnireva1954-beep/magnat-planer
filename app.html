@@ -316,6 +316,21 @@
   .verrow:first-child,.devrow:first-child{border-top:none;} .verm,.devm{flex:1; min-width:0;} .verrow .linkbtn,.devrow .linkbtn{flex:none;}
   .versub{font-size:11.5px; color:var(--mut2); margin-top:2px;} .versub .tag{margin-left:6px; vertical-align:1px;} .vernow{font-size:11.5px; color:var(--mut2); flex:none;}
   .modal .btns .ok.danger{background:linear-gradient(180deg,#ff7b7b,#d94848); color:#fff; box-shadow:none;}
+  /* экран оплаты (17.10.2026): поверх приложения, но под окнами (.ovl, z-index 50) — лист входа
+     открывается над ним. Не .ovl: синхронизацию и чужую вкладку он не держит (busyUI, takeStore) */
+  .payw{position:fixed; inset:0; z-index:40; background:#05080df2; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); display:flex; justify-content:center; padding:20px; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; animation:ovlIn .18s ease-out;}
+  .payw>.modal{max-width:380px; animation:modalIn .24s cubic-bezier(.16,1,.3,1);} .payw>.modal:focus{outline:none;}
+  .payw h4 .tag{margin-left:8px; vertical-align:3px;}
+  .pwplans{display:grid; gap:9px; margin-top:16px;}
+  .pwplan{display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:2px 12px; min-height:56px; padding:12px 14px; border-radius:14px; background:var(--panel); border:1px solid var(--line2); color:var(--ink); text-decoration:none; font-size:13px; transition:transform .12s ease-out, border-color .15s;}
+  .pwplan b{font-size:15px;} .pwplan>span{color:var(--mut); min-width:0;} .pwplan small{flex-basis:100%; font-size:11.5px; color:var(--mut2);}
+  .pwplan.best{border-color:#1c7a54;} .pwplan:hover,.pwplan:focus-visible{border-color:var(--emerald);} .pwplan:active{transform:scale(.98);}
+  .pwmore{display:flex; flex-direction:column; align-items:center; margin-top:4px;}
+  .payw .ferr{text-align:center;}
+  /* пробный период и срок доступа — тихой строкой на «Обзоре» и на карточке аккаунта */
+  .paynote{display:flex; flex-wrap:wrap; align-items:center; gap:0 6px; margin:-4px 2px 6px; font-size:12.5px; color:var(--mut2); line-height:1.45;}
+  .paynote>span{min-width:0;} .paynote.warn{color:var(--gold);} .paynote .linkbtn{min-height:40px;}
+  .acsub{display:flex; flex-wrap:wrap; align-items:center; gap:0 6px; font-size:12.5px; color:var(--mut); margin-top:4px;} .acsub>span{min-width:0;} .acsub .linkbtn{min-height:40px;}
   /* кошелёк в минусе (одни монеты потрачены на двух устройствах): минус красным, «Купить» выключена */
   .chip.coin.neg{color:var(--danger); border-color:#5a2730;}
   .neg-v{color:var(--danger) !important;}
@@ -1743,18 +1758,29 @@ const FRAMED=(()=>{ try{ return window.self!==window.top; }catch(e){ return true
 // ни одного запроса. Посетитель без метки видит ровно прежнее приложение
 const ACCOUNT_ON=false, ACC_PREVIEW_KEY="magnat_acc_preview";
 const ACC_WEB=!FRAMED&&/^https?:$/.test(location.protocol);
-const PREVIEW=(()=>{
+// метка предпросмотра из адреса: ?name или ?name=1 ставит её в этом браузере, ?name=0 снимает,
+// другие значения ничего не делают; параметр из адреса убирается
+function previewMark(name,key){
   if(!ACC_WEB) return false;
   try{
-    const m=location.search.match(/[?&]account(?:=([^&]*))?(?=&|$)/), v=m&&(m[1]==null?"":m[1]);
+    const m=location.search.match(new RegExp("[?&]"+name+"(?:=([^&]*))?(?=&|$)")), v=m&&(m[1]==null?"":m[1]);
     if(m&&(v===""||v==="1"||v==="0")){
-      if(v==="0") localStorage.removeItem(ACC_PREVIEW_KEY); else localStorage.setItem(ACC_PREVIEW_KEY,"1");
-      const u=new URL(location.href); u.searchParams.delete("account"); history.replaceState(null,"",u.pathname+u.search+u.hash);
+      if(v==="0") localStorage.removeItem(key); else localStorage.setItem(key,"1");
+      const u=new URL(location.href); u.searchParams.delete(name); history.replaceState(null,"",u.pathname+u.search+u.hash);
     }
-    return localStorage.getItem(ACC_PREVIEW_KEY)==="1";
+    return localStorage.getItem(key)==="1";
   }catch(e){ return false; }
-})();
+}
+const PREVIEW=previewMark("account",ACC_PREVIEW_KEY);
 const ACCOUNT=(ACCOUNT_ON||PREVIEW)&&ACC_WEB&&!!window.isSecureContext&&!!(window.crypto&&crypto.subtle)&&typeof AbortController==="function";
+// Разовая оплата (17.10.2026: Платега без автосписаний — месяц или год) выключена для всех:
+// PAY_ON=false до слова Артёма. Владелец смотрит заранее: app.html?pay (или ?pay=1) ставит метку
+// magnat_pay_preview, ?pay=0 снимает — разбор тот же, что у ?account. Пробный период и экран
+// оплаты живут только вместе со входом (ACCOUNT): в окне Claude и на file:// их нет совсем, а
+// посетитель без меток видит прежнее приложение и не шлёт ни одного нового запроса
+const PAY_ON=false, PAY_PREVIEW_KEY="magnat_pay_preview";
+const PAY_PREVIEW=previewMark("pay",PAY_PREVIEW_KEY);
+const PAYWALL=ACCOUNT&&(PAY_ON||PAY_PREVIEW);
 // iPhone/iPad во ВКЛАДКЕ браузера: WebKit стирает данные сайта (localStorage), если его не
 // открывали 7 дней. Значок на экране «Домой» живёт по своему счётчику и не стирается —
 // туда и зовём (29.09.2026: продукт на продажу, потеря прогресса у покупателя недопустима)
@@ -1972,6 +1998,7 @@ function vHome(root){
    ${inappHint()?`<div class="glass demonote" id="inapp"><span>${ic("globe")} <b style="color:var(--ink)">Открой Магнат в браузере</b>: нажми ${IOS?"«⋯»":"«⋮»"} в углу экрана → «Открыть в браузере». Внутри ${INAPP} прогресс хранится отдельно и может потеряться.</span><button class="ok2" id="inappOk">Понятно</button></div>`:""}
    ${a2hsHint()?`<div class="glass demonote" id="a2hs"><span>${ic("download")} <b style="color:var(--ink)">Поставь на экран «Домой»</b>: «Поделиться» → «На экран Домой». Во вкладке Safari прогресс может стереться, если не открывать Магнат 7&nbsp;дней.</span><button class="ok2" id="a2hsOk">Понятно</button></div>`:""}
    ${S.demoData?`<div class="glass demonote"><span>${ic("eye")} Внутри — пример с демо-данными, чтобы всё пощупать.</span><button class="ok2" id="startOwn">Начать своё</button></div>`:""}
+   ${PAYWALL?payNote():""}
    <div class="glass card today">
      <div class="tdh">
        <div class="tdr"><canvas id="todayRing"></canvas><div class="tdp e" id="todayP">0%</div></div>
@@ -2928,6 +2955,7 @@ function draw(){
     root.animate([{opacity:0,transform:"translateY(8px)"},{opacity:1,transform:"none"}],{duration:220,easing:"cubic-bezier(.16,1,.3,1)"});
   lastView=cur;
   if(POP){ popEl(root.querySelector(`[data-pop="${POP}"]`)); POP=null; }
+  if(PAYWALL) payPaint();
 }
 // если что-то всё же сломалось — не белый экран, а экран спасения с выгрузкой данных
 function rescue(err){
@@ -3454,8 +3482,10 @@ function openLogin(o){
   const ovl=el(`<div class="ovl accovl"><form class="modal" role="dialog" aria-modal="true" aria-labelledby="acH" novalidate style="max-width:380px"></form></div>`);
   const f=ovl.querySelector("form");
   // почта подставляется только при «Вход истёк — войди снова»; после «Выйти» поле пустое:
-  // телефоном мог взяться другой человек, чужой адрес ему видеть незачем
-  let mail=o.mail||(LOGGED()&&_sync.mail)||"", timer=0, left=0, busy=false, netFn=null;
+  // телефоном мог взяться другой человек, чужой адрес ему видеть незачем. Исключение — почта из
+  // заказа на этом телефоне (magnat_pay_v1): доступ привязан к ней, её и предлагаем; «Выйти»
+  // снимает и её. o.other — вошёл, но оплачено с другой почты: свою не подставляем
+  let mail=o.mail||(LOGGED()&&!o.other?_sync.mail:payMail())||"", timer=0, left=0, busy=false, netFn=null;
   const onNet=()=>{ if(netFn&&f.querySelector("#acMail")) netFn(); };
   addEventListener("online",onNet); addEventListener("offline",onNet);
   // закрыл сам — код больше не ждём (после перезагрузки лист не всплывёт); перезагрузка без
@@ -3567,6 +3597,7 @@ async function finishLogin(r,dev){
   // новая кука заменила прежнюю: недошедший выход той сессии повторять больше нечем
   try{ sessionStorage.removeItem(PEND_KEY); localStorage.removeItem(LOGOUT_KEY); }catch(e){}
   const w=whoGet(); w.devs=w.devs&&typeof w.devs==="object"?w.devs:{}; w.devs[r.email]=dev; w.acct=r.acct; w.mail=r.email; w.dev=dev; whoSet(w);
+  if(PAYWALL){ const a=accessGet(); if(a&&a.email!==r.email) accessSet(null); }    // срок прежнего аккаунта — не этого
   let note="";
   if(_sync&&_sync.acct===r.acct){ updSync(s=>{ s.off=false; s.auth=false; s.mail=r.email; s.dev=dev; }); }
   else {
@@ -3592,7 +3623,9 @@ async function finishLogin(r,dev){
     }
     if(!PRISTINE){ QUIET=true; try{ save(); } finally{ QUIET=false; } }
   }
-  backoff=0; render(); await sync();
+  backoff=0; render();
+  if(PAYWALL) meCheck();          // оплатил — экран оплаты уходит сам, не дожидаясь синхронизации
+  await sync();
   if(note) toast(note);
 }
 async function logout(){
@@ -3604,6 +3637,7 @@ async function logout(){
                             :"Выйти из аккаунта? Записи останутся на этом телефоне, синхронизация остановится.","Выйти",unsent)) return;
   updSync(s=>{ s.off=true; });
   const w=whoGet(); delete w.acct; whoSet(w);
+  if(PAYWALL) payForget();
   clearTimeout(syncT); render(); toast("Ты вышел из аккаунта");
   await logoutSend();
 }
@@ -3632,6 +3666,7 @@ function accCard(){
     <div class="aclinks">${links}</div></div>`;
   return `<div class="glass card acc" id="acc"><h3>Аккаунт${ACCPREV}</h3>
     <div class="acrow">${ic("mail")}<span class="acm">${esc(_sync.mail||"")}</span><button class="linkbtn" id="acOut">${ic("logout")} Выйти</button></div>
+    ${PAYWALL?accSubRow():""}
     <div class="acst" id="acSt"></div>
     <div class="aclinks"><button class="linkbtn" id="acVer">${ic("clock")} Версии</button><button class="linkbtn" id="acDevs">${ic("phone")} Устройства</button>${links}</div>
     <button class="linkbtn acdel" id="acDel">${ic("trash")} Удалить аккаунт</button></div>`;
@@ -3847,8 +3882,138 @@ function accountDeleted(){
   if(!PRISTINE){ QUIET=true; try{ save(); } finally{ QUIET=false; } }
   const w=whoGet(); delete w.acct; whoSet(w);
   if(acct) stashTake(acct);
+  if(PAYWALL) payForget();
   try{ localStorage.removeItem(LOGOUT_KEY); sessionStorage.removeItem(PEND_KEY); }catch(e){}
   render(); toast("Аккаунт удалён. Записи остались только на этом телефоне");
+}
+
+// ═══════ Пробный период и разовая оплата (17.10.2026) ═══════
+// Работает только при PAYWALL (сейчас — предпросмотр владельца по ?account и ?pay). Оплата через
+// Платегу разовая, без автосписаний: месяц или год, продление прибавляет дни к остатку. Первые
+// 3 дня бесплатно, без почты и карты (день первого запуска, +1, +2), с четвёртого — экран оплаты
+// поверх приложения. Доступ привязан к почте заказа: вошёл по ней, и /api/me ответил sub.active —
+// открыто. Последний ответ лежит на телефоне (magnat_access_v1): без сети оплаченный доступ живёт
+// до until. Всё — в своих ключах: данные (magnat_app_v2) и normalize() не тронуты, записи под
+// экраном целы, копию можно скачать. Пробные дни считает телефон — серверной проверки у них нет
+const TRIAL_KEY="magnat_trial_v1", ACCESS_KEY="magnat_access_v1", PAYORDER_KEY="magnat_pay_v1", TRIAL_DAYS=3;
+// тарифы — те же, что PLANS в server/api/api.py (сверяет 13-pay): название, ₽, дней
+const PAYPLANS={month:["Месяц",299,30], year:["Год",1490,365]};
+const planOf=a=>a&&PAYPLANS[a.plan]?a.plan:"month";
+// секунды Unix от сервера → «16.11.2026», местный день
+const dmyOf=sec=>{ const d=new Date(sec*1000); return pad(d.getDate())+"."+pad(d.getMonth()+1)+"."+d.getFullYear(); };
+// день первого запуска с пробным периодом. Часы на телефоне ушли назад раньше него — с сегодня
+function trialStart(){
+  let s=null; try{ s=localStorage.getItem(TRIAL_KEY); }catch(e){}
+  if(!isYmd(s)||s>TODAY){ s=TODAY; try{ localStorage.setItem(TRIAL_KEY,s); }catch(e){} }
+  return s;
+}
+// пробных дней осталось, считая сегодняшний: 3, 2, 1, дальше 0
+const trialLeft=()=>Math.max(0,TRIAL_DAYS-Math.round((parseYmd(TODAY)-parseYmd(trialStart()))/864e5));
+function accessGet(){
+  try{ const a=JSON.parse(localStorage.getItem(ACCESS_KEY)||"null");
+    return a&&typeof a==="object"&&typeof a.email==="string"&&Number.isFinite(a.until)?a:null; }catch(e){ return null; }
+}
+function accessSet(a){ try{ if(a) localStorage.setItem(ACCESS_KEY,JSON.stringify(a)); else localStorage.removeItem(ACCESS_KEY); }catch(e){} }
+// почта заказа на этом телефоне: checkout.html кладёт её перед уходом на страницу Платеги
+function payMail(){
+  if(!PAYWALL) return "";
+  try{ const o=JSON.parse(localStorage.getItem(PAYORDER_KEY)||"null"); return o&&typeof o==="object"&&typeof o.email==="string"&&o.email.length<=254?o.email:""; }catch(e){ return ""; }
+}
+// «Выйти» и удаление аккаунта: срок и почта заказа на телефоне больше ни к кому не относятся
+function payForget(){ accessSet(null); try{ localStorage.removeItem(PAYORDER_KEY); }catch(e){} }
+// paid — срок этого входа идёт (days — сколько осталось); trial — пробные дни; wall — экран
+// оплаты (a — срок этого входа был и кончился). Срок другой почты не в счёт
+function payState(){
+  const c=accessGet(), a=c&&LOGGED()&&c.email===_sync.mail?c:null;
+  if(a&&a.until*1000>Date.now()) return {k:"paid", a, days:(a.until*1000-Date.now())/864e5};
+  const left=trialLeft();
+  return left>0?{k:"trial", left}:{k:"wall", a};
+}
+// тихая строка на «Обзоре»: пробные дни или «продли», когда до конца срока 3 дня и меньше
+function payNote(){
+  const st=payState();
+  if(st.k==="trial") return `<div class="paynote" id="payNote">${ic("clock")} <span>Пробный период: ${st.left===1?"остался":"осталось"} ${st.left} ${pl(st.left,"день","дня","дней")}</span> · <a class="linkbtn" href="checkout.html">Оформить</a></div>`;
+  if(st.k==="paid"&&st.days<=3) return `<div class="paynote warn" id="payNote">${ic("clock")} <span>Доступ до ${dmyOf(st.a.until).slice(0,5)}</span> — <a class="linkbtn" href="checkout.html?plan=${planOf(st.a)}">продли</a></div>`;
+  return "";
+}
+// на карточке аккаунта — до какого дня оплачено
+function accSubRow(){
+  const st=payState(); if(st.k!=="paid") return "";
+  return `<div class="acsub" id="acSub">${ic("check")} <span>Доступ до ${dmyOf(st.a.until)}</span> · <a class="linkbtn" href="checkout.html?plan=${planOf(st.a)}">Продлить</a></div>`;
+}
+// срок доступа с сервера: /api/me по сессии входа (только при PAYWALL и входе — посетителю ни
+// одного запроса). Нет сети, сервер молчит или вход истёк — кэш не трогаем: заплативший не
+// упирается в экран оплаты из-за сети
+let ME_AT=0, meQ=null;
+const accKey=a=>a?a.email+"|"+a.until+"|"+a.plan:"";
+function meCheck(){
+  if(!PAYWALL||!LOGGED()) return Promise.resolve(null);
+  if(meQ) return meQ;
+  const acct=_sync.acct;
+  return meQ=api("me",{}).then(r=>{
+    ME_AT=Date.now();
+    if(r.ok&&r.auth&&r.acct===acct&&LOGGED()&&_sync.acct===acct){
+      const s=r.sub, was=accKey(accessGet());
+      accessSet(s&&typeof s==="object"&&Number.isFinite(s.until)?{email:typeof r.email==="string"?r.email:_sync.mail, until:s.until, plan:planOf(s), at:Date.now()}:null);
+      if(accKey(accessGet())!==was&&!busyUI()) render(); else payPaint();
+    }
+    return r;
+  }).finally(()=>{ meQ=null; });
+}
+// Экран оплаты: не закрывается (ни Escape, ни тап мимо), приложение под ним inert — ни мышью, ни
+// клавиатурой. Записи не трогает, синхронизацию не держит. Лист входа (.accovl) — поверх него
+let PW=null, PWOTHER=false;
+const UNDER="body>header, body>main, body>nav";
+function payPaint(){
+  if(!PAYWALL) return;
+  const st=payState();
+  if(st.k!=="wall"){
+    if(PW){ PW.remove(); PW=null; document.querySelectorAll(UNDER).forEach(n=>{ n.inert=false; });
+      if(st.k==="paid") toast("Доступ открыт до "+dmyOf(st.a.until)); }
+    return;
+  }
+  if(!PW) payWallOpen();
+  const h=PW.querySelector("#pwH"), t=st.a?"Доступ закончился "+dmyOf(st.a.until):`Пробные ${TRIAL_DAYS} ${pl(TRIAL_DAYS,"день","дня","дней")} закончились`;
+  if(h.dataset.t!==t){ h.dataset.t=t; h.innerHTML=`${ic("crown")} ${t}${!PAY_ON?' <span class="tag md">предпросмотр</span>':""}`; }
+}
+function payWallOpen(){
+  PWOTHER=false;
+  PW=el(`<div class="payw" id="payWall"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="pwH" aria-describedby="pwTx" tabindex="-1">
+    <h4 id="pwH"></h4>
+    <p class="mtxt" id="pwTx">Записи на месте — оформи доступ, и серия, монеты и уровни растут дальше.</p>
+    <div class="pwplans">${Object.keys(PAYPLANS).map(k=>{ const [n,rub,d]=PAYPLANS[k];
+      return `<a class="pwplan${k==="year"?" best":""}" id="pw_${k}" href="checkout.html?plan=${k}"><b>${n}</b><span>${nf(rub)} ₽ за ${d} ${pl(d,"день","дня","дней")}</span>${k==="year"?`<small>≈ ${nf(rub/12)} ₽ в месяц</small>`:""}</a>`; }).join("")}</div>
+    <p class="acsm" style="text-align:center">Разовая оплата, без автосписаний. Продлить — оплатить снова, дни прибавятся.</p>
+    <p class="ferr" id="pwErr" aria-live="polite"></p>
+    <div class="pwmore"><button type="button" class="linkbtn" id="pwLogin">${ic("mail")} Уже оплатил — войти по почте</button><button type="button" class="linkbtn sub" id="pwSave">${ic("download")} Скачать копию данных</button></div>
+    ${legalLinks()}</div></div>`);
+  PW.querySelector("#pwLogin").onclick=payLogin;
+  PW.querySelector("#pwSave").onclick=downloadBackup;
+  document.body.appendChild(PW);
+  document.querySelectorAll(UNDER).forEach(n=>{ n.inert=true; });
+  const m=PW.firstElementChild;
+  setTimeout(()=>{ if(PW&&PW.firstElementChild===m&&!document.querySelector(".accovl")) m.focus({preventScroll:true}); },50);
+  // вошёл, а срок кончился: может, уже продлил с другого телефона — спросить сервер
+  if(LOGGED()&&Date.now()-ME_AT>60000) meCheck();
+}
+// «Уже оплатил — войти по почте». Не вошёл или вход истёк — лист входа поверх экрана (с почтой
+// заказа). Вошёл — сначала спросить сервер: оплата могла прийти только что; нет её — значит,
+// платили с другой почты, и кнопка открывает вход по другой
+async function payLogin(){
+  const b=PW&&PW.querySelector("#pwLogin"); if(!b||b.disabled) return;
+  const say=t=>{ const e=PW&&PW.querySelector("#pwErr"); if(e){ e.textContent=t||""; e.classList.toggle("on",!!t); } };
+  say("");
+  if(!LOGGED()) return openLogin();
+  if(_sync.auth) return openLogin({mail:_sync.mail});
+  if(PWOTHER) return openLogin({other:true});
+  b.disabled=true;
+  const r=await meCheck();
+  if(!PW||!b.isConnected) return;               // доступ открылся — экрана больше нет
+  b.disabled=false;
+  if(!r||!r.ok) return say(r&&r.err==="offline"?"Нет интернета — проверить оплату можно только онлайн":accErr(r||{}));
+  if(!r.auth) return openLogin({mail:_sync.mail});
+  PWOTHER=true; b.innerHTML=`${ic("mail")} Войти по другой почте`;
+  say(`Для ${_sync.mail} оплаты пока нет. Если платил с другой почты — войди по ней`);
 }
 
 // normalize() раздал при загрузке новые id (старые данные без id) — сохраняем сразу,
@@ -3904,6 +4069,17 @@ if(ACCOUNT){
   // код запрошен, а страницу перезагрузили — снова шаг «Код из письма» (15 минут)
   try{ const pd=JSON.parse(sessionStorage.getItem(PEND_KEY)||"null");
     if(pd&&pd.mail&&Date.now()-pd.at<15*60000&&!(LOGGED()&&!_sync.auth)) openLogin({mail:pd.mail, code:true}); }catch(e){}
+}
+// Срок доступа (только при PAYWALL и входе): спросить при открытии, возвращении во вкладку и
+// появлении сети — не чаще раза в 10 минут, а под экраном оплаты раз в 15 с (вернулся со страницы
+// оплаты). Срок или пробные дни кончились, пока приложение открыто, — экран встаёт сам
+if(PAYWALL){
+  setTimeout(()=>{ if(Date.now()-ME_AT>5000) meCheck(); },1000);
+  const meAgain=()=>{ if(Date.now()-ME_AT>(PW?15000:600000)) meCheck(); };
+  addEventListener("online",meAgain); addEventListener("focus",meAgain);
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") meAgain(); });
+  addEventListener("storage",e=>{ if(e.key===ACCESS_KEY||e.key===TRIAL_KEY||e.key===null) payPaint(); });
+  setInterval(payPaint,60000);
 }
 
 // офлайн: с домашнего экрана приложение должно открываться и без сети

@@ -14,8 +14,9 @@
 // Плюс API входа (server/api): шаг установки и службы (1д), выкладка API за
 // сайтом с проверкой и откатом (2б), magnat mail / status / upgrade и копия
 // базы (2в), копия на Яндекс Диск (поддельный REST API), запросы людей о
-// данных и оплата сервера (2г), /api через Caddy — прокси, заголовки, 413 и
-// 503 JSON (3б).
+// данных и оплата сервера (2г), ключи Платеги, ручная выдача доступа, оплаты
+// месяца и строка «Платега:» (2д, поддельная Платега), /api через Caddy — прокси,
+// заголовки, колбэк Платеги без Origin, 413 и 503 JSON (3б).
 // Caddy берётся из PATH, из CADDY= или скачивается с официального
 // репозитория в node_modules/.cache (он в .gitignore) — tests/lib.js.
 const { spawn, spawnSync } = require("child_process");
@@ -39,11 +40,14 @@ const sh = (cmd, opts = {}) => spawnSync("bash", ["-c", cmd], { encoding: "utf8"
   const AB = path.join(T, "api-srv"), AS = path.join(T, "api-state"), ETC = path.join(T, "etc"), BK = path.join(T, "backups");
   fs.mkdirSync(AS, { mode: 0o700 }); fs.mkdirSync(ETC, { mode: 0o700 });
   fs.writeFileSync(path.join(ETC, "smtp.env"), "", { mode: 0o600 });       // как после install.sh: пустой
+  fs.writeFileSync(path.join(ETC, "platega.env"), "", { mode: 0o600 });    // и этот
   const APORT = await freePort(), PIDF = path.join(T, "api.pid");
   const killApi = () => { try { process.kill(+fs.readFileSync(PIDF, "utf8"), "SIGKILL"); } catch (e) {} };
   process.on("exit", killApi);
   // systemctl здесь нет — двойник пишет, что его звали, а magnat-api — правда
-  // запускает и гасит (как служба: python3 -I …/current/api.py serve, окружение юнита).
+  // запускает и гасит (как служба: python3 -I …/current/api.py serve, окружение юнита;
+  // smtp.env и platega.env — как LoadCredential). api-extra.env — строки KEY=VALUE сверх
+  // юнита: 2д включает ими оплату и подставляет поддельную Платегу.
   fs.writeFileSync(path.join(bin, "systemctl"), `#!/bin/bash
 echo "$@" >> "${T}/systemctl.log"
 pidf="${PIDF}"
@@ -54,8 +58,10 @@ stop_api() {
   kill -9 "$p" 2>/dev/null; rm -f "$pidf"
 }
 start_api() {
+  local extra=(); [ ! -s "${T}/api-extra.env" ] || mapfile -t extra < "${T}/api-extra.env"
   env -i PATH=/usr/bin:/bin MAGNAT_LISTEN=127.0.0.1:${APORT} MAGNAT_STATE="${AS}" MAGNAT_DB="${AS}/magnat.db" \\
-    MAGNAT_SMTP_FILE="${ETC}/smtp.env" MAGNAT_DISK_MIN_MB=0 setsid python3 -I "${AB}/current/api.py" serve \\
+    MAGNAT_SMTP_FILE="${ETC}/smtp.env" MAGNAT_PLATEGA_FILE="${ETC}/platega.env" MAGNAT_DISK_MIN_MB=0 "\${extra[@]}" \\
+    setsid python3 -I "${AB}/current/api.py" serve \\
     >>"${T}/api.log" 2>&1 </dev/null 9>&- &
   echo $! > "$pidf"
 }
@@ -206,14 +212,20 @@ exit 0
     /install -d -o magnat-api -g magnat-api -m 0700 \/var\/lib\/magnat-api/.test(inst) && /\[ -e \/etc\/magnat\/smtp\.env \] \|\| install -o root -g root -m 0600 \/dev\/null \/etc\/magnat\/smtp\.env/.test(inst)
       && /install -d -o root -g root -m 0700 \/etc\/magnat/.test(inst)
       ? ok("/var/lib/magnat-api 0700 magnat-api, /etc/magnat 0700 root, пустой smtp.env 0600 — служба стартует и без почты") : bad("папки и smtp.env API не те");
+    // ключи Платеги — так же: пустой файл, если его нет (повторная установка ключи не стирает), и до юнита
+    const pe = at("[ -e /etc/magnat/platega.env ] || install -o root -g root -m 0600 /dev/null /etc/magnat/platega.env");
+    pe > at("install -d -o root -g root -m 0700 /etc/magnat") && pe < at("cat > /etc/systemd/system/magnat-api.service") && at("guard || exit 1") < pe
+      && !/(\brm\b|\btruncate\b|>)[^\n]*\/etc\/magnat\/platega\.env/.test(inst.replace(/^\s*#.*$/gm, "").replace(/\[ -e \/etc\/magnat\/platega\.env \] \|\| install[^\n]*/, ""))
+      ? ok("пустой platega.env 0600 — только если его нет (ключи при повторной установке целы), до юнита: служба стартует и без ключей Платеги")
+      : bad("platega.env в install.sh: создаётся на " + pe + " или переписывается");
     const unit = (name) => { const m = new RegExp(`cat > /etc/systemd/system/${name.replace(/\./g, "\\.")} <<'EOF'\\n([\\s\\S]*?)\\nEOF`).exec(inst); return m ? m[1] : ""; };
     const svc = unit("magnat-api.service"), bsvc = unit("magnat-api-backup.service"), btim = unit("magnat-api-backup.timer");
     const has = (u, lines) => lines.filter(l => !u.split("\n").includes(l));
     const miss = has(svc, ["User=magnat-api", "Group=magnat-api", "ExecStart=/usr/bin/python3 -I /srv/magnat-api/current/api.py serve",
-      "LoadCredential=smtp:/etc/magnat/smtp.env", "Restart=on-failure", "MemoryMax=96M", "MemoryHigh=72M", "NoNewPrivileges=yes",
+      "LoadCredential=smtp:/etc/magnat/smtp.env", "LoadCredential=platega:/etc/magnat/platega.env", "Restart=on-failure", "MemoryMax=96M", "MemoryHigh=72M", "NoNewPrivileges=yes",
       "ProtectSystem=strict", "ReadWritePaths=/var/lib/magnat-api", "ProtectHome=yes", "PrivateTmp=yes", "PrivateDevices=yes",
       "ProtectKernelTunables=yes", "ProtectKernelModules=yes", "ProtectControlGroups=yes", "RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX"]);
-    !miss.length ? ok("magnat-api.service: magnat-api, песочница, память ≤ 96 МБ, почта через LoadCredential") : bad("в magnat-api.service нет: " + miss.join(", "));
+    !miss.length ? ok("magnat-api.service: magnat-api, песочница, память ≤ 96 МБ, почта и ключи Платеги через LoadCredential") : bad("в magnat-api.service нет: " + miss.join(", "));
     const env = (svc.match(/^Environment=(.*)$/m) || ["", ""])[1].split(/\s+/).filter(Boolean);
     JSON.stringify(env) === JSON.stringify(["MAGNAT_LISTEN=127.0.0.1:8787", "MAGNAT_DB=/var/lib/magnat-api/magnat.db", "MAGNAT_STATE=/var/lib/magnat-api", "MAGNAT_ORIGIN=https://magnat-planer.ru"])
       && (svc.match(/^Environment/gm) || []).length === 1
@@ -580,6 +592,132 @@ exit 0
     py2.length >= 6 && py2.every(c => ru2.split("\n").some(l => l.startsWith("-u ") && l.endsWith(c))) && !/(user export|alert) .*(SMTP_PASS|OAuth)/.test(rdT("py.log"))
       ? ok(`api.py user/alert — ${py2.length} вызовов, все через runuser, пароль почты только через stdin`) : bad("вызовы user/alert мимо runuser или с паролем: " + py2.length);
   } catch (e) { bad("2г упал: " + (e.stack || e)); }
+
+  // ---- 2д. ключи Платеги, ручная выдача доступа, оплаты месяца, строка «Платега:» ---
+  // Настоящий api.py (служба — двойник systemctl), Платега — поддельная, в этом же
+  // процессе: по её журналу видно, с какими ключами api.py к ней пришёл.
+  console.log("\n2д. magnat platega / grant / orders, строка «Платега:» в magnat status");
+  const MID = "3fa85f64-5717-4562-b3fc-2c963f66afa6", SEC = "pk_Live-8f3Q2zX9!vR7#mT4@wL6";
+  const PEF = path.join(ETC, "platega.env"), XENV = path.join(T, "api-extra.env"), SITE = "https://magnat-planer.ru";
+  const pg = { reqs: [], status: "PENDING", tx: crypto.randomUUID() };
+  const pgSrv = http.createServer((q, s) => { let b = ""; q.on("data", d => b += d); q.on("end", () => {
+    const keysOk = q.headers["x-merchantid"] === MID && q.headers["x-secret"] === SEC;
+    pg.reqs.push({ method: q.method, url: q.url, keysOk, body: b });
+    const send = (code, o) => { s.writeHead(code, { "Content-Type": "application/json" }); s.end(JSON.stringify(o)); };
+    if (!keysOk) return send(401, { error: "unauthorized" });
+    if (q.method === "POST" && q.url === "/v2/transaction/process") return send(200, { transactionId: pg.tx, status: "PENDING", redirect: "https://pay.platega.test/" + pg.tx });
+    if (q.method === "GET" && q.url === "/transaction/" + pg.tx) return send(200, { id: pg.tx, status: pg.status });
+    send(404, { error: "not found" });
+  }); });
+  await new Promise(res => pgSrv.listen(0, "127.0.0.1", res));
+  const prun = (args, input, extra = {}) => spawnSync("bash", [path.join(ROOT, "server/magnat.sh"), ...args], { input, encoding: "utf8", env: { ...env, ...extra }, timeout: 120000 });
+  const pfile = () => { try { return fs.readFileSync(PEF, "utf8"); } catch (e) { return null; } };
+  const pmode = () => { try { return fs.statSync(PEF).mode & 0o777; } catch (e) { return -1; } };
+  const allLogs = () => ["runuser.log", "py.log", "systemctl.log", "curl.log", "api.log"].map(rdT).join("\n");
+  const payLine = (x) => (x.match(/^Платега:.*$/m) || ["нет строки «Платега:»"])[0];
+  const esc = (x) => x.replace(/[.+()]/g, "\\$&");
+  const msk = (days) => { const d = new Date(Date.now() + 3 * 3600e3 + days * 86400e3); return `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.${d.getUTCFullYear()}`; };
+  try {
+    // служба стартовала с пустым platega.env, как после install.sh (2б и дальше)
+    let h = await health();
+    h.ok === true && h.pay === false && h.payKeys === false && pfile() === "" && pmode() === 0o600
+      ? ok("служба стартует с пустым platega.env (0600): /api/health — ok, pay:false, payKeys:false")
+      : bad("служба с пустым platega.env: " + JSON.stringify(h) + " файл " + JSON.stringify(pfile()) + " права " + pmode().toString(8));
+    st = prun(["status"]);
+    /^Платега:\s+ключи не заданы → magnat platega · оплата выключена · ждут оплаты 0 · оплат за месяц 0 на 0 ₽ · последнее уведомление не было$/m.test(st.stdout)
+      ? ok("magnat status без ключей: «Платега: ключи не заданы → magnat platega · оплата выключена · ждут оплаты 0 · …»") : bad("status без ключей: " + payLine(st.stdout));
+
+    // плохой формат — отказ, файл и служба не тронуты; введённое (мог быть секрет) не повторяется
+    let n0 = restarts();
+    const noId = /НЕ УШЛО: это не похоже на ID мерчанта/, noSec = /НЕ УШЛО: это не похоже на секретный ключ/;
+    // [что введено, какой отказ, чего не должно быть в выводе]
+    const refuse = [["pk!Live#9Qx\n", noId, "pk!Live#9Qx"], [`${MID}\nс пробелом 12345\n`, noSec, "с пробелом"],
+      [`${MID}\nkey"with'quote\n`, noSec, "quote"], [`${MID}\nshort\n`, noSec, "short"], [`${MID}\n\n`, noSec, MID],
+      [`${MID}\n${MID}\n`, /НЕ УШЛО: секрет совпал с ID мерчанта/, MID]];
+    const wrong = refuse.map(([inp, re, echo]) => [inp, prun(["platega"], inp), re, echo]).filter(([inp, m, re, echo]) =>
+      !(m.status === 1 && re.test(m.stdout) && /Прежние ключи не тронуты/.test(m.stdout) && !m.stdout.includes(echo)));
+    !wrong.length && pfile() === "" && restarts() === n0 && !fs.existsSync(PEF + ".new")
+      ? ok("плохой формат (секрет вместо ID, пробел или кавычка в секрете, короткий, пустой, секрет = ID) — «НЕ УШЛО», введённое не повторено, файл не тронут, API не перезапускался")
+      : bad("плохой формат: " + wrong.map(([inp, m]) => JSON.stringify(inp) + " → код " + m.status + " " + m.stdout.trim().slice(-160)).join(" | ") + ` файл ${JSON.stringify(pfile())} перезапусков ${restarts() - n0}`);
+    const use = prun(["platega", "on"]);
+    use.status === 2 && pfile() === "" ? ok("magnat platega с чужим словом — подсказка, ничего не тронуто") : bad("magnat platega on: код " + use.status);
+
+    // настоящие ключи (служба — с оплатой и поддельной Платегой)
+    fs.writeFileSync(XENV, `MAGNAT_PAYMENTS=1\nMAGNAT_PLATEGA_URL=http://127.0.0.1:${pgSrv.address().port}\n`);
+    n0 = restarts();
+    let m = prun(["platega"], `${MID}\n  ${SEC}  \n`, { MAGNAT_DOMAIN: "magnat-planer.ru" });
+    h = await health();
+    m.status === 0 && /^КЛЮЧИ ПРИНЯТЫ: записаны в .*platega\.env \(0600\), API их видит\.$/m.test(m.stdout) && pfile() === `PLATEGA_MERCHANT_ID=${MID}\nPLATEGA_SECRET=${SEC}\n`
+      && pmode() === 0o600 && !fs.existsSync(PEF + ".new") && restarts() === n0 + 1 && h.payKeys === true && h.pay === true
+      ? ok("magnat platega: platega.env 0600 ровно с ID и секретом (пробелы по краям сняты), API перезапущен и видит ключи (payKeys:true)")
+      : bad(`magnat platega (код ${m.status}, права ${pmode().toString(8)}, перезапусков ${restarts() - n0}, health ${JSON.stringify(h)}):\n    ` + (m.stdout + m.stderr).trim().slice(-400));
+    /^ {4}https:\/\/magnat-planer\.ru\/api\/platega\/callback$/m.test(m.stdout) && /Callback URL/.test(m.stdout) && /Оплата на сайте включена/.test(m.stdout)
+      ? ok("magnat platega печатает адрес уведомлений для кабинета: https://magnat-planer.ru/api/platega/callback") : bad("адреса уведомлений нет: " + m.stdout.trim().slice(-300));
+    const keyed = /КЛЮЧИ ПРИНЯТЫ/.test(m.stdout);
+    keyed && !(m.stdout + m.stderr).includes(SEC) && !allLogs().includes(SEC)
+      ? ok("секрета нет ни в выводе magnat platega, ни в аргументах программ (runuser, python, systemctl, curl), ни в журнале API")
+      : bad("секрет утёк или ключи не записались: вывод " + (m.stdout + m.stderr).includes(SEC) + ", аргументы и журнал " + allLogs().includes(SEC));
+
+    // оплата насквозь: счёт этими ключами → колбэк → статус перечитан → оплачено
+    const TERMS = (fs.readFileSync(path.join(ROOT, "server/api/api.py"), "utf8").match(/^TERMS_ED = '([^']+)'/m) || [])[1];
+    const BUYER = "buyer@example.ru";
+    const consent = "Оплачиваю доступ к Магнату на 30 дней — 299 ₽, разово, без автосписаний. Принимаю пользовательское соглашение, с политикой конфиденциальности ознакомлен.";
+    const co = await L.postJson(APORT, "/api/checkout", { plan: "month", email: BUYER, telegram: "", consent, terms: TERMS }, { origin: SITE });
+    const made = pg.reqs.find(x => x.method === "POST");
+    co.status === 200 && co.json && co.json.ok === true && co.json.url === "https://pay.platega.test/" + pg.tx && made && made.keysOk
+      ? ok("api.py берёт ключи из файла magnat platega: счёт у Платеги создан этими ID и секретом") : bad("оформление: " + co.status + " " + co.text + " " + JSON.stringify(pg.reqs.map(x => [x.method, x.url, x.keysOk])));
+    pg.status = "CONFIRMED";
+    const cb = await L.request(APORT, { method: "POST", path: "/api/platega/callback", body: { id: pg.tx, status: "CONFIRMED" }, headers: { "X-MerchantId": MID, "X-Secret": SEC } });
+    const ord = co.json && co.json.o ? await L.postJson(APORT, "/api/order", { o: co.json.o }, { origin: SITE }) : {};
+    cb.status === 200 && ord.json && ord.json.status === "paid" ? ok("колбэк с этими ключами → статус перечитан у Платеги → заказ оплачен")
+      : bad("колбэк: " + cb.status + " " + cb.text + " заказ " + JSON.stringify(ord.json));
+    st = prun(["status"]);
+    /^Платега:\s+ключи заданы · оплата включена · ждут оплаты 0 · оплат за месяц 1 на 299 ₽ · последнее уведомление \d\d\.\d\d \d\d:\d\d UTC$/m.test(st.stdout) && !st.stdout.includes(SEC) && !st.stdout.includes(BUYER)
+      ? ok("magnat status: «Платега: ключи заданы · оплата включена · ждут оплаты 0 · оплат за месяц 1 на 299 ₽ · последнее уведомление … UTC» — без секрета и адресов")
+      : bad("status с оплатой: " + payLine(st.stdout));
+
+    // оплаты месяца для чеков
+    const ym = new Date().toISOString().slice(0, 7);
+    m = prun(["orders"]);
+    m.status === 0 && /^\d\d\.\d\d\.\d{4} \d\d:\d\d UTC · 299 ₽ · месяц · заказ \d+ · b•••@example\.ru$/m.test(m.stdout)
+      && new RegExp(`^Итого за ${ym}: 1 оплата на 299 ₽\\.$`, "m").test(m.stdout) && !m.stdout.includes(BUYER)
+      ? ok("magnat orders: «ДД.ММ.ГГГГ ЧЧ:ММ UTC · 299 ₽ · месяц · заказ N · b•••@example.ru» и итог — без полного адреса")
+      : bad(`magnat orders (код ${m.status}): ` + (m.stdout + m.stderr).trim().slice(-300));
+    const om = prun(["orders", "2026-13"]), oe = prun(["orders", "2001-01"]);
+    om.status === 1 && /не похоже на месяц — нужно ГГГГ-ММ/.test(om.stdout) && oe.status === 0 && /^За 2001-01 оплат нет\.$/m.test(oe.stdout)
+      ? ok("magnat orders 2026-13 — «не похоже на месяц»; 2001-01 — «За 2001-01 оплат нет.»") : bad("orders месяц: " + om.stdout + " | " + oe.stdout);
+
+    // ручная выдача: на настоящем api.py, срок — к остатку
+    const grants = () => (rdT("py.log").match(/ grant /g) || []).length, g0 = grants();
+    const badG = [[["grant"], 2], [["grant", "не адрес", "30"], 1], [["grant", "gift@example.ru", "0"], 1], [["grant", "gift@example.ru", "-5"], 1],
+      [["grant", "gift@example.ru", "3661"], 1], [["grant", "gift@example.ru", "30дней"], 1]].filter(([a, code]) => prun(a).status !== code);
+    !badG.length && grants() === g0 ? ok("magnat grant без адреса, с «не адресом», 0, -5, 3661 или «30дней» — отказ, api.py не запускался")
+      : bad("плохой grant пропущен: " + JSON.stringify(badG) + " вызовов api.py " + (grants() - g0));
+    m = prun(["grant", "Gift@Example.ru", "30"]);
+    let us = prun(["user", "show", "gift@example.ru"]);
+    m.status === 0 && new RegExp(`^ДОСТУП ВЫДАН: gift@example\\.ru — до ${esc(msk(30))} \\(\\+30 дней к остатку, заказ на 0 ₽\\)\\.$`, "m").test(m.stdout)
+      && new RegExp(`^Доступ: до ${esc(msk(30))}, действует\\.$`, "m").test(us.stdout) && /вручную · 0 ₽ · выдан вручную/.test(us.stdout)
+      ? ok(`magnat grant gift@example.ru 30 — «ДОСТУП ВЫДАН: … до ${msk(30)}»; user show: «Доступ: до ${msk(30)}, действует», заказ на 0 ₽`)
+      : bad(`grant (код ${m.status}): ${(m.stdout + m.stderr).trim().slice(-200)}\n    user show: ${us.stdout.trim().slice(-300)}`);
+    m = prun(["grant", BUYER, "10"]); us = prun(["user", "show", BUYER]);
+    m.status === 0 && new RegExp(`^Доступ: до ${esc(msk(40))}, действует\\.$`, "m").test(us.stdout) && /месяц · 299 ₽ · оплачен/.test(us.stdout)
+      ? ok(`оплатил 30 дней + magnat grant 10 — доступ до ${msk(40)}: дни прибавились к остатку`) : bad("grant к остатку: " + us.stdout.trim().slice(-300));
+    const pyPay = rdT("py.log").trim().split("\n").filter(c => / (grant|orders|stats) /.test(c)), ruPay = rdT("runuser.log").split("\n");
+    pyPay.length >= 6 && pyPay.every(c => ruPay.some(l => l.startsWith("-u ") && l.endsWith(c)))
+      ? ok(`api.py grant/orders/stats — ${pyPay.length} вызовов, все через runuser`) : bad("grant/orders/stats мимо runuser: " + pyPay.length);
+
+    // magnat platega off — файл пуст (не удалён: без него служба не стартует), ключей у API нет
+    n0 = restarts();
+    m = prun(["platega", "off"]); h = await health(); st = prun(["status"]);
+    const off = await L.postJson(APORT, "/api/checkout", { plan: "month", email: BUYER, telegram: "", consent, terms: TERMS }, { origin: SITE });
+    m.status === 0 && /^КЛЮЧИ СТЁРТЫ/m.test(m.stdout) && pfile() === "" && pmode() === 0o600 && restarts() === n0 + 1 && h.ok === true && h.payKeys === false
+      && /^Платега:\s+ключи не заданы → magnat platega · оплата включена · ждут оплаты 0 · оплат за месяц 1 на 299 ₽/m.test(st.stdout)
+      && off.json && off.json.err === "pay_off"
+      ? ok("magnat platega off — platega.env пуст (0600, на месте), API перезапущен без ключей, оформление отвечает pay_off, оплаты месяца в status целы")
+      : bad(`platega off (код ${m.status}, файл ${JSON.stringify(pfile())}, health ${JSON.stringify(h)}, checkout ${off.text}):\n    ` + (m.stdout + m.stderr).trim().slice(-300) + "\n    " + payLine(st.stdout));
+  } catch (e) { bad("2д упал: " + (e.stack || e)); }
+  fs.rmSync(XENV, { force: true });
+  pgSrv.close();
   await disk.close();
   await smtp.close();
 
@@ -629,7 +767,7 @@ exit 0
     {
       const seen = [];
       const stub = http.createServer((q, s) => { const at = Date.now(); let n = 0; q.on("data", d => n += d.length);
-        q.on("end", () => { seen.push({ url: q.url, at, xff: q.headers["x-forwarded-for"], n });
+        q.on("end", () => { seen.push({ url: q.url, at, xff: q.headers["x-forwarded-for"], n, mid: q.headers["x-merchantid"], sec: q.headers["x-secret"], origin: q.headers.origin });
           s.writeHead(200, { "Content-Type": "application/json", "Server": "stub-api", "Cache-Control": "no-store" }); s.end('{"ok":true,"stub":1}'); }); });
       await new Promise(res => stub.listen(0, "127.0.0.1", res));
       let C;
@@ -649,6 +787,13 @@ exit 0
         hit && hit.at - t0 >= 1300 && hit.n === body.length && / 200 /.test(sr.data.split("\r\n")[0])
           ? ok(`медленное тело Caddy дочитывает сам: API получил запрос через ${hit.at - t0} мс, сразу целиком`)
           : bad(`медленное тело ушло в API раньше, чем пришло: через ${hit ? hit.at - t0 : "-"} мс, байт ${hit ? hit.n : "-"}`);
+        // колбэк Платеги: POST без Origin и cookie, ключи — в заголовках, тело до 16 КБ (предел api.py для него)
+        const cbBody = JSON.stringify({ id: "3fa85f64-0000-4000-8000-000000000000", status: "CONFIRMED", pad: "x".repeat(16300) }), n1 = seen.length;
+        const cbr = await L.request(C.port, { method: "POST", path: "/api/platega/callback", body: cbBody, headers: { "Content-Type": "application/json", "X-MerchantId": "m-1", "X-Secret": "s-1" } });
+        const hcb = seen[n1];
+        cbBody.length <= 16384 && cbBody.length > 16000 && cbr.status === 200 && hcb && hcb.url === "/api/platega/callback" && hcb.n === cbBody.length && hcb.mid === "m-1" && hcb.sec === "s-1" && !hcb.origin
+          ? ok(`колбэк Платеги через Caddy: POST без Origin доходит до API целиком (${cbBody.length} байт) с X-MerchantId и X-Secret`)
+          : bad(`колбэк через Caddy: ${cbr.status} ${JSON.stringify(hcb && { ...hcb, at: undefined })}`);
         const q = (o) => L.request(C.port, o).catch(e => ({ status: 0, text: String(e.message), h: {} }));
         const big = await q({ method: "POST", path: "/api/sync", body: Buffer.alloc(3 << 20, 97), headers: { "Content-Type": "application/json" } });
         const hid = await q({ path: "/server/api/api.py" });
@@ -665,12 +810,22 @@ exit 0
         // настоящий api.py за этим Caddy
         const AP = await freePort();
         await C.restart({ api: AP });
-        await L.startApi({ port: AP, origin: C.origin, smtp: null });
+        const A2 = await L.startApi({ port: AP, origin: C.origin, smtp: null });
         const me = await L.postJson(C.port, "/api/me", {}, { origin: C.origin });
         me.status === 200 && me.json && me.json.ok === true && /max-age=63072000/.test(me.h["strict-transport-security"] || "") && /connect-src 'self'/.test(me.h["content-security-policy"] || "") && !me.h.server
           ? ok("настоящий api.py за Caddy: POST /api/me → 200 JSON с HSTS и CSP, без Server") : bad(`api.py за Caddy: ${me.status} ${me.text.slice(0, 120)}`);
         const hh = await L.request(C.port, { path: "/api/health" });
         hh.status === 404 ? ok("/api/health снаружи — 404 (видно только с самой машины)") : bad("/api/health через Caddy → " + hh.status);
+        // тот же api.py с оплатой: колбэк приходит без Origin — Caddy его не режет, ключи сверяет api.py
+        const pf = path.join(T, "platega-3b.env");
+        fs.writeFileSync(pf, "PLATEGA_MERCHANT_ID=m-3b-merchant\nPLATEGA_SECRET=s3b-Secret_01\n", { mode: 0o600 });
+        await A2.restart({ MAGNAT_PAYMENTS: "1", MAGNAT_PLATEGA_FILE: pf });
+        const hook = (sec) => L.request(C.port, { method: "POST", path: "/api/platega/callback", body: { id: "3fa85f64-0000-4000-8000-000000000001", status: "CONFIRMED" },
+          headers: { "X-MerchantId": "m-3b-merchant", "X-Secret": sec } });
+        const cbBad = await hook("wrong-secret"), cbOk = await hook("s3b-Secret_01");
+        cbBad.status === 403 && cbBad.json && cbBad.json.err === "origin" && cbOk.status === 200 && cbOk.json && cbOk.json.ok === true && /callback unknown/.test(A2.log())
+          ? ok("настоящий api.py за Caddy: колбэк без Origin — чужой секрет 403 «origin», верный — 200 (такого счёта нет — «callback unknown» в журнале)")
+          : bad(`колбэк в api.py через Caddy: чужой ${cbBad.status} ${cbBad.text.slice(0, 80)}, верный ${cbOk.status} ${cbOk.text.slice(0, 80)}`);
       } catch (e) { bad("3б упал: " + (e.stack || e)); }
       finally { await L.cleanup(); stub.close(); }
     }

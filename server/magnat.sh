@@ -15,6 +15,10 @@
 #    magnat backup-setup  один раз: копии на Яндекс Диск (токен и фраза-ключ).
 #    magnat user show|export|delete АДРЕС  запрос человека о своих данных.
 #    magnat paid-until ДД.ММ.ГГГГ  до какого числа оплачен сервер (напомнит письмом).
+#    magnat platega  ключи Платеги для оплаты Магната (ID мерчанта и секрет);
+#                    magnat platega off — стереть их, новые счета не создаются.
+#    magnat grant АДРЕС ДНЕЙ  выдать доступ вручную (оплата не включилась сама).
+#    magnat orders [ГГГГ-ММ]  оплаты месяца для чеков самозанятого (адреса скрыты).
 #
 #  Как устроена выкладка (порядок важен, и каждый шаг откатный):
 #   1. git fetch `main` под пользователем magnat (не root): сначала ключом
@@ -381,7 +385,8 @@ do_status() {
   fi
 }
 
-# Строки API для magnat status. Ни одного секрета: из smtp.env — только адрес ящика.
+# Строки API для magnat status. Ни одного секрета: из smtp.env — только адрес ящика,
+# из platega.env — только есть ли в нём секрет.
 api_status() {
   local cur="$1" h rel box n last
   if [ ! -d "$API_BASE/releases" ]; then
@@ -403,6 +408,7 @@ api_status() {
     else
       echo "Почта для кодов: не настроена → набери magnat mail"
     fi
+    pay_line "$h"
     # shellcheck disable=SC2012  # имена — magnat-ГГГГ-ММ-ДД.db.gz
     n="$( { ls -1 "$API_STATE/backup"/magnat-*.db.gz 2>/dev/null || true; } | wc -l)"
     last="$( { ls -1t "$API_STATE/backup"/magnat-*.db.gz 2>/dev/null || true; } | head -n 1)"
@@ -429,15 +435,17 @@ api_status() {
 # --- почта для кодов -------------------------------------------------------------
 lower_trim() { local v="${1//[[:space:]]/}"; printf '%s' "${v,,}"; }
 is_email()   { [[ "$1" =~ ^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$ ]]; }
-# Пароль приложения: печатный ASCII без пробела, кавычек, \ $ ` (всё равно
-# такие пароли почта не выдаёт, а в smtp.env они ломали бы строку).
-is_app_pass() {
-  local p="$1" rest
-  [ "${#p}" -ge 4 ] && [ "${#p}" -le 128 ] || return 1
+# safe_ascii ОТ ДО СТРОКА: печатный ASCII без пробела, кавычек, \ $ ` — в .env
+# такая строка не ломается. Строка идёт в tr через stdin, не аргументом.
+safe_ascii() {
+  local p="$3" rest
+  [ "${#p}" -ge "$1" ] && [ "${#p}" -le "$2" ] || return 1
   rest="$(LC_ALL=C; printf '%s' "$p" | tr -d 'A-Za-z0-9!#%&()*+,./:;<=>?@^_{|}~-' | tr -d ']')"
   rest="${rest//[/}"
   [ -z "$rest" ]
 }
+# Пароль приложения: других почта и не выдаёт, а в smtp.env они ломали бы строку.
+is_app_pass() { safe_ascii 4 128 "$1"; }
 MAIL_NEW=""
 do_mail() {
   [ "$(id -u)" -eq 0 ] || { log "запускать от root"; exit 1; }
@@ -680,6 +688,154 @@ disk_line() {
   fi
 }
 
+# --- ключи Платеги: оплата Магната ------------------------------------------------
+#  /etc/magnat/platega.env (root, 0600) служба получает через LoadCredential=platega,
+#  как smtp.env, — и только на старте, поэтому после записи перезапуск. Пустой файл —
+#  «ключей нет»: страница оформления честно отвечает «оплата не подключена», служба
+#  стартует. Секрет — только через read -s и встроенный printf: ни в выводе, ни в
+#  аргументах программ его нет. Проверить ключи у самой Платеги без настоящего платежа
+#  нечем — проверяется формат (строже, чем в api.py: что прошло здесь, примет и он)
+#  и что служба их увидела (/api/health → payKeys).
+PLATEGA_HOOK=/api/platega/callback      # адрес уведомлений — вписать в кабинете Платеги
+PLATEGA_NEW=""
+platega_in_file() { grep -q '^PLATEGA_SECRET=.' "$ETC/platega.env" 2>/dev/null; }
+platega_put() { # platega_put СОДЕРЖИМОЕ — атомарно, 0600; пишет встроенный printf, не программа
+  install -d -m 0700 "$ETC"
+  PLATEGA_NEW="$ETC/platega.env.new"
+  trap 'rm -f "$PLATEGA_NEW"' EXIT
+  (umask 077; printf '%s' "$1" > "$PLATEGA_NEW")
+  chmod 0600 "$PLATEGA_NEW"; mv -f "$PLATEGA_NEW" "$ETC/platega.env"
+}
+do_platega() {
+  [ "$(id -u)" -eq 0 ] || { log "запускать от root"; exit 1; }
+  case "$1" in
+    ''|off) ;;
+    *) echo "magnat platega — ввести ключи Платеги; magnat platega off — стереть их"; exit 2 ;;
+  esac
+  if [ ! -s "$API_BASE/current/api.py" ]; then
+    echo "API ещё не поставлен — сначала строка установки (server/README.md)."; exit 1
+  fi
+  local mid sec h
+  if [ "$1" = off ]; then
+    platega_put ""
+    systemctl restart magnat-api >/dev/null 2>&1 || true
+    if api_up "$(api_rel)" && ! grep -q '"payKeys": *true' <<<"$(api_health || true)"; then
+      echo "КЛЮЧИ СТЁРТЫ: $ETC/platega.env пуст, API их больше не видит. Новые счета не создаются —"
+      echo "страница оформления скажет «оплата не подключена»; оплаченные сроки не тронуты."
+      echo "Счета, что ждут оплаты, без ключей не проверяются: вернёшь ключи (magnat platega) в течение суток — подтвердятся сами."
+      return 0
+    fi
+    echo "⚠ Ключи из файла стёрты, но API после перезапуска пока не отвечает — через минуту набери magnat status."
+    exit 1
+  fi
+  echo "Ключи Платеги для оплаты Магната — в её личном кабинете (мерчант magnat-planer.ru)."
+  echo "Секрет вводится только здесь — в чат его не присылай."
+  read -rp "1) ID мерчанта (MerchantId, вида 3fa85f64-5717-4562-b3fc-2c963f66afa6): " mid || true
+  mid="${mid//[[:space:]]/}"
+  # Введённое не повторяем: вместо ID мог вставиться секрет, а вывод присылают в чат.
+  [[ "$mid" =~ ^[A-Za-z0-9_-]{8,100}$ ]] ||
+    { echo "НЕ УШЛО: это не похоже на ID мерчанта (латиница, цифры и «-»). Прежние ключи не тронуты."; exit 1; }
+  read -rsp "2) Секретный ключ API (букв не видно — так и надо): " sec || true
+  echo
+  sec="${sec#"${sec%%[![:space:]]*}"}"; sec="${sec%"${sec##*[![:space:]]}"}"   # пробелы по краям — от копирования
+  safe_ascii 8 512 "$sec" ||
+    { echo "НЕ УШЛО: это не похоже на секретный ключ Платеги (латиница, цифры и знаки, без пробелов). Прежние ключи не тронуты."; exit 1; }
+  [ "$sec" != "$mid" ] ||
+    { echo "НЕ УШЛО: секрет совпал с ID мерчанта — во второй строке нужен секретный ключ API. Прежние ключи не тронуты."; exit 1; }
+  platega_put "PLATEGA_MERCHANT_ID=$mid"$'\n'"PLATEGA_SECRET=$sec"$'\n'
+  sec=""
+  systemctl restart magnat-api >/dev/null 2>&1 || true
+  if ! api_up "$(api_rel)"; then
+    echo "⚠ Ключи записаны, но API после перезапуска пока не отвечает — через минуту набери magnat status."; exit 1
+  fi
+  h="$(api_health || true)"
+  if ! grep -q '"payKeys": *true' <<<"$h"; then
+    if grep -q '"payKeys"' <<<"$h"; then
+      echo "⚠ Ключи записаны, но API их не видит: служба поставлена до оплаты — набери magnat upgrade, потом magnat status."
+    else
+      echo "⚠ Ключи записаны, но эта версия API оплату ещё не знает — заработают с новой выкладкой (magnat status)."
+    fi
+    exit 1
+  fi
+  echo "КЛЮЧИ ПРИНЯТЫ: записаны в $ETC/platega.env (0600), API их видит."
+  echo "Теперь в кабинете Платеги впиши адрес для уведомлений об оплате (Callback URL):"
+  echo "    https://$DOMAIN$PLATEGA_HOOK"
+  if grep -q '"pay": *true' <<<"$h"; then
+    echo "Оплата на сайте включена — покупатели уже платят через эти ключи."
+  else
+    echo "Оплата на сайте пока выключена — посетители ничего нового не видят; включается отдельно."
+  fi
+}
+
+# Строка «Платега:» для magnat status. Ключи и флаг — как их видит служба
+# (/api/health): файл без LoadCredential ей не виден. Счётчики — `api.py stats`
+# (без ПДн). Секрет здесь не читается вовсе — только есть ли строка с ним.
+rub_kop() { # копейки → «1 490 ₽», как rub() в api.py
+  local n=$(( $1 / 100 )) s=""
+  while [ "$n" -ge 1000 ]; do s=" $(printf '%03d' $(( n % 1000 )))$s"; n=$(( n / 1000 )); done
+  echo "$n$s ₽"
+}
+stat_num() { sed -n "s/.*\"$1\": *\([0-9][0-9]*\).*/\1/p" <<<"$2" | head -n 1; }
+pay_line() {
+  local h="$1" keys on line s n paid sum cb
+  if grep -q '"payKeys": *true' <<<"$h"; then keys="ключи заданы"
+  elif ! platega_in_file; then keys="ключи не заданы → magnat platega"
+  elif grep -q '"payKeys": *false' <<<"$h"; then keys="⚠ ключи записаны, но API их не видит → magnat upgrade"
+  else keys="ключи заданы"; fi               # API молчит или ещё без оплаты — по файлу
+  if grep -q '"pay": *true' <<<"$h"; then on="оплата включена"
+  elif [ -n "$h" ]; then on="оплата выключена"
+  else on="оплата — не узнать (API не отвечает)"; fi
+  line="Платега:        $keys · $on"
+  if [ -s "$API_DB" ] && s="$(run_api "$API_BASE/current" stats --db "$API_DB" 2>/dev/null)" &&
+     n="$(stat_num pay_pending "$s")" && [ -n "$n" ]; then
+    paid="$(stat_num pay_paid_month "$s")"; sum="$(stat_num pay_sum_month_kop "$s")"; cb="$(stat_num pay_last_callback "$s")"
+    line="$line · ждут оплаты $n · оплат за месяц ${paid:-0} на $(rub_kop "${sum:-0}") · последнее уведомление "
+    if [ "${cb:-0}" -gt 0 ]; then line="$line$(date -u -d "@$cb" '+%d.%m %H:%M UTC')"; else line="${line}не было"; fi
+  fi
+  echo "$line"
+}
+
+# magnat grant АДРЕС ДНЕЙ: соглашение обещает «не включилось за 15 минут — включим
+# вручную». Заказ на 0 ₽, срок прибавляется к остатку; отнять нельзя.
+do_grant() {
+  [ "$(id -u)" -eq 0 ] || { log "запускать от root"; exit 1; }
+  local em n res till
+  em="$(lower_trim "$1")"
+  if [ -z "$em" ] || [ -z "$2" ]; then
+    echo "magnat grant АДРЕС ДНЕЙ — выдать доступ вручную, например: magnat grant ivan@mail.ru 30"; exit 2
+  fi
+  is_email "$em" || { echo "«$em» не похоже на адрес почты. Ничего не выдано."; exit 1; }
+  if ! [[ "$2" =~ ^[0-9]{1,4}$ ]] || [ $(( 10#$2 )) -lt 1 ] || [ $(( 10#$2 )) -gt 3660 ]; then
+    echo "«$2» — нужно число дней от 1 до 3660, например 30. Ничего не выдано."; exit 1
+  fi
+  n=$(( 10#$2 ))
+  if [ ! -s "$API_BASE/current/api.py" ] || [ ! -s "$API_DB" ]; then echo "Базы ещё нет — сначала строка установки (server/README.md)."; exit 1; fi
+  res="$(run_api "$API_BASE/current" grant "$em" "$n" --db "$API_DB" 2>&1)" || true
+  if [[ "$res" =~ grant-ok\ until=([0-9]{4})-([0-9]{2})-([0-9]{2}) ]]; then
+    till="${BASH_REMATCH[3]}.${BASH_REMATCH[2]}.${BASH_REMATCH[1]}"
+    # grant-ok пишет день по UTC, а письма и user show — по Москве: берём оттуда, чтобы даты не разошлись
+    res="$(run_api "$API_BASE/current" user show "$em" --db "$API_DB" 2>/dev/null || true)"
+    res="$(sed -n 's/^Доступ: до \([0-9.]*\),.*/\1/p' <<<"$res" | head -n 1)"
+    echo "ДОСТУП ВЫДАН: $em — до ${res:-$till} (+$n $(plural "$n" день дня дней) к остатку, заказ на 0 ₽)."
+    echo "Пусть войдёт в приложении по этой почте — доступ включится на всех его телефонах."
+    return 0
+  fi
+  echo "НЕ ВЫДАНО: $(tail -n 1 <<<"$res")"
+  exit 1
+}
+
+# magnat orders [ГГГГ-ММ]: оплаты месяца (UTC) для чеков — строкой на оплату, адрес скрыт, итог.
+do_orders() {
+  [ "$(id -u)" -eq 0 ] || { log "запускать от root"; exit 1; }
+  local a=()
+  if [ -n "$1" ]; then
+    [[ "$1" =~ ^[0-9]{4}-(0[1-9]|1[0-2])$ ]] || { echo "«$1» не похоже на месяц — нужно ГГГГ-ММ, например $(date -u +%Y-%m)."; exit 1; }
+    a=(--month "$1")
+  fi
+  if [ ! -s "$API_BASE/current/api.py" ] || [ ! -s "$API_DB" ]; then echo "Базы ещё нет — оплат нет."; exit 1; fi
+  run_api "$API_BASE/current" orders --db "$API_DB" "${a[@]}"
+}
+
 # --- оплата сервера -----------------------------------------------------------------
 paid_days() { # дней до срока (минус — прошёл); нет записи — код 1
   local iso; iso="$(cat "$ETC/paid-until" 2>/dev/null || true)"
@@ -821,5 +977,8 @@ case "${1:-status}" in
   backup-setup) do_backup_setup ;;
   user)     do_user "${2:-}" "${3:-}" ;;
   paid-until) do_paid_until "${2:-}" ;;
+  platega)  do_platega "${2:-}" ;;
+  grant)    do_grant "${2:-}" "${3:-}" ;;
+  orders)   do_orders "${2:-}" ;;
   *) sed -n '2,/^#  Как устроена/{/^#  Как устроена/!p}' "$0" | sed 's/^#//'; exit 2 ;;
 esac

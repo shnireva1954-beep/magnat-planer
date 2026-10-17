@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Магнат: вход по почте с одноразовым кодом и синхронизация данных.
+"""Магнат: вход по почте с одноразовым кодом, синхронизация данных и разовая оплата через Платегу.
 
 Один процесс, только stdlib Python 3.12 (Ubuntu 24.04), ни одной зависимости.
 Запуск всегда `python3 -I api.py <команда>` и всегда от пользователя
 magnat-api: root этот файл не запускает (magnat.sh зовёт его через runuser).
 
-Секции: Config, Util, Store (миграции), Limits, Mailer, Letters, Routes,
-Maintenance, HTTP, CLI, Selftest.
+Секции: Config, Util, Store (миграции), Limits, Mailer, Platega, Letters,
+Routes, Maintenance, HTTP, CLI, Selftest.
 
 Протокол (подробно — спецификация аккаунта, §3):
   * каждый ответ — JSON, Cache-Control: no-store, Content-Length, без CORS;
@@ -32,13 +32,20 @@ Maintenance, HTTP, CLI, Selftest.
   mailtest --creds - --to ADDR  — проверочное письмо; «mail-ok» или
                                   «mail-fail <auth|connect|tls|config|other> <Класс>»;
   alert --creds - --kind K --text T — письмо-тревога на SUPPORT (тот же вывод);
-  user show|export|delete EMAIL --db DB [--creds -] — запросы людей о данных.
+  user show|export|delete EMAIL --db DB [--creds -] — запросы людей о данных
+                                (с заказами и сроком доступа);
+  grant EMAIL DAYS --db DB [--note T] — ручная выдача доступа, «grant-ok until=…»;
+  orders --db DB [--month YYYY-MM] — оплаты месяца для чеков, адреса скрыты.
 Учётные данные почты приходят только через stdin (`--creds -`), никогда в argv.
+Ключи Платеги — только файлом (LoadCredential), никогда в argv и в журнал.
 
 В журнал (stderr) попадают только строки `start v=… schema=…`,
-`smtp error <Класс>`, `stats …` и `err <Класс> api.py:<строка>`. Никогда —
-адрес, IP, код, токен или документ. IP живёт только в памяти (≤24 ч, ради
-лимитов) и не пишется ни в БД, ни в журнал.
+`smtp error <Класс>`, `stats …`, `platega <create|status> <Класс|httpN>`,
+`callback unknown` и `err <Класс> api.py:<строка>`. Никогда — адрес, IP,
+код, токен, ключ Платеги или документ. Для лимитов IP живёт только в памяти
+(≤24 ч). В БД IP пишется в одном месте — в заказ оплаты (`orders.ip`, вместе с
+текстом согласия: доказательство для спора с банком); при удалении аккаунта
+он стирается вместе с почтой и Telegram заказа.
 """
 
 import contextlib
@@ -66,7 +73,9 @@ import tempfile
 import threading
 import time
 import unicodedata
+import urllib.error
 import urllib.parse
+import urllib.request
 import zlib
 from collections import deque
 from email.message import EmailMessage
@@ -75,8 +84,15 @@ from email.utils import formataddr, formatdate, make_msgid
 # ═══════════════════════════ Config ═══════════════════════════
 
 OPEN = False        # R3 «включай»: True — код получает любой адрес (вместе с ACCOUNT_ON в app.html)
-PAYMENTS = False    # Платега (§13): маршруты оплаты появятся вместе с миграцией 2
-SCHEMA = 1          # схема, которую знает этот код (последняя миграция)
+PAYMENTS = False    # «включай» оплаты: True — маршруты оплаты живы (вместе с PAY_ON в app.html и CFG.pay)
+SCHEMA = 2          # схема, которую знает этот код (последняя миграция)
+
+# Цены — единственный источник на сервере (08-checkout сверяет с ним checkout.html):
+# тариф → (копеек, дней, «на сколько» для назначения платежа и писем).
+PLANS = {'month': (29900, 30, 'на 30 дней'), 'year': (149000, 365, 'на год')}
+PLAN_NAMES = {'month': 'месяц', 'year': 'год', 'grant': 'вручную'}
+TERMS_ED = '2026-10-17'     # редакция соглашения, с которой согласился покупатель (скрытое поле terms)
+PLATEGA_URL = 'https://app.platega.io'
 
 SITE = 'https://magnat-planer.ru/'
 COOKIE = '__Host-mg'
@@ -112,8 +128,16 @@ class Cfg:
         self.origin = env.get('MAGNAT_ORIGIN', 'https://magnat-planer.ru')
         cd = env.get('CREDENTIALS_DIRECTORY', '')
         self.smtp_file = env.get('MAGNAT_SMTP_FILE') or (os.path.join(cd, 'smtp') if cd else '')
+        self.platega_file = env.get('MAGNAT_PLATEGA_FILE') or (os.path.join(cd, 'platega') if cd else '')
+        # ключ уходит заголовком: только https, http — лишь на 127.0.0.1 (поддельная Платега тестов)
+        u = env.get('MAGNAT_PLATEGA_URL', '').strip().rstrip('/')
+        ok_u = re.fullmatch(r'https://[a-z0-9.-]{1,253}(:[0-9]{1,5})?|http://127\.0\.0\.1:[0-9]{1,5}', u)
+        self.platega_url = u if ok_u else PLATEGA_URL
         o = env.get('MAGNAT_OPEN', '').strip().lower()
         self.open = OPEN if o == '' else o in ('1', 'true', 'yes', 'on')
+        p = env.get('MAGNAT_PAYMENTS', '').strip().lower()
+        self.payments = PAYMENTS if p == '' else p in ('1', 'true', 'yes', 'on')
+        self.tick = _num(env, 'MAGNAT_TICK', 60, 0.05, 60, float)     # шаг фона (тесты ускоряют)
         self.code_ttl = _num(env, 'MAGNAT_CODE_TTL', 900, 1, DAY)
         self.code_tries = _num(env, 'MAGNAT_CODE_TRIES', 5, 1, 100)
         self.code_gap = _num(env, 'MAGNAT_CODE_GAP', 60, 0, 3600)
@@ -146,10 +170,33 @@ RE_YMD = re.compile(r'[0-9]{4}-[0-9]{2}-[0-9]{2}')
 RE_LOCAL = re.compile(r"[a-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}")
 RE_DOMAIN = re.compile(r'[a-z0-9-]+(\.[a-z0-9-]+)+')
 RE_KIND = re.compile(r'[a-z0-9_]{1,32}')
+RE_PUB = re.compile(r'[A-Za-z0-9_-]{22}')               # ключ-ссылка заказа: token_urlsafe(16)
+RE_TX = re.compile(r'[A-Za-z0-9_-]{1,100}')             # номер платежа у Платеги (UUID): идёт в путь GET
+RE_TG = re.compile(r'@[A-Za-z][A-Za-z0-9_]{4,31}')
+RE_PSTATUS = re.compile(r'[A-Za-z_]{1,32}')
+RE_MONTH = re.compile(r'[0-9]{4}-(0[1-9]|1[0-2])')
 
 
 def day(t):
     return time.strftime('%Y-%m-%d', time.gmtime(t))
+
+
+def dmy(t):
+    """Дата для людей в письмах и выводе: ДД.ММ.ГГГГ по Москве (UTC+3)."""
+    return time.strftime('%d.%m.%Y', time.gmtime(t + 3 * 3600))
+
+
+def rub(kop):
+    """29900 → «299 ₽», 149000 → «1 490 ₽»."""
+    return '{:,}'.format(kop // 100).replace(',', ' ') + ' ₽'
+
+
+def mask_email(em):
+    """p•••@gmail.com: по нему человек узнаёт свой адрес, посторонний — нет."""
+    if not em:
+        return ''
+    local, _, dom = em.rpartition('@')
+    return local[:1] + '•••@' + dom
 
 
 def day_start(t):
@@ -380,10 +427,30 @@ MIGRATIONS = [
         'CREATE TABLE deletions(email_h TEXT NOT NULL, at INTEGER NOT NULL)',
         'CREATE TABLE stats(k TEXT PRIMARY KEY, n INTEGER NOT NULL)',
     )),
-    # (2, ...) — Платега (§13): orders, payment_events, subscriptions. Только CREATE.
+    # Разовая оплата через Платегу. Применяется всегда, даже при PAYMENTS = False: таблицы пустые.
+    (2, (
+        'CREATE TABLE orders(id INTEGER PRIMARY KEY, pub TEXT NOT NULL UNIQUE, at INTEGER NOT NULL, email TEXT, tg TEXT, '
+        'plan TEXT NOT NULL, days INTEGER NOT NULL, amount_kop INTEGER NOT NULL, consent TEXT NOT NULL, '
+        'terms_ed TEXT NOT NULL, ip TEXT, tx TEXT UNIQUE, status TEXT NOT NULL, checked INTEGER NOT NULL DEFAULT 0, '
+        'paid_at INTEGER, until INTEGER, updated INTEGER NOT NULL)',
+        'CREATE INDEX orders_email ON orders(email)',
+        'CREATE INDEX orders_status ON orders(status, at)',
+        'CREATE TABLE payment_events(id INTEGER PRIMARY KEY, order_id INTEGER NOT NULL, tx TEXT, status TEXT NOT NULL, '
+        'src TEXT NOT NULL, at INTEGER NOT NULL, raw TEXT)',
+        'CREATE UNIQUE INDEX pe_once ON payment_events(order_id, status, src)',
+        'CREATE TABLE access(email TEXT PRIMARY KEY, until INTEGER NOT NULL, plan TEXT NOT NULL, '
+        "updated INTEGER NOT NULL, warned TEXT NOT NULL DEFAULT '')",
+    )),
 ]
 # Состояния кода: 0 живой, 1 использован, 2 заменён, 3 сожжён, 4 отправляется.
 LIVE, USED, REPLACED, BURNED, SENDING = 0, 1, 2, 3, 4
+# Заказ: new — записан, Платегу ещё не спросили; pending — счёт создан, ждём; paid; canceled — счёт умер;
+# failed — счёт не создан; expired — висел дольше суток; chargeback — банк вернул деньги; grant — выдано вручную.
+# События (payment_events, только дописываются): src create|callback|poll|order|admin; status — наш переход
+# (paid, canceled…) или, у src=callback, статус из тела уведомления как пришёл (CONFIRMED…).
+PAID_ST = {'CONFIRMED', 'PAID', 'SUCCESS', 'COMPLETED'}      # у Платеги оплачен ровно CONFIRMED, остальное — страховка
+DEAD_ST = {'CANCELED', 'CANCELLED', 'FAILED', 'EXPIRED', 'REJECTED', 'DECLINED'}
+BACK_ST = {'CHARGEBACK', 'CHARGEBACKED'}
 
 
 def migrations_clean():
@@ -570,8 +637,8 @@ class Limiter:
 
 # ═══════════════════════════ Mailer ═══════════════════════════
 
-def parse_smtp_env(txt):
-    """smtp.env: только KEY=VALUE, без shell. Неполный или странный файл — почта не настроена (None)."""
+def parse_env(txt):
+    """Файл KEY=VALUE без shell: комментарии и пустые строки пропускаются, кавычки по краям снимаются."""
     d = {}
     for line in (txt or '').splitlines():
         line = line.strip()
@@ -584,6 +651,12 @@ def parse_smtp_env(txt):
         if len(v) >= 2 and v[0] == v[-1] and v[0] in '"\'':
             v = v[1:-1]
         d[k.strip()] = v
+    return d
+
+
+def parse_smtp_env(txt):
+    """smtp.env: только KEY=VALUE, без shell. Неполный или странный файл — почта не настроена (None)."""
+    d = parse_env(txt)
     host = d.get('SMTP_HOST', '').strip().lower()
     if not re.fullmatch(r'[a-z0-9.-]{1,253}', host):
         return None
@@ -638,8 +711,10 @@ def mail_fault(e):
     return 'other'
 
 
-class Mailer:
-    """Учётные данные из файла (LoadCredential); перечитывается, когда файл меняется."""
+class CredFile:
+    """Учётные данные из файла (LoadCredential); перечитывается, когда файл меняется. Разбор — parse."""
+
+    parse = staticmethod(lambda txt: None)
 
     def __init__(self, path):
         self.path = path
@@ -647,7 +722,7 @@ class Mailer:
         self.sig = None
         self.c = None
 
-    def conf(self):
+    def read(self):
         if not self.path:
             return None
         try:
@@ -662,8 +737,15 @@ class Mailer:
                         txt = f.read(65536)
                 except (OSError, UnicodeError):
                     txt = ''
-                self.c, self.sig = parse_smtp_env(txt), sig
+                self.c, self.sig = self.parse(txt), sig
             return self.c
+
+
+class Mailer(CredFile):
+    parse = staticmethod(parse_smtp_env)
+
+    def conf(self):
+        return self.read()
 
     def send(self, conf, msg):
         smtp_send(conf, msg)
@@ -701,6 +783,122 @@ class FakeMailer:
                     if r:
                         return r.group(0)
         return None
+
+
+# ═══════════════════════════ Platega ═══════════════════════════
+
+def parse_platega_env(txt):
+    """platega.env: PLATEGA_MERCHANT_ID, PLATEGA_SECRET и необязательный PLATEGA_METHOD (0 или пусто —
+    универсальная пейформа, способ выбирает покупатель; иное число — форма с этим способом).
+    Пустой или странный файл — ключей нет (None): /api/checkout отвечает pay_off."""
+    d = parse_env(txt)
+    mid, sec, m = (d.get(k, '').strip() for k in ('PLATEGA_MERCHANT_ID', 'PLATEGA_SECRET', 'PLATEGA_METHOD'))
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,100}', mid) or not re.fullmatch(r'[\x21-\x7e]{1,512}', sec):
+        return None
+    if not re.fullmatch(r'[0-9]{0,3}', m):
+        return None
+    return {'mid': mid, 'secret': sec, 'method': int(m or 0)}
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Перенаправления не выполняются: urllib повторил бы запрос вместе с X-Secret на новый адрес."""
+
+    def redirect_request(self, *a, **k):
+        return None
+
+
+class Platega(CredFile):
+    """Платега через urllib: создание счёта и его статус. Ответ — dict или None («не ответила»).
+
+    Образец — рабочий бот ГенаVPN (genavpn-bot/app/payments/platega.py). Две формы на РАЗНЫХ адресах:
+    POST /v2/transaction/process — универсальная (способ выбирает покупатель), POST /transaction/process —
+    с paymentMethod. Статус — GET /transaction/{id}. Таймаут 20 с; без прокси из окружения и без
+    перенаправлений. Ключ — только в заголовке: в журнал идёт `platega <вызов> <Класс|httpN>`.
+    """
+
+    parse = staticmethod(parse_platega_env)
+
+    def __init__(self, path, base=PLATEGA_URL):
+        super().__init__(path)
+        self.base = base
+        self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect(),
+                                                  urllib.request.HTTPSHandler(context=ssl.create_default_context()))
+
+    def keys(self):
+        return self.read()
+
+    def _call(self, what, keys, method, path, body=None):
+        h = {'X-MerchantId': keys['mid'], 'X-Secret': keys['secret'], 'Accept': 'application/json',
+             'User-Agent': 'magnat'}
+        data = None
+        if body is not None:
+            data = jdump(body).encode('utf-8')
+            h['Content-Type'] = 'application/json'
+        try:
+            rq = urllib.request.Request(self.base + path, data=data, headers=h, method=method)
+            with self.opener.open(rq, timeout=20) as r:
+                raw = r.read(65536)
+            d = json.loads(raw)
+        except urllib.error.HTTPError as e:
+            kind = 'http%d' % (e.getcode() or 0)
+        except (OSError, ValueError, RecursionError, http.client.HTTPException) as e:
+            kind = type(e).__name__
+        else:
+            if isinstance(d, dict):
+                return d
+            kind = 'notdict'
+        log('platega %s %s' % (what, kind))
+        return None
+
+    def create(self, keys, body):
+        if keys['method']:
+            return self._call('create', keys, 'POST', '/transaction/process', dict(body, paymentMethod=keys['method']))
+        return self._call('create', keys, 'POST', '/v2/transaction/process', body)
+
+    def status(self, keys, tx):
+        return self._call('status', keys, 'GET', '/transaction/' + urllib.parse.quote(tx, safe=''))
+
+
+class FakePlatega:
+    """Платега для check и selftest: без сети. Счета и статусы — в памяти, вызовы копятся."""
+
+    KEYS = {'mid': 'test-merchant', 'secret': 'test-secret-5f0c2a', 'method': 0}
+
+    def __init__(self, keys=None):
+        self.k = dict(keys or self.KEYS)
+        self.st = {}            # номер платежа → статус, который отдаст GET
+        self.calls = []         # ('create', тело) и ('status', номер)
+        self.reply = None       # подмена ответа на создание (dict)
+        self.fail = False       # создание не отвечает
+        self.down = False       # статус не отвечает
+        self.delay = 0
+        self.before = None      # крючок в начале create: selftest смотрит, что заказ уже в БД
+        self.lock = threading.Lock()
+
+    def keys(self):
+        return self.k
+
+    def create(self, keys, body):
+        if self.before is not None:
+            self.before(body)
+        with self.lock:
+            self.calls.append(('create', body))
+            if self.fail:
+                return None
+            if self.reply is not None:
+                return self.reply
+            tx = 'tx-%04d-%s' % (len(self.calls), secrets.token_hex(4))
+            self.st[tx] = 'PENDING'
+        return {'transactionId': tx, 'status': 'PENDING', 'url': 'https://pay.platega.test/' + tx}
+
+    def status(self, keys, tx):
+        if self.delay:
+            time.sleep(self.delay)
+        with self.lock:
+            self.calls.append(('status', tx))
+            if self.down or tx not in self.st:
+                return None
+            return {'id': tx, 'status': self.st[tx]}
 
 
 # ═══════════════════════════ Letters ═══════════════════════════
@@ -772,10 +970,54 @@ def letter_alert(conf, kind, text):
 def letter_export(conf, to, data, when):
     m = _letter(conf, to, 'Твои данные в Магнате',
                 'Привет!\n\nВо вложении — всё, что Магнат хранит на сервере о твоём аккаунте: адрес, устройства, '
-                'данные и список версий. Данные «Тела» на сервер не попадают — они только на телефоне.\n\n' + FOOT)
+                'данные, список версий, заказы и срок доступа. Данные «Тела» на сервер не попадают — они только '
+                'на телефоне.\n\n' + FOOT)
     m.add_attachment(jdump(data).encode('utf-8'), maintype='application', subtype='json',
                      filename='magnat-%s.json' % day(when))
     return m
+
+
+PAY_WHY = 'Письмо пришло, потому что этот адрес указали при оплате на magnat-planer.ru.'
+
+
+def renew_url(plan):
+    return SITE + 'checkout.html?plan=' + (plan if plan in PLANS else 'month')
+
+
+def letter_paid(conf, to, plan, kop, oid, until):
+    paras = ['Привет!',
+             'Оплата прошла: доступ к Магнату %s — %s, заказ %d. Доступ открыт до %s.'
+             % (PLANS[plan][2], rub(kop), oid, dmy(until)),
+             'Чтобы он включился, войди в приложении по этой почте — код для входа придёт сюда же. '
+             'Доступ включится на всех телефонах, где ты войдёшь.',
+             'Оплата разовая, автосписаний нет. Продлить — оплатить снова: дни прибавятся к остатку. '
+             'За 3 дня до конца срока пришлём письмо.',
+             'Если доступ не включился за 15 минут — ответь на это письмо, включим вручную.',
+             'Открыть Магнат: %sapp.html' % SITE]
+    return _letter(conf, to, 'Оплата прошла — доступ к Магнату до %s' % dmy(until),
+                   '\n\n'.join(paras) + '\n\n' + FOOT + '\n' + PAY_WHY,
+                   _page(paras + ['Вопросы — ответь на это письмо.', PAY_WHY]))
+
+
+def letter_soon(conf, to, until, plan):
+    paras = ['Привет!',
+             'Оплаченный доступ к Магнату заканчивается %s. Автосписаний нет — сами деньги не спишутся.' % dmy(until),
+             'Продлить — оплатить снова, дни прибавятся к остатку: %s' % renew_url(plan),
+             'Если не продлевать — после %s платные возможности приостановятся. Записи не удалятся, '
+             'копию данных можно скачать в приложении.' % dmy(until)]
+    return _letter(conf, to, 'Доступ к Магнату заканчивается %s' % dmy(until),
+                   '\n\n'.join(paras) + '\n\n' + FOOT + '\n' + PAY_WHY,
+                   _page(paras + ['Вопросы — ответь на это письмо.', PAY_WHY]))
+
+
+def letter_ended(conf, to, until, plan):
+    paras = ['Привет!',
+             'Оплаченный доступ к Магнату закончился %s. Записи на месте — ничего не удалено, '
+             'копию данных можно скачать в приложении.' % dmy(until),
+             'Продлить — оплатить снова: %s' % renew_url(plan)]
+    return _letter(conf, to, 'Доступ к Магнату закончился',
+                   '\n\n'.join(paras) + '\n\n' + FOOT + '\n' + PAY_WHY,
+                   _page(paras + ['Вопросы — ответь на это письмо.', PAY_WHY]))
 
 
 # ═══════════════════════════ Routes ═══════════════════════════
@@ -836,13 +1078,14 @@ class Sess:
 
 
 class Ctx:
-    """Один запрос: время, ключи IP для лимитов (только в памяти), cookie."""
+    """Один запрос: время, IP и его ключи для лимитов (только в памяти; IP — ещё в заказ оплаты), cookie."""
 
     def __init__(self, app, headers, peer):
         self.app = app
         self.headers = headers
         self.now = app.now()
-        self.ipk, self.netk = app.client_keys(peer, headers)
+        self.ip = app.client_ip(peer, headers)
+        self.ipk, self.netk = app.ip_keys(self.ip)
         self.cookies = []
         self.had_cookie = False
         self.sess = None     # /api/sync: сессия, проверенная в handle() ещё до чтения тела
@@ -863,8 +1106,9 @@ SESSION_LIMITS = {'sync': (30, 60), 'ver': (20, 60), 'me': (60, 60), 'sess': (60
 
 
 class App:
-    def __init__(self, cfg, store, key, mailer):
+    def __init__(self, cfg, store, key, mailer, pay=None):
         self.cfg, self.store, self.key, self.mailer = cfg, store, key, mailer
+        self.pay = pay if pay is not None else Platega(cfg.platega_file, cfg.platega_url)
         self.lim = Limiter(cfg.limit_scale)
         self.inflight = threading.BoundedSemaphore(16)
         self.sync_sem = threading.Semaphore(2)     # 366 МБ памяти на всю машину (замер 12.10)
@@ -874,7 +1118,7 @@ class App:
         self.hourly = {'codes': 0, 'logins': 0, 'syncs': 0, 'limited': 0}
         self.limited_unsaved = 0
         # путь → (обработчик, предел тела, вид): json — Origin + JSON; form — Origin + обычная форма;
-        # hook — уведомление платёжного сервиса: без Origin и cookie, проверка — в самом обработчике.
+        # hook — уведомление платёжного сервиса: без Origin и cookie, проверка ключей — в самом обработчике.
         self.routes = {
             '/api/code': (self.r_code, SMALL_BODY, 'json'),
             '/api/login': (self.r_login, SMALL_BODY, 'json'),
@@ -886,8 +1130,9 @@ class App:
             '/api/logout': (self.r_logout, SMALL_BODY, 'json'),
             '/api/delete': (self.r_delete, SMALL_BODY, 'json'),
         }
-        if PAYMENTS:  # §13: включаются вместе с миграцией 2 и privacy.html
-            self.routes['/api/checkout'] = (self.r_checkout, SMALL_BODY, 'form')
+        if cfg.payments:  # «включай» оплаты: вместе с PAY_ON в app.html, CFG.pay в checkout.html и текстами
+            self.routes['/api/checkout'] = (self.r_checkout, 4096, 'json')
+            self.routes['/api/order'] = (self.r_order, SMALL_BODY, 'json')
             self.routes['/api/platega/callback'] = (self.r_platega_callback, 16384, 'hook')
 
     # ── время, ключи, счётчики ──
@@ -901,8 +1146,8 @@ class App:
     def code_h(self, purpose, em, c):
         return hmac.new(self.key, ('c:%s:%s:%s' % (purpose, em, c)).encode(), hashlib.sha256).hexdigest()
 
-    def client_keys(self, peer, headers):
-        """IP = последнее значение X-Forwarded-For, только если пир 127.0.0.1. IPv6 — /64, подсеть /24 и /48."""
+    def client_ip(self, peer, headers):
+        """IP = последнее значение X-Forwarded-For, только если пир 127.0.0.1."""
         ip = peer or ''
         if ip in ('127.0.0.1', '::1', '::ffff:127.0.0.1'):
             vals = headers.get_all('X-Forwarded-For') or []
@@ -919,12 +1164,20 @@ class App:
                 a = ipaddress.ip_address('0.0.0.0')
         if a.version == 6 and a.ipv4_mapped is not None:
             a = a.ipv4_mapped
+        return str(a)
+
+    def ip_keys(self, ip):
+        """Ключи лимитов: IPv4 — адрес и /24; IPv6 — /64 и /48."""
+        a = ipaddress.ip_address(ip)
         if a.version == 4:
             k, n = str(a), str(ipaddress.ip_network('%s/24' % a, strict=False))
         else:
             k = str(ipaddress.ip_network('%s/64' % a, strict=False))
             n = str(ipaddress.ip_network('%s/48' % a, strict=False))
         return self.lim.key('ip', k), self.lim.key('net', n)
+
+    def client_keys(self, peer, headers):
+        return self.ip_keys(self.client_ip(peer, headers))
 
     def count(self, name, n=1):
         with self.hlock:
@@ -960,27 +1213,331 @@ class App:
         lim, w = SESSION_LIMITS[group]
         return self.lim.hit([('s%s:%s' % (group, sid), lim, w)])
 
-    # ── платежи: крючки (§13), пока пустые ──
-
-    def subscription(self, acct):
-        """sub для /api/me: {plan, status, until} из таблицы subscriptions (миграция 2). Пока None."""
+    def _mail_slot(self, c, now):
+        """Место в общих потолках писем (сутки и минута) внутри BEGIN IMMEDIATE: None — занято и засчитано,
+        иначе 'mail_cap' (дневной потолок) или 'busy' (потолок минуты)."""
+        dk, mk = 'day:' + day(now), 'min:' + minute_key(now)
+        nd = c.execute('SELECT n FROM mail_count WHERE k=?', (dk,)).fetchone()
+        if nd is not None and nd[0] >= self.cfg.mail_day:
+            return 'mail_cap'
+        nm = c.execute('SELECT n FROM mail_count WHERE k=?', (mk,)).fetchone()
+        if nm is not None and nm[0] >= self.cfg.mail_min:
+            return 'busy'
+        for k in (dk, mk):
+            c.execute('INSERT INTO mail_count(k, n) VALUES(?, 1) ON CONFLICT(k) DO UPDATE SET n=n+1', (k,))
         return None
 
-    def cancel_subscription(self, acct):
-        """Перед удалением аккаунта — отмена подписки в Платеге. Удаление идёт в любом случае."""
-        return True
+    def notify(self, to, make):
+        """Письмо об оплате или сроке (to=None — владельцу, на SUPPORT). Потолки писем общие с кодами;
+        сбой почты ничего не откатывает — доступ уже выдан. True — ушло."""
+        conf = self.mailer.conf()
+        if not conf or self.paused():
+            return False
+        to = to or conf['SUPPORT']
+        now = self.now()
+        with self.store.tx() as c:
+            if self._mail_slot(c, now):
+                return False
+        if not self.smtp_sem.acquire(timeout=5):
+            return False
+        err = None
+        try:
+            self.mailer.send(conf, make(conf, to))
+        except Exception as e:
+            err = type(e).__name__
+        finally:
+            self.smtp_sem.release()
+        with self.store.tx() as c:
+            if err is None:
+                self.stat(c, 'pay_mail')
+            else:
+                c.execute("INSERT INTO meta(k, v) VALUES('mail_err', ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v",
+                          ('%d %s' % (now, err),))
+                self.stat(c, 'mail_fail')
+        if err is not None:
+            log('smtp error ' + err)
+        return err is None
 
-    def poll_payments(self):
-        """maintain: запасной опрос заказов, висящих в PENDING (как у бота VPN)."""
-        return 0
+    # ── оплата: заказ → счёт Платеги → статус → доступ по почте ──
+
+    def _sub(self, c, em, now):
+        """sub для /api/me: срок доступа по почте сессии (таблица access) или None."""
+        row = c.execute('SELECT until, plan FROM access WHERE email=?', (em,)).fetchone()
+        return None if row is None else {'plan': row[1], 'until': row[0], 'active': row[0] > now}
+
+    def forget_payments(self, c, em):
+        """Удаление аккаунта (внутри его транзакции): почта, Telegram и IP отвязываются от заказов, доступ
+        стирается. Суммы, даты и номера остаются для учёта — уже ни к кому не привязанные."""
+        c.execute('UPDATE payment_events SET raw=NULL WHERE order_id IN (SELECT id FROM orders WHERE email=?)', (em,))
+        n = c.execute('UPDATE orders SET email=NULL, tg=NULL, ip=NULL WHERE email=?', (em,)).rowcount
+        c.execute('DELETE FROM access WHERE email=?', (em,))
+        return n
+
+    def _event(self, c, oid, tx, status, src, now, raw=None):
+        c.execute('INSERT OR IGNORE INTO payment_events(order_id, tx, status, src, at, raw) VALUES(?, ?, ?, ?, ?, ?)',
+                  (oid, tx, status, src, now, raw))
+
+    def apply_status(self, oid, st, src, now=None):
+        """Статус платежа (только перечитанный у Платеги GET-ом) → заказ и доступ. Одна транзакция, решает
+        состояние заказа: повтор того же статуса — колбэк, опрос, страница — ничего не меняет.
+        Возвращает состояние заказа после применения (None — заказа нет)."""
+        now = self.now() if now is None else now
+        st = (st or '').upper()
+        mail = None
+        with self.store.tx() as c:
+            row = c.execute('SELECT status, email, plan, days, amount_kop, tx FROM orders WHERE id=?', (oid,)).fetchone()
+            if row is None:
+                return None
+            cur, em, plan, days, kop, tx = row
+            if st in PAID_ST and cur not in ('paid', 'chargeback', 'grant'):
+                # продление: срок прибавляется к остатку, а не к сегодняшнему дню
+                old = c.execute('SELECT until FROM access WHERE email=?', (em,)).fetchone() if em else None
+                until = max(now, old[0] if old else 0) + days * DAY
+                c.execute("UPDATE orders SET status='paid', paid_at=?, until=?, updated=? WHERE id=?",
+                          (now, until, now, oid))
+                if em:
+                    c.execute("INSERT INTO access(email, until, plan, updated, warned) VALUES(?, ?, ?, ?, '') "
+                              'ON CONFLICT(email) DO UPDATE SET until=excluded.until, plan=excluded.plan, '
+                              "updated=excluded.updated, warned=''", (em, until, plan, now))
+                    mail = (em, lambda conf, to: letter_paid(conf, to, plan, kop, oid, until))
+                self._event(c, oid, tx, 'paid', src, now)
+                self.stat(c, 'pay_paid')
+                cur = 'paid'
+            elif (st in DEAD_ST or st in BACK_ST) and cur in ('new', 'pending'):
+                c.execute("UPDATE orders SET status='canceled', updated=? WHERE id=?", (now, oid))
+                self._event(c, oid, tx, 'canceled', src, now)
+                cur = 'canceled'
+            elif st in BACK_ST and cur == 'paid':
+                c.execute("UPDATE orders SET status='chargeback', updated=? WHERE id=?", (now, oid))
+                if em:
+                    c.execute("UPDATE access SET until=until-?, updated=?, warned='' WHERE email=?", (days * DAY, now, em))
+                self._event(c, oid, tx, 'chargeback', src, now)
+                self.stat(c, 'pay_chargeback')
+                cur = 'chargeback'
+                text = 'банк вернул деньги по заказу %d, доступ уменьшен на %d %s' % (
+                    oid, days, plural(days, 'день', 'дня', 'дней'))
+                mail = (None, lambda conf, to: letter_alert(conf, 'chargeback', text))
+        if mail is not None:
+            self.notify(*mail)
+        return cur
+
+    def _recheck(self, keys, oid, tx, src, now=None):
+        """Спросить Платегу о счёте (вне замка БД) и применить ответ. None — Платега не ответила."""
+        d = self.pay.status(keys, tx)
+        if d is None:
+            return None
+        return self.apply_status(oid, str(d.get('status') or d.get('state') or ''), src, now)
+
+    def _claim(self, oid, checked, now):
+        """Опрос висящего счёта берёт один поток: остальные видят новый checked и Платегу не дёргают."""
+        with self.store.tx() as c:
+            return c.execute("UPDATE orders SET checked=? WHERE id=? AND status='pending' AND checked=?",
+                             (now, oid, checked)).rowcount == 1
 
     def r_checkout(self, ctx, b):
-        """POST /api/checkout (§13): форма checkout.html, цена из своей таблицы, заказ до внешнего вызова."""
-        return fail('nope', 404)
+        """POST /api/checkout {plan, email, telegram, consent, terms}: цена — из PLANS, заказ пишется ДО вызова
+        Платеги. Ответ {ok, url, o}: url — страница оплаты (только https://), o — ключ-ссылка заказа."""
+        plan = b.get('plan')
+        if not isinstance(plan, str) or plan not in PLANS:
+            raise Bad()
+        v = b.get('email')
+        if not isinstance(v, str):
+            raise Bad()
+        em, e = norm_email(v[:1000])
+        if e:
+            return fail('email')
+        tg = b.get('telegram') or ''
+        if not isinstance(tg, str) or len(tg) > 64:
+            raise Bad()
+        # как вписал человек: @name, name или ссылка t.me/name — храним @name
+        tg = re.sub(r'^(?:https?://)?(?:t\.me|telegram\.me)/', '', tg.strip(), flags=re.I)
+        if tg and tg[0] != '@':
+            tg = '@' + tg
+        if tg and not RE_TG.fullmatch(tg):
+            raise Bad()
+        cs = b.get('consent')
+        if not isinstance(cs, str) or len(cs) > 2000:
+            raise Bad()
+        cs = ' '.join(cs.split())
+        if not 20 <= len(cs) <= 600 or any(unicodedata.category(ch)[0] == 'C' for ch in cs):
+            raise Bad()
+        if b.get('terms') != TERMS_ED:
+            return fail('terms')
+        keys = self.pay.keys()
+        if keys is None:
+            return fail('pay_off')
+        r = self.lim.hit([('k1:' + ctx.ipk, 10, 3600), ('kn1:' + ctx.netk, 30, 3600),
+                          ('ke1:' + self.lim.key('em', em), 5, 3600)])
+        if r:
+            return self.slow(r)
+        if not self.disk_ok():
+            return fail('disk')
+        kop, days, what = PLANS[plan]
+        now, pub = ctx.now, secrets.token_urlsafe(16)
+        with self.store.tx() as c:
+            oid = c.execute('INSERT INTO orders(pub, at, email, tg, plan, days, amount_kop, consent, terms_ed, ip, tx, '
+                            'status, checked, paid_at, until, updated) '
+                            "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'new', ?, NULL, NULL, ?)",
+                            (pub, now, em, tg or None, plan, days, kop, cs, TERMS_ED, ctx.ip, now, now)).lastrowid
+            self.stat(c, 'pay_orders')
+        d = self.pay.create(keys, {
+            'paymentDetails': {'amount': kop // 100, 'currency': 'RUB'},
+            'description': 'Магнат — доступ %s (заказ %d)' % (what, oid),
+            'return': SITE + 'checkout.html?o=' + pub, 'failedUrl': SITE + 'checkout.html?o=' + pub + '&fail=1',
+            'payload': pub, 'metadata': {'orderId': str(oid)}})
+        url = tx = None
+        if d is not None:
+            url = d.get('url') or d.get('redirect') or d.get('paymentUrl')
+            tx = str(d.get('transactionId') or d.get('id') or '')
+            # ссылка станет location.assign на странице: только https://, иначе честное «не получилось»
+            if (not isinstance(url, str) or not url.startswith('https://') or len(url) > 2048 or not RE_TX.fullmatch(tx)
+                    or any(ch.isspace() or unicodedata.category(ch)[0] == 'C' for ch in url)):
+                url = tx = None
+        with self.store.tx() as c:
+            if url is not None:
+                try:
+                    c.execute("UPDATE orders SET tx=?, status='pending', checked=?, updated=? WHERE id=? AND status='new'",
+                              (tx, now, now, oid))
+                except sqlite3.IntegrityError:      # этот номер платежа уже у другого заказа
+                    url = tx = None
+            if url is None:
+                c.execute("UPDATE orders SET status='failed', updated=? WHERE id=? AND status='new'", (now, oid))
+                self.stat(c, 'pay_failed')
+            self._event(c, oid, tx, 'pending' if url else 'failed', 'create', now)
+        if url is None:
+            return fail('platega')
+        return ok(url=url, o=pub)
+
+    def _order_by_pub(self, pub):
+        with self.store.ro() as c:
+            return c.execute('SELECT id, status, tx, checked, plan, until, email FROM orders WHERE pub=?',
+                             (pub,)).fetchone()
+
+    def r_order(self, ctx, b):
+        """POST /api/order {o}: статус заказа по ключу-ссылке (страница возврата спрашивает каждые 3 с).
+        Висящий счёт — заодно спросить Платегу, не чаще раза в 10 с на заказ."""
+        pub = f_str(b, 'o', RE_PUB)
+        r = self.lim.hit([('o1:' + ctx.ipk, 60, 60)])
+        if r:
+            return self.slow(r)
+        row = self._order_by_pub(pub)
+        if row is None or row[1] == 'grant':
+            return fail('order')
+        if row[1] == 'pending' and row[2] and ctx.now - row[3] >= 10:
+            keys = self.pay.keys()
+            if keys is not None and self._claim(row[0], row[3], ctx.now):
+                self._recheck(keys, row[0], row[2], 'order')
+                row = self._order_by_pub(pub)
+        st = {'new': 'pending', 'pending': 'pending', 'paid': 'paid'}.get(row[1], 'failed')
+        o = {'status': st, 'plan': row[4], 'email': mask_email(row[6])}
+        if st == 'paid':
+            o['until'] = row[5]
+        return ok(**o)
 
     def r_platega_callback(self, ctx, b):
-        """POST /api/platega/callback (§13): без Origin и cookie, compare_digest по заголовкам."""
-        return fail('nope', 404)
+        """POST /api/platega/callback: без Origin и cookie; ключи мерчанта в X-MerchantId и X-Secret сверяются
+        за постоянное время. Телу не верим: статус перечитываем GET-ом и применяем его. Ответ 200 быстрее
+        60 с — иначе Платега повторит уведомление."""
+        rules = [('hk:' + ctx.ipk, 20, 3600)]          # подбор ключа: 20 неверных в час с одного IP
+        r = self.lim.hit(rules, add=False)
+        if r:
+            return self.slow(r)
+        keys = self.pay.keys()
+        mids = ctx.headers.get_all('X-MerchantId') or []
+        secs = ctx.headers.get_all('X-Secret') or []
+        m_ok = same(mids[0] if len(mids) == 1 else '', keys['mid'] if keys else '')
+        s_ok = same(secs[0] if len(secs) == 1 else '', keys['secret'] if keys else '')
+        if keys is None or len(mids) != 1 or len(secs) != 1 or not (m_ok and s_ok):
+            self.lim.add([k for k, _, _ in rules])
+            return fail('origin', 403)
+        tx = b.get('id', b.get('transactionId'))
+        if not isinstance(tx, str) or not RE_TX.fullmatch(tx):
+            raise Bad()
+        st = b.get('status')
+        st = st.upper() if isinstance(st, str) and RE_PSTATUS.fullmatch(st) else '?'
+        with self.store.tx() as c:
+            c.execute("INSERT INTO meta(k, v) VALUES('pay_callback', ?) ON CONFLICT(k) DO UPDATE SET v=excluded.v",
+                      (str(ctx.now),))
+            row = c.execute('SELECT id FROM orders WHERE tx=?', (tx,)).fetchone()
+            if row is not None:
+                self._event(c, row[0], tx, st, 'callback', ctx.now, jdump(b).encode()[:2048].decode('utf-8', 'ignore'))
+        if row is None:
+            log('callback unknown')
+            return ok()
+        self._recheck(keys, row[0], tx, 'callback')
+        return ok()
+
+    def poll_payments(self, now=None, budget=10):
+        """Опрос висящих счетов (фон каждую минуту; maintain — тот же код): моложе часа — раз в минуту, до суток —
+        раз в 15 минут, старше суток — последний вопрос и expired. Не больше budget запросов в Платегу за раз.
+        Заодно заказ new старше часа (процесс упал между записью и вызовом Платеги) — failed.
+        Возвращает число запросов в Платегу."""
+        now = self.now() if now is None else now
+        with self.store.tx() as c:
+            for (oid,) in c.execute("SELECT id FROM orders WHERE status='new' AND at<?", (now - 3600,)).fetchall():
+                c.execute("UPDATE orders SET status='failed', updated=? WHERE id=?", (now, oid))
+                self._event(c, oid, None, 'failed', 'poll', now)
+        keys = self.pay.keys()
+        if keys is None:
+            return 0
+        with self.store.ro() as c:
+            rows = c.execute("SELECT id, tx, at, checked FROM orders WHERE status='pending' AND tx IS NOT NULL AND "
+                             '((at>? AND checked<=?) OR (at<=? AND checked<=?) OR at<=?) ORDER BY checked LIMIT ?',
+                             (now - 3600, now - 60, now - 3600, now - 900, now - DAY, budget)).fetchall()
+        n = 0
+        for oid, tx, at, checked in rows:
+            if not self._claim(oid, checked, now):
+                continue
+            n += 1
+            self._recheck(keys, oid, tx, 'poll', now)
+            if at <= now - DAY:
+                with self.store.tx() as c:
+                    if c.execute("UPDATE orders SET status='expired', updated=? WHERE id=? AND status='pending'",
+                                 (now, oid)).rowcount:
+                        self._event(c, oid, tx, 'expired', 'poll', now)
+        return n
+
+    def remind(self, now=None):
+        """Письма о сроке (фон, раз в час): осталось ≤ 3 дней — «заканчивается», срок вышел (не старше 2 суток) —
+        «закончился». Каждое — одно на этот срок: метка в access.warned «<until>:end,soon». Возвращает число писем."""
+        now = self.now() if now is None else now
+        if not self.mailer.conf() or self.paused():
+            return 0
+        with self.store.ro() as c:
+            rows = c.execute('SELECT email, until, plan, warned FROM access WHERE until>? AND until<=? '
+                             'ORDER BY until LIMIT 200', (now - 2 * DAY, now + 3 * DAY)).fetchall()
+        n = 0
+        for em, until, plan, warned in rows:
+            w_until, _, tags = warned.partition(':')
+            tags = set(tags.split(',')) - {''} if w_until == str(until) else set()
+            kind = 'end' if until <= now else 'soon'
+            if kind in tags:
+                continue
+            fn = letter_ended if kind == 'end' else letter_soon
+            if not self.notify(em, lambda conf, to, fn=fn, until=until, plan=plan: fn(conf, to, until, plan)):
+                continue
+            n += 1
+            tags.add(kind)
+            with self.store.tx() as c:
+                c.execute('UPDATE access SET warned=? WHERE email=? AND until=?',
+                          ('%d:%s' % (until, ','.join(sorted(tags))), em, until))
+        return n
+
+    def grant(self, em, days, note='', now=None):
+        """magnat grant: ручная выдача (соглашение обещает «включим вручную»): заказ grant на 0 ₽, срок — к остатку."""
+        now = self.now() if now is None else now
+        with self.store.tx() as c:
+            old = c.execute('SELECT until, plan FROM access WHERE email=?', (em,)).fetchone()
+            until = max(now, old[0] if old else 0) + days * DAY
+            oid = c.execute('INSERT INTO orders(pub, at, email, tg, plan, days, amount_kop, consent, terms_ed, ip, tx, '
+                            'status, checked, paid_at, until, updated) '
+                            "VALUES(?, ?, ?, NULL, 'grant', ?, 0, 'выдано вручную', ?, NULL, NULL, 'grant', ?, ?, ?, ?)",
+                            (secrets.token_urlsafe(16), now, em, days, TERMS_ED, now, now, until, now)).lastrowid
+            c.execute("INSERT INTO access(email, until, plan, updated, warned) VALUES(?, ?, ?, ?, '') "
+                      'ON CONFLICT(email) DO UPDATE SET until=excluded.until, updated=excluded.updated, '
+                      "warned=''", (em, until, old[1] if old else 'grant', now))
+            self._event(c, oid, None, 'grant', 'admin', now, note or None)
+        return until
 
     # ── вход в маршрут ──
 
@@ -1083,7 +1640,7 @@ class App:
         except Exception:
             return Resp(503, {'ok': False, 'db': False})
         return ok(v=self.version, schema=sch, db=True, smtp=self.mailer.conf() is not None,
-                  open=self.cfg.open, paused=self.paused())
+                  open=self.cfg.open, paused=self.paused(), pay=self.cfg.payments, payKeys=self.pay.keys() is not None)
 
     # ── сессия ──
 
@@ -1195,18 +1752,14 @@ class App:
                               'LIMIT 1 OFFSET ?', (eh, now - w, lim - 1)).fetchone()
                 if r is not None:
                     return self.slow(r[0] + w - now)
-            dk, mk = 'day:' + day(now), 'min:' + minute_key(now)
-            nd = c.execute('SELECT n FROM mail_count WHERE k=?', (dk,)).fetchone()
-            if nd is not None and nd[0] >= cfg.mail_day:
+            slot = self._mail_slot(c, now)
+            if slot == 'mail_cap':
                 return fail('mail_cap')
-            nm = c.execute('SELECT n FROM mail_count WHERE k=?', (mk,)).fetchone()
-            if nm is not None and nm[0] >= cfg.mail_min:
+            if slot:
                 return fail('busy', retryIn=60)
             cid = c.execute('INSERT INTO codes(email_h, purpose, code_h, created, expires, tries, last_try, state) '
                             'VALUES(?, ?, ?, ?, ?, 0, 0, ?)',
                             (eh, purpose, self.code_h(purpose, em, c6), now, now + cfg.code_ttl, SENDING)).lastrowid
-            for k in (dk, mk):
-                c.execute('INSERT INTO mail_count(k, n) VALUES(?, 1) ON CONFLICT(k) DO UPDATE SET n=n+1', (k,))
         # Отправка вне замка БД. Очереди нет: код не может прийти позже, уже мёртвым.
         if not self.smtp_sem.acquire(timeout=5):
             with self.store.tx() as c:
@@ -1306,7 +1859,8 @@ class App:
             return self.slow(r)
         with self.store.ro() as c:
             head = self._head(c, s.acct)
-        return ok(auth=True, acct=s.acct, email=s.email, head=head, sub=self.subscription(s.acct))
+            sub = self._sub(c, s.email, ctx.now)
+        return ok(auth=True, acct=s.acct, email=s.email, head=head, sub=sub)
 
     # ── синхронизация ──
 
@@ -1587,7 +2141,6 @@ class App:
             if res in ('code', 'replaced', 'expired', 'tries_over'):
                 self.lim.add([k for k, _, _ in rules])
             return fail(res, **extra)
-        self.cancel_subscription(s.acct)
         self.delete_account(s.acct, s.email, ctx.now)
         ctx.cookies.append(CLEAR_COOKIE)
         return ok()
@@ -1607,7 +2160,8 @@ class App:
             os.close(fd)
 
     def delete_account(self, acct, em, now):
-        """Надгробие (файл, потом таблица) и каскадное удаление: ревизии и сессии уходят вместе с аккаунтом."""
+        """Надгробие (файл, потом таблица) и каскадное удаление: ревизии и сессии уходят вместе с аккаунтом,
+        почта, Telegram и IP — из заказов, срок доступа — совсем (forget_payments)."""
         eh = self.email_h(em)
         with self._log_lock():
             with open(self._log_path(), 'a', encoding='ascii') as f:
@@ -1618,6 +2172,7 @@ class App:
             c.execute('INSERT INTO deletions(email_h, at) VALUES(?, ?)', (eh, now))
             c.execute('DELETE FROM accounts WHERE id=?', (acct,))
             c.execute('DELETE FROM codes WHERE email_h=?', (eh,))
+            self.forget_payments(c, em)
             self.stat(c, 'deletes')
         self.checkpoint()
 
@@ -1650,6 +2205,7 @@ class App:
                 at = tomb.get(self.email_h(em))
                 if at is not None and created <= at:  # секунды: удалить сразу после создания — тоже до надгробия
                     c.execute('DELETE FROM accounts WHERE id=?', (acct,))
+                    self.forget_payments(c, em)
                     gone += 1
             have = set(c.execute('SELECT email_h, at FROM deletions').fetchall())
             for eh, at in tomb.items():
@@ -1716,7 +2272,6 @@ class App:
             old = c.execute('SELECT id, email FROM accounts WHERE seen<?',
                             (day(now - self.cfg.inactive_days * DAY),)).fetchall()
         for acct, em in old:
-            self.cancel_subscription(acct)
             self.delete_account(acct, em, now)
         cut = now - 45 * DAY
         with self.store.tx() as c:
@@ -1746,7 +2301,8 @@ class App:
 
     def maint_loop(self, stop):
         last = time.monotonic()
-        while not stop.wait(60):
+        rem = None                  # письма о сроке: на первом шаге после старта, дальше раз в час
+        while not stop.wait(self.cfg.tick):
             try:
                 self.lim.purge()
                 if self.store is None:
@@ -1754,6 +2310,10 @@ class App:
                         self.store = Store(self.cfg.db)
                     except Exception:
                         continue
+                self.poll_payments()
+                if self.cfg.payments and (rem is None or time.monotonic() - rem >= 3600):
+                    rem = time.monotonic()
+                    self.remind()
                 if time.monotonic() - last >= 3600:
                     last = time.monotonic()
                     self.cleanup()
@@ -1784,6 +2344,19 @@ class App:
                             if os.path.exists(self.store.path + s))
         r['open'] = self.cfg.open
         r['paused'] = self.paused()
+        r['pay_on'] = self.cfg.payments
+        r['pay_keys'] = self.pay.keys() is not None    # из CLI — только если ключи видны этому процессу
+        r['pay_pending'] = r['pay_paid_month'] = r['pay_sum_month_kop'] = r['pay_last_callback'] = 0
+        r['access_active'] = 0
+        if self.store.schema >= 2:
+            with self.store.ro() as c:
+                r['pay_pending'] = c.execute("SELECT COUNT(*) FROM orders WHERE status IN ('new', 'pending')").fetchone()[0]
+                r['pay_paid_month'], r['pay_sum_month_kop'] = c.execute(
+                    "SELECT COUNT(*), COALESCE(SUM(amount_kop), 0) FROM orders WHERE status='paid' AND "
+                    "strftime('%Y-%m', paid_at, 'unixepoch')=?", (m,)).fetchone()
+                cb = c.execute("SELECT v FROM meta WHERE k='pay_callback'").fetchone()
+                r['pay_last_callback'] = int(cb[0]) if cb and cb[0].isdigit() else 0
+                r['access_active'] = c.execute('SELECT COUNT(*) FROM access WHERE until>?', (now,)).fetchone()[0]
         return r
 
 
@@ -1987,7 +2560,11 @@ def parse_listen(s):
 
 # ═══════════════════════════ CLI ═══════════════════════════
 
-VALUED = ('db', 'out', 'creds', 'to', 'kind', 'text')
+VALUED = ('db', 'out', 'creds', 'to', 'kind', 'text', 'note', 'month')
+
+ORDER_WORDS = {'new': 'создан', 'pending': 'ждёт оплаты', 'paid': 'оплачен', 'canceled': 'отменён',
+               'failed': 'счёт не создан', 'expired': 'просрочен', 'chargeback': 'возврат банком',
+               'grant': 'выдан вручную'}
 
 
 def parse_args(argv):
@@ -2025,7 +2602,9 @@ def open_app(opts, migrate=True, need_key=True):
         raise RuntimeError('базы нет')
     store = Store(cfg.db, migrate=migrate, create=False)
     key = load_key(cfg.state) if need_key else secrets.token_bytes(32)
-    return App(cfg, store, key, FakeMailer())
+    # Почта и ключи Платеги службы (LoadCredential) команде не видны: писем она не шлёт, Платегу — только если
+    # ключи дали явно (MAGNAT_PLATEGA_FILE).
+    return App(cfg, store, key, Mailer(''))
 
 
 def cmd_serve(pos, opts):
@@ -2066,12 +2645,13 @@ class Probe:
     def __init__(self, port, origin):
         self.port, self.origin, self.tok = port, origin, None
 
-    def __call__(self, path, body):
+    def __call__(self, path, body, hdr=None):
         data = jdump(body).encode('utf-8')
         h = {'Origin': self.origin, 'Content-Type': 'application/json', 'Sec-Fetch-Site': 'same-origin',
              'X-Forwarded-For': '192.0.2.1'}
         if self.tok:
             h['Cookie'] = '%s=%s' % (COOKIE, self.tok)
+        h.update(hdr or {})
         cn = http.client.HTTPConnection('127.0.0.1', self.port, timeout=20)
         try:
             cn.request('POST', path, body=data, headers=h)
@@ -2102,11 +2682,11 @@ def cmd_check(pos, opts):
                 raise RuntimeError('integrity')
         step = 'migrate'
         store = Store(dst)
-        cfg.db, cfg.state, cfg.open, cfg.disk_min_mb = dst, work, True, 0
+        cfg.db, cfg.state, cfg.open, cfg.disk_min_mb, cfg.payments = dst, work, True, 0, True
         cfg.mail_day = cfg.mail_min = 10 ** 6   # потолки живой БД не должны блокировать выкладку
         cfg.origin = 'https://check.invalid'
-        mailer = FakeMailer()
-        app = App(cfg, store, secrets.token_bytes(32), mailer)
+        mailer, pay = FakeMailer(), FakePlatega()
+        app = App(cfg, store, secrets.token_bytes(32), mailer, pay)
         srv = Server(('127.0.0.1', 0), app)
         threading.Thread(target=srv.serve_forever, kwargs={'poll_interval': 0.2}, daemon=True).start()
         call = Probe(srv.server_address[1], cfg.origin)
@@ -2137,7 +2717,21 @@ def cmd_check(pos, opts):
         assert r.get('ok') and r['doc'] == doc, r
         step = 'me'
         r = call('/api/me', {})
-        assert r.get('ok') and r['auth'] and r['head']['rid'] == rid, r
+        assert r.get('ok') and r['auth'] and r['head']['rid'] == rid and r['sub'] is None, r
+        step = 'pay'          # заказ → поддельная Платега → уведомление → статус перечитан → доступ
+        r = call('/api/checkout', {'plan': 'month', 'email': em, 'telegram': '', 'terms': TERMS_ED,
+                                   'consent': 'Оплачиваю доступ к Магнату — проверка выпуска.'})
+        assert r.get('ok') and r['url'].startswith('https://'), r
+        assert pay.calls[-1][1]['payload'] == r['o'] and len(pay.st) == 1, pay.calls
+        tx = next(iter(pay.st))
+        pay.st[tx] = 'CONFIRMED'
+        r2 = call('/api/platega/callback', {'id': tx, 'status': 'CONFIRMED'},
+                  {'X-MerchantId': pay.k['mid'], 'X-Secret': pay.k['secret']})
+        assert r2 == {'ok': True}, r2
+        r2 = call('/api/order', {'o': r['o']})
+        assert r2.get('status') == 'paid', r2
+        r2 = call('/api/me', {})
+        assert r2['sub'] and r2['sub']['active'] and r2['sub']['plan'] == 'month', r2
         step = 'logout'
         r = call('/api/logout', {})
         assert r.get('ok') and call.tok is None, r
@@ -2282,38 +2876,111 @@ def cmd_user(pos, opts):
         return 1
     app = open_app(opts, need_key=(act == 'delete'))
     try:
+        devs, vers, size, hb = [], [], 0, None
         with app.store.ro() as c:
             row = c.execute('SELECT id, created, seen FROM accounts WHERE email=?', (em,)).fetchone()
+            # заказы и срок доступа живут по почте: бывают и без аккаунта (оплатил, но ещё не входил)
+            ords = c.execute('SELECT id, at, plan, amount_kop, status, until, tg, consent, ip FROM orders '
+                             'WHERE email=? ORDER BY at, id', (em,)).fetchall()
+            acc = c.execute('SELECT until, plan FROM access WHERE email=?', (em,)).fetchone()
+            if row is not None:
+                acct = row[0]
+                devs = c.execute('SELECT label, seen, created FROM sessions WHERE account_id=? ORDER BY seen DESC',
+                                 (acct,)).fetchall()
+                vers = c.execute('SELECT at, kind, reason, label FROM revisions WHERE account_id=? ORDER BY at DESC',
+                                 (acct,)).fetchall()
+                size = c.execute('SELECT COALESCE(SUM(LENGTH(blob)), 0) FROM revisions WHERE account_id=?',
+                                 (acct,)).fetchone()[0]
+                hb = c.execute('SELECT r.blob FROM accounts a JOIN revisions r ON r.rid=a.head_rid WHERE a.id=?',
+                               (acct,)).fetchone()
+        if row is None and not ords and acc is None:
+            out('Аккаунта с этим адресом нет.')
+            return 0
+        if act == 'show':
             if row is None:
                 out('Аккаунта с этим адресом нет.')
-                return 0
-            acct = row[0]
-            devs = c.execute('SELECT label, seen, created FROM sessions WHERE account_id=? ORDER BY seen DESC',
-                             (acct,)).fetchall()
-            vers = c.execute('SELECT at, kind, reason, label FROM revisions WHERE account_id=? ORDER BY at DESC',
-                             (acct,)).fetchall()
-            size = c.execute('SELECT COALESCE(SUM(LENGTH(blob)), 0) FROM revisions WHERE account_id=?',
-                             (acct,)).fetchone()[0]
-            hb = c.execute('SELECT r.blob FROM accounts a JOIN revisions r ON r.rid=a.head_rid WHERE a.id=?',
-                           (acct,)).fetchone()
-        if act == 'show':
-            out('Аккаунт есть: создан %s, последний заход %s.' % (day(row[1]), row[2]))
-            out('Устройства (%d): %s' % (len(devs), '; '.join('%s — %s' % (d[0], d[1]) for d in devs) or 'нет'))
-            out('Версий: %d, место на сервере: %d КБ.' % (len(vers), (size + 1023) // 1024))
+            else:
+                out('Аккаунт есть: создан %s, последний заход %s.' % (day(row[1]), row[2]))
+                out('Устройства (%d): %s' % (len(devs), '; '.join('%s — %s' % (d[0], d[1]) for d in devs) or 'нет'))
+                out('Версий: %d, место на сервере: %d КБ.' % (len(vers), (size + 1023) // 1024))
+            if ords or acc:
+                out('Заказы (%d): %s' % (len(ords), '; '.join(
+                    '%s · %s · %s · %s · заказ %d' % (dmy(o[1]), PLAN_NAMES.get(o[2], o[2]), rub(o[3]),
+                                                      ORDER_WORDS.get(o[4], o[4]), o[0]) for o in ords) or 'нет'))
+                out('Доступ: %s.' % (('до %s, %s' % (dmy(acc[0]), 'действует' if acc[0] > app.now() else 'закончился'))
+                                     if acc else 'нет'))
             return 0
         if act == 'export':
             data = {'service': 'magnat-planer.ru', 'exported': day(app.now()),
-                    'account': {'email': em, 'created': day(row[1]), 'seen': row[2]},
+                    'account': {'email': em, 'created': day(row[1]), 'seen': row[2]} if row else None,
                     'devices': [{'label': d[0], 'seen': d[1], 'since': day(d[2])} for d in devs],
                     'data': jload(inflate(hb[0])) if hb and hb[0] is not None else None,
-                    'versions': [{'at': v[0], 'kind': v[1], 'reason': v[2], 'label': v[3]} for v in vers]}
+                    'versions': [{'at': v[0], 'kind': v[1], 'reason': v[2], 'label': v[3]} for v in vers],
+                    'orders': [{'order': o[0], 'at': o[1], 'plan': o[2], 'amountRub': o[3] // 100, 'status': o[4],
+                                'until': o[5], 'email': em, 'telegram': o[6], 'consent': o[7], 'ip': o[8]}
+                               for o in ords],
+                    'access': {'until': acc[0], 'plan': acc[1]} if acc else None}
             return _send_cli(conf, letter_export(conf, em, data, app.now()), 'export-ok')
-        app.cancel_subscription(acct)
-        app.delete_account(acct, em, app.now())
-        out('Аккаунт удалён, надгробие записано.')
+        if row is not None:
+            app.delete_account(acct, em, app.now())
+            out('Аккаунт удалён, надгробие записано.')
+            return 0
+        with app.store.tx() as c:
+            n = app.forget_payments(c, em)
+        app.checkpoint()
+        out('Аккаунта не было; заказы (%d) отвязаны от адреса, доступ снят.' % n)
         return 0
     finally:
         app.store.close()
+
+
+def cmd_grant(pos, opts):
+    if len(pos) != 2:
+        raise ValueError('grant EMAIL DAYS --db DB [--note T]')
+    em, e = norm_email(pos[0])
+    if e:
+        out('Это не похоже на адрес почты.')
+        return 1
+    if not re.fullmatch(r'[0-9]{1,4}', pos[1]) or not 1 <= int(pos[1]) <= 3660:
+        raise ValueError('дней — целое от 1 до 3660')
+    note = ' '.join(opts.get('note', '').split())[:200]
+    app = open_app(opts, need_key=False)
+    try:
+        until = app.grant(em, int(pos[1]), note)
+    finally:
+        app.store.close()
+    out('grant-ok until=%s' % day(until))
+    return 0
+
+
+def cmd_orders(pos, opts):
+    """Оплаты месяца для чеков самозанятого: по строке на оплату, адрес скрыт, в конце итог."""
+    if pos:
+        raise ValueError('orders --db DB [--month YYYY-MM]')
+    app = open_app(opts, migrate=False, need_key=False)
+    try:
+        m = opts.get('month') or month(app.now())
+        if not RE_MONTH.fullmatch(m):
+            raise ValueError('месяц — ГГГГ-ММ')
+        rows = []
+        if app.store.schema >= 2:
+            with app.store.ro() as c:
+                rows = c.execute("SELECT id, paid_at, amount_kop, plan, email, status FROM orders WHERE status IN "
+                                 "('paid', 'chargeback') AND strftime('%Y-%m', paid_at, 'unixepoch')=? "
+                                 'ORDER BY paid_at, id', (m,)).fetchall()
+    finally:
+        app.store.close()
+    if not rows:
+        out('За %s оплат нет.' % m)
+        return 0
+    for oid, at, kop, plan, em, st in rows:
+        out('%s UTC · %s · %s · заказ %d · %s%s' % (time.strftime('%d.%m.%Y %H:%M', time.gmtime(at)), rub(kop),
+                                                PLAN_NAMES.get(plan, plan), oid, mask_email(em) or 'адрес стёрт',
+                                                ' · возврат банком — чек аннулировать' if st == 'chargeback' else ''))
+    paid = [r for r in rows if r[5] == 'paid']
+    out('Итого за %s: %d %s на %s.' % (m, len(paid), plural(len(paid), 'оплата', 'оплаты', 'оплат'),
+                                       rub(sum(r[2] for r in paid))))
+    return 0
 
 
 # ═══════════════════════════ Selftest ═══════════════════════════
@@ -2367,14 +3034,14 @@ class SelfTest:
         if not cond:
             self.bad.append(name)
 
-    def app(self, **over):
+    def app(self, pay=None, **over):
         d = tempfile.mkdtemp(prefix='magnat-selftest-')
         self.dirs.append(d)
         env = {'MAGNAT_STATE': d, 'MAGNAT_DB': os.path.join(d, 'm.db'), 'MAGNAT_ORIGIN': 'https://t.invalid',
                'MAGNAT_OPEN': '1', 'MAGNAT_DISK_MIN_MB': '0', 'MAGNAT_CODE_GAP': '0'}
         env.update({k: str(v) for k, v in over.items()})
         cfg = Cfg(env)
-        return App(cfg, Store(cfg.db), secrets.token_bytes(32), FakeMailer())
+        return App(cfg, Store(cfg.db), secrets.token_bytes(32), FakeMailer(), pay or FakePlatega())
 
     def login(self, app, em, dev=None, ip='192.0.2.10'):
         cl = TClient(app, ip)
@@ -2575,8 +3242,10 @@ class SelfTest:
         ok(cl.call('/api/sync', raw=b' ' * (SYNC_BODY + 1)).status == 413, 'ворота: 1,5 МБ')
         ok(st(method='GET').status == 405, 'ворота: GET')
         ok(cl.call('/api/nope', {}).status == 404, 'ворота: неизвестный путь')
-        ok(PAYMENTS or (cl.call('/api/checkout', {}).status == 404 and
-                        cl.call('/api/platega/callback', {}).status == 404), 'Платега: маршрутов ещё нет')
+        off, on = TClient(self.app(MAGNAT_PAYMENTS=0)), TClient(self.app(MAGNAT_PAYMENTS=1))
+        pays = ('/api/checkout', '/api/order', '/api/platega/callback')
+        ok(all(off.call(p, {}).status == 404 for p in pays) and all(on.call(p, {}).status != 404 for p in pays),
+           'оплата выключена — маршрутов оплаты нет, включена — есть')
         ok(cl.call('/api/me', raw=b'[]').status == 400 and cl.call('/api/me', raw=b'{"a":1,"a":2}').status == 400
            and cl.call('/api/me', raw=b'{"a":NaN}').status == 400, 'ворота: строгий JSON')
         for _ in range(16):
@@ -2947,8 +3616,24 @@ class SelfTest:
             jm = c.execute('PRAGMA journal_mode').fetchone()[0]
             sd = c.execute('PRAGMA secure_delete').fetchone()[0]
             fk = c.execute('PRAGMA foreign_keys').fetchone()[0]
-        self.ok({'meta', 'accounts', 'sessions', 'revisions', 'codes', 'mail_count', 'deletions', 'stats'} <= names
-                and app.store.schema == SCHEMA, 'миграции на пустой БД')
+        self.ok({'meta', 'accounts', 'sessions', 'revisions', 'codes', 'mail_count', 'deletions', 'stats', 'orders',
+                 'payment_events', 'access'} <= names and app.store.schema == SCHEMA == 2, 'миграции на пустой БД')
+        # БД первой схемы (как на сервере до оплаты) доходит до второй, данные на месте
+        p = os.path.join(app.cfg.state, 'v1.db')
+        db = sqlite3.connect(p)
+        for st in MIGRATIONS[0][1]:
+            db.execute(st)
+        db.execute("INSERT INTO meta(k, v) VALUES('schema', '1')")
+        db.execute("INSERT INTO accounts(id, email, created, seen) VALUES('a_0000000000000002', 'v1@example.ru', 1, 'x')")
+        db.commit()
+        db.close()
+        st2 = Store(p)
+        with st2.ro() as c:
+            n2 = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+            kept = c.execute('SELECT COUNT(*) FROM accounts').fetchone()[0]
+        st2.close()
+        self.ok(st2.schema == 2 and {'orders', 'payment_events', 'access'} <= n2 and kept == 1,
+                'миграция 1 → 2: таблицы оплаты добавлены, аккаунты на месте')
         self.ok(av == 2 and jm == 'wal' and sd == 1 and fk == 1, 'PRAGMA: auto_vacuum, WAL, secure_delete, FK')
         self.ok(migrations_clean(), 'в MIGRATIONS нет DROP/RENAME')
         bad = re.compile(r'\b(DROP|RENAME)\b', re.I)
@@ -3125,6 +3810,501 @@ class SelfTest:
         ok(not any(s and s in buf.getvalue() for s in secret_bits), 'журнал: нет IP, почты, кода и токена')
         ok(r is None, 'обработчик: исключение уходит наверх (HTTP-слой отвечает 500)')
 
+    # ── оплата: заказ до вызова, телу уведомления не верим, одна выдача, срок к остатку ──
+
+    CONSENT = 'Оплачиваю доступ к Магнату на 30 дней — 299 ₽, разово, без автосписаний. Принимаю соглашение.'
+
+    def payapp(self, **over):
+        pay = FakePlatega()
+        app = self.app(pay=pay, MAGNAT_PAYMENTS=1, **over)
+        app.inflight = threading.BoundedSemaphore(64)
+        return app, pay
+
+    def checkout(self, cl, em, plan='month', **kw):
+        body = {'plan': plan, 'email': em, 'telegram': '', 'consent': self.CONSENT, 'terms': TERMS_ED}
+        body.update(kw)
+        return cl.call('/api/checkout', body)
+
+    def hook(self, app, body, mid=None, sec=None, ip='203.0.113.50'):
+        k = app.pay.k or FakePlatega.KEYS
+        return TClient(app, ip).call('/api/platega/callback', body, hdr={
+            'Origin': None, 'Sec-Fetch-Site': None, 'X-MerchantId': k['mid'] if mid is None else mid,
+            'X-Secret': k['secret'] if sec is None else sec})
+
+    def order(self, app, pub):
+        with app.store.ro() as c:
+            return c.execute('SELECT id, tx, status, until, email, tg, ip FROM orders WHERE pub=?', (pub,)).fetchone()
+
+    def access(self, app, em):
+        with app.store.ro() as c:
+            return c.execute('SELECT until, plan, warned FROM access WHERE email=?', (em,)).fetchone()
+
+    def paid(self, app, cl, em, plan='month'):
+        """Оформить и оплатить: (ключ заказа, срок доступа после оплаты)."""
+        r = self.checkout(cl, em, plan).obj
+        oid, tx = self.order(app, r['o'])[:2]
+        app.pay.st[tx] = 'CONFIRMED'
+        self.hook(app, {'id': tx, 'status': 'CONFIRMED'})
+        return r['o'], self.access(app, em)[0]
+
+    def t_pay_keys_and_client(self):
+        ok = self.ok
+        full = 'PLATEGA_MERCHANT_ID=3fa85f64-5717-4562-b3fc-2c963f66afa6\nPLATEGA_SECRET="s3cr3t-Key_01"\n'
+        ok(parse_platega_env(full) == {'mid': '3fa85f64-5717-4562-b3fc-2c963f66afa6', 'secret': 's3cr3t-Key_01',
+                                       'method': 0}, 'ключи Платеги: файл KEY=VALUE, без способа — универсальная')
+        ok(parse_platega_env(full + 'PLATEGA_METHOD=2\n')['method'] == 2, 'ключи Платеги: способ задан')
+        ok(all(parse_platega_env(t) is None for t in ('', '# пусто\n', 'PLATEGA_MERCHANT_ID=m\n', full + 'PLATEGA_METHOD=x\n',
+                                                     'PLATEGA_MERCHANT_ID=m\nPLATEGA_SECRET=a b\n',
+                                                     'PLATEGA_MERCHANT_ID=m\r\nX: y\nPLATEGA_SECRET=\n')),
+           'ключи Платеги: пустой или странный файл — ключей нет')
+        u = lambda v: Cfg({'MAGNAT_PLATEGA_URL': v}).platega_url
+        ok(u('') == PLATEGA_URL and u('http://evil.example') == PLATEGA_URL and u('https://api.platega.io/') ==
+           'https://api.platega.io' and u('http://127.0.0.1:8080') == 'http://127.0.0.1:8080',
+           'адрес Платеги: только https, http — лишь 127.0.0.1')
+        ok(Cfg({}).payments is PAYMENTS and Cfg({'MAGNAT_PAYMENTS': '1'}).payments is True, 'флаг оплаты и MAGNAT_PAYMENTS')
+        got = []
+
+        class Spy(Platega):
+            def _call(self, what, keys, method, path, body=None):
+                got.append((what, method, path, body))
+                return {}
+        sp = Spy('', 'https://p.test')
+        k = {'mid': 'm', 'secret': 's', 'method': 0}
+        sp.create(k, {'a': 1})
+        sp.create(dict(k, method=2), {'a': 1})
+        sp.status(k, 'a/b')
+        ok(got == [('create', 'POST', '/v2/transaction/process', {'a': 1}),
+                   ('create', 'POST', '/transaction/process', {'a': 1, 'paymentMethod': 2}),
+                   ('status', 'GET', '/transaction/a%2Fb', None)],
+           'клиент Платеги: универсальная форма на /v2, со способом — /transaction/process, статус — GET %r' % got)
+        # недоступная Платега: None и одна строка журнала без ключа
+        old, buf = sys.stderr, io.StringIO()
+        sys.stderr = buf
+        try:
+            d = Platega('', 'http://127.0.0.1:9').create({'mid': 'm', 'secret': 'SECRET-never-logged', 'method': 0}, {})
+        finally:
+            sys.stderr = old
+        ok(d is None and re.fullmatch(r'platega create \w+\n', buf.getvalue()) and 'SECRET' not in buf.getvalue(),
+           'Платега не отвечает: None, в журнале только класс ошибки %r' % buf.getvalue())
+
+    def t_pay_checkout(self):
+        ok = self.ok
+        app, pay = self.payapp()
+        cl = TClient(app, '198.51.100.21')
+        seen = []
+
+        def before(body):
+            with app.store.ro() as c:
+                seen.append(c.execute('SELECT status FROM orders WHERE pub=?', (body['payload'],)).fetchone())
+        pay.before = before
+        r = self.checkout(cl, ' Buyer@Example.RU ', telegram='buyer_tg').obj
+        ok(r.get('ok') and r['url'].startswith('https://pay.platega.test/') and RE_PUB.fullmatch(r['o'])
+           and set(r) == {'ok', 'url', 'o'}, 'оформление: ссылка оплаты и ключ заказа %r' % r)
+        ok(seen == [('new',)], 'оформление: заказ записан ДО вызова Платеги')
+        tx = next(iter(pay.st))
+        with app.store.ro() as c:
+            o = c.execute('SELECT id, email, tg, plan, days, amount_kop, terms_ed, ip, status, tx, consent FROM orders '
+                          'WHERE pub=?', (r['o'],)).fetchone()
+            ev = c.execute('SELECT status, src, tx FROM payment_events WHERE order_id=?', (o[0],)).fetchall()
+        ok(pay.calls[0][1] == {'paymentDetails': {'amount': 299, 'currency': 'RUB'},
+                               'description': 'Магнат — доступ на 30 дней (заказ %d)' % o[0],
+                               'return': SITE + 'checkout.html?o=' + r['o'],
+                               'failedUrl': SITE + 'checkout.html?o=' + r['o'] + '&fail=1',
+                               'payload': r['o'], 'metadata': {'orderId': str(o[0])}},
+           'оформление: тело запроса в Платегу %r' % (pay.calls[0][1],))
+        ok(o[1:] == ('buyer@example.ru', '@buyer_tg', 'month', 30, 29900, TERMS_ED, '198.51.100.21', 'pending', tx,
+                     self.CONSENT) and ev == [('pending', 'create', tx)],
+           'оформление: заказ pending — почта, Telegram, цена из PLANS, редакция, IP и согласие %r' % (o,))
+        r = self.checkout(TClient(app, '198.51.100.22'), 'year@example.ru', 'year').obj
+        ok(r.get('ok') and pay.calls[-1][1]['paymentDetails']['amount'] == 1490 and
+           pay.calls[-1][1]['description'].startswith('Магнат — доступ на год (заказ ') and
+           self.order(app, r['o'])[2] == 'pending', 'оформление: год — 1490 ₽')
+        # неверные поля
+        bc = TClient(app, '198.51.100.23')
+        st = lambda **kw: self.checkout(bc, 'f@example.ru', **kw)
+        ok(all(st(**kw).status == 400 for kw in ({'plan': 'week'}, {'plan': ['month']}, {'telegram': '@1bad'},
+                                               {'telegram': '@ab'}, {'consent': 'да'}, {'consent': 5},
+                                               {'consent': 'x' * 601}, {'email': None})),
+           'оформление: неверный тариф, Telegram, согласие — 400')
+        ok(st(email='не почта').obj == {'ok': False, 'err': 'email'}
+           and st(email='иван@mail.ru').obj == {'ok': False, 'err': 'email'}, 'оформление: неверная почта — email')
+        ok(st(terms='2026-10-13').obj == {'ok': False, 'err': 'terms'} and st(terms=None).obj.get('err') == 'terms',
+           'оформление: старая редакция соглашения — terms')
+        n = len(pay.calls)
+        with app.store.ro() as c:
+            n_o = c.execute('SELECT COUNT(*) FROM orders').fetchone()[0]
+        ok(n == 2 and n_o == 2, 'оформление: неверное ничего не пишет и Платегу не зовёт')
+        ok(bc.call('/api/checkout', {}, method='GET').status == 405 and
+           bc.call('/api/checkout', {}, hdr={'Origin': 'https://evil.example'}).status == 403, 'оформление: GET и чужой Origin')
+        # ключей нет — pay_off, ничего не записано
+        pay.k = None
+        ok(st().obj == {'ok': False, 'err': 'pay_off'} and len(pay.calls) == n, 'оформление: ключей нет — pay_off')
+        pay.k = dict(FakePlatega.KEYS)
+        # Платега не ответила / вернула не https — failed и честное «не получилось»
+        for name, kw in (('не ответила', {'fail': True}), ('http', {'reply': {'transactionId': 'tx-h', 'url': 'http://x.ru/'}}),
+                         ('javascript', {'reply': {'transactionId': 'tx-j', 'url': 'javascript:alert(1)'}}),
+                         ('без номера', {'reply': {'url': 'https://pay.platega.test/x'}})):
+            pay.fail, pay.reply = kw.get('fail', False), kw.get('reply')
+            rr = self.checkout(TClient(app, '192.0.2.%d' % (100 + len(pay.calls))), 'fail@example.ru').obj
+            with app.store.ro() as c:
+                last = c.execute('SELECT o.status, o.tx, e.status FROM orders o JOIN payment_events e ON e.order_id=o.id '
+                                 'ORDER BY o.id DESC LIMIT 1').fetchone()
+            ok(rr == {'ok': False, 'err': 'platega'} and last == ('failed', None, 'failed'),
+               'оформление: Платега %s — platega, заказ failed %r' % (name, last))
+        pay.fail, pay.reply = False, {'redirect': 'https://pay.platega.test/r', 'id': 'tx-redirect'}
+        rr = self.checkout(TClient(app, '192.0.2.200'), 'redir@example.ru').obj
+        ok(rr.get('url') == 'https://pay.platega.test/r' and self.order(app, rr['o'])[1] == 'tx-redirect',
+           'оформление: ссылка из redirect, номер из id (форма со способом)')
+        pay.reply = None
+        # лимиты: почта 5 в час, IP 10 в час
+        rs = [self.checkout(TClient(app, '203.0.113.%d' % i), 'lim@example.ru').obj for i in range(6)]
+        ok(all(x.get('ok') for x in rs[:5]) and rs[5].get('err') == 'slow' and rs[5].get('retryIn', 0) > 0,
+           'оформление: 5 в час на почту')
+        ipc = TClient(app, '198.51.100.99')
+        rs = [self.checkout(ipc, 'ip%d@example.ru' % i).obj for i in range(11)]
+        ok(all(x.get('ok') for x in rs[:10]) and rs[10].get('err') == 'slow', 'оформление: 10 в час на IP')
+        tgs = [self.checkout(TClient(app, '192.0.2.%d' % (60 + i)), 'tg%d@example.ru' % i, telegram=v).obj.get('o')
+               for i, v in enumerate(('https://t.me/Ivan_Petrov', ' @Ivan_Petrov ', 'telegram.me/Ivan_Petrov'))]
+        ok(all(tgs) and [self.order(app, p)[5] for p in tgs] == ['@Ivan_Petrov'] * 3,
+           'оформление: Telegram ссылкой, с @ и без — хранится @name')
+
+    def t_pay_callback(self):
+        ok = self.ok
+        app, pay = self.payapp()
+        cl = TClient(app, '198.51.100.31')
+        em = 'cb@example.ru'
+        pub = self.checkout(cl, em).obj['o']
+        oid, tx = self.order(app, pub)[:2]
+        pay.st[tx] = 'CONFIRMED'
+        bad = [self.hook(app, {'id': tx, 'status': 'CONFIRMED'}, **kw) for kw in (
+            {'sec': 'wrong'}, {'mid': 'other'}, {'sec': pay.k['secret'] + 'x'}, {'sec': ''})]
+        nohdr = TClient(app, '203.0.113.50').call('/api/platega/callback', {'id': tx, 'status': 'CONFIRMED'},
+                                                  hdr={'Origin': None, 'Sec-Fetch-Site': None})
+        ok(all(x.status == 403 and x.obj == {'ok': False, 'err': 'origin'} for x in bad + [nohdr])
+           and self.access(app, em) is None and self.order(app, pub)[2] == 'pending'
+           and not any(c[0] == 'status' for c in pay.calls), 'колбэк: неверный ключ — 403, доступа нет, Платегу не спрашиваем')
+        # тело говорит CONFIRMED, Платега на GET — PENDING: телу не верим
+        pay.st[tx] = 'PENDING'
+        h = self.hook(app, {'id': tx, 'status': 'CONFIRMED', 'amount': 1})
+        ok(h.status == 200 and h.obj == {'ok': True} and self.access(app, em) is None
+           and self.order(app, pub)[2] == 'pending' and pay.calls[-1] == ('status', tx),
+           'колбэк: статус перечитан GET-ом, тело не выдаёт доступ')
+        pay.st[tx] = 'CONFIRMED'
+        t0 = app.now()
+        h = self.hook(app, {'id': tx, 'status': 'CONFIRMED'})
+        a = self.access(app, em)
+        o = self.order(app, pub)
+        ok(h.obj == {'ok': True} and a and t0 + 30 * DAY <= a[0] <= app.now() + 30 * DAY and a[1] == 'month'
+           and o[2] == 'paid' and o[3] == a[0], 'колбэк: верный — доступ до now+30 дней')
+        sent = [m for m in app.mailer.sent if str(m['To']) == em]
+        body = sent[0].get_body(('plain',)).get_content() if sent else ''
+        ok(len(sent) == 1 and str(sent[0]['Subject']) == 'Оплата прошла — доступ к Магнату до %s' % dmy(a[0])
+           and 'заказ %d' % oid in body and '299 ₽' in body and 'автосписаний нет' in body and 'включим вручную' in body,
+           'письмо «Оплата прошла»: срок, сумма, заказ, без автосписаний')
+        # повторы: колбэк, опрос, страница — ни дня сверху
+        self.hook(app, {'id': tx, 'status': 'CONFIRMED'})
+        app.cfg.now_shift += 120
+        app.poll_payments()
+        r = cl.call('/api/order', {'o': pub}).obj
+        with app.store.ro() as c:
+            ev = c.execute("SELECT status, src FROM payment_events WHERE order_id=? ORDER BY id", (oid,)).fetchall()
+        ok(self.access(app, em)[0] == a[0] and ev.count(('paid', 'callback')) == 1 and
+           sum(1 for x in ev if x[0] == 'paid') == 1 and len([m for m in app.mailer.sent if str(m['To']) == em]) == 1,
+           'колбэк: повтор не продлевает и не шлёт второе письмо %r' % ev)
+        ok(r == {'ok': True, 'status': 'paid', 'plan': 'month', 'until': a[0], 'email': 'c•••@example.ru'},
+           '/api/order: paid, срок и маскированная почта %r' % r)
+        ok(cl.call('/api/order', {'o': 'A' * 22}).obj == {'ok': False, 'err': 'order'} and
+           cl.call('/api/order', {'o': 'короткий'}).status == 400, '/api/order: чужой ключ — order, кривой — 400')
+        # неизвестный номер: 200 и строка журнала без данных
+        old, buf = sys.stderr, io.StringIO()
+        sys.stderr = buf
+        try:
+            u = self.hook(app, {'id': 'tx-nobody', 'status': 'CONFIRMED'})
+        finally:
+            sys.stderr = old
+        ok(u.obj == {'ok': True} and buf.getvalue() == 'callback unknown\n', 'колбэк: неизвестный номер — 200, «callback unknown»')
+        ok(self.hook(app, {'id': 'a b', 'status': 'x'}).status == 400 and self.hook(app, {'status': 'x'}).status == 400,
+           'колбэк: кривой номер — 400')
+        # подбор ключа: 20 неверных в час с IP, дальше — отказ и с верным
+        rs = [self.hook(app, {'id': tx}, sec='guess%d' % i, ip='198.51.100.77').obj for i in range(21)]
+        ok(all(x.get('err') == 'origin' for x in rs[:20]) and rs[20].get('err') == 'slow'
+           and self.hook(app, {'id': tx}, ip='198.51.100.77').obj.get('err') == 'slow', 'колбэк: подбор ключа — 20 в час на IP')
+        with app.store.ro() as c:
+            raw = c.execute("SELECT raw FROM payment_events WHERE src='callback' AND status='CONFIRMED' AND order_id=?",
+                            (oid,)).fetchall()
+        ok(len(raw) == 1 and '"amount":1' in raw[0][0] and pay.k['secret'] not in raw[0][0],
+           'колбэк: тело первого уведомления в событии, ключа там нет')
+
+    def t_pay_race(self):
+        app, pay = self.payapp()
+        cl = TClient(app, '198.51.100.41')
+        em = 'race@example.ru'
+        pub = self.checkout(cl, em).obj['o']
+        oid, tx = self.order(app, pub)[:2]
+        pay.st[tx] = 'CONFIRMED'
+        pay.delay = 0.2                      # ответы Платеги приходят разом
+        app.cfg.now_shift += 120             # и опрос, и страница считают счёт давно не проверенным
+        t0 = app.now()
+        ts = [threading.Thread(target=f) for f in (
+            lambda: self.hook(app, {'id': tx, 'status': 'CONFIRMED'}), app.poll_payments,
+            lambda: cl.call('/api/order', {'o': pub}), lambda: self.hook(app, {'id': tx, 'status': 'CONFIRMED'}, ip='203.0.113.51'),
+            lambda: app.apply_status(oid, 'CONFIRMED', 'poll'))]
+        for t in ts:
+            t.start()
+        for t in ts:
+            t.join()
+        with app.store.ro() as c:
+            n = c.execute("SELECT COUNT(*) FROM payment_events WHERE order_id=? AND status='paid'", (oid,)).fetchone()[0]
+        a = self.access(app, em)
+        self.ok(n == 1 and a and t0 + 30 * DAY <= a[0] <= t0 + 30 * DAY + 2 and
+                len([m for m in app.mailer.sent if str(m['To']) == em]) == 1,
+                'гонка: колбэк, опрос и страница разом — одна выдача, одно письмо (событий %d)' % n)
+
+    def t_pay_extend(self):
+        ok = self.ok
+        app, pay = self.payapp()
+        cl = TClient(app, '198.51.100.51')
+        em = 'ext@example.ru'
+        _, u1 = self.paid(app, cl, em)
+        app.cfg.now_shift += 10 * DAY
+        _, u2 = self.paid(app, cl, em, 'year')
+        ok(u2 == u1 + 365 * DAY and self.access(app, em)[1] == 'year', 'продление: вторая оплата прибавляет к остатку')
+        app.cfg.now_shift += 400 * DAY
+        t0 = app.now()
+        _, u3 = self.paid(app, cl, em)
+        ok(t0 + 30 * DAY <= u3 <= app.now() + 30 * DAY, 'продление после конца срока — от сегодняшнего дня')
+
+    def t_pay_poll(self):
+        ok = self.ok
+        app, pay = self.payapp()
+        ips = iter('198.51.100.%d' % i for i in range(60, 200))
+        new = lambda em: self.checkout(TClient(app, next(ips)), em).obj['o']
+        pub = new('poll@example.ru')
+        oid, tx = self.order(app, pub)[:2]
+        pay.st[tx] = 'CONFIRMED'
+        ok(app.poll_payments() == 0 and self.order(app, pub)[2] == 'pending', 'опрос: свежий счёт — не чаще раза в минуту')
+        app.cfg.now_shift += 61
+        ok(app.poll_payments() == 1 and self.order(app, pub)[2] == 'paid' and self.access(app, 'poll@example.ru'),
+           'опрос: pending → paid, доступ выдан')
+        # страница: не чаще раза в 10 с на заказ
+        pub2 = new('page@example.ru')
+        tx2 = self.order(app, pub2)[1]
+        pay.st[tx2] = 'CONFIRMED'
+        cl = TClient(app, '192.0.2.150')
+        n0 = sum(1 for c in pay.calls if c[0] == 'status')
+        r1 = cl.call('/api/order', {'o': pub2}).obj
+        n1 = sum(1 for c in pay.calls if c[0] == 'status')
+        app.cfg.now_shift += 11
+        r2 = cl.call('/api/order', {'o': pub2}).obj
+        ok(r1.get('status') == 'pending' and n1 == n0 and r2.get('status') == 'paid' and
+           sum(1 for c in pay.calls if c[0] == 'status') == n1 + 1, '/api/order: висящий — спросить Платегу раз в 10 с')
+        # отменён, Платега не отвечает, просрочен
+        pub3 = new('cancel@example.ru')
+        pay.st[self.order(app, pub3)[1]] = 'CANCELED'
+        pub4 = new('late@example.ru')
+        app.cfg.now_shift += 61
+        pay.down = True
+        app.poll_payments()
+        ok(self.order(app, pub3)[2] == 'pending', 'опрос: Платега не ответила — ждём дальше')
+        pay.down = False
+        app.cfg.now_shift += 61
+        app.poll_payments()
+        ok(self.order(app, pub3)[2] == 'canceled' and cl.call('/api/order', {'o': pub3}).obj.get('status') == 'failed',
+           'опрос: CANCELED → canceled, страница видит failed')
+        app.cfg.now_shift += 2 * 3600
+        ok(app.poll_payments() == 1, 'опрос: 1–24 ч — раз в 15 минут')
+        app.cfg.now_shift += 600
+        ok(app.poll_payments() == 0 and self.order(app, pub4)[2] == 'pending', 'опрос: через 10 минут — ещё рано')
+        app.cfg.now_shift += DAY
+        app.poll_payments()
+        ok(self.order(app, pub4)[2] == 'expired' and cl.call('/api/order', {'o': pub4}).obj.get('status') == 'failed',
+           'опрос: старше суток — последний вопрос и expired')
+        # не больше 10 запросов за раз
+        for i in range(12):
+            new('many%d@example.ru' % i)
+        app.cfg.now_shift += 61
+        ok(app.poll_payments() == 10 and app.poll_payments() == 2, 'опрос: не больше 10 запросов в Платегу за раз')
+        # заказ new старше часа (упал процесс между записью и вызовом) — failed
+        with app.store.tx() as c:
+            c.execute("INSERT INTO orders(pub, at, email, tg, plan, days, amount_kop, consent, terms_ed, ip, tx, status, "
+                      "checked, paid_at, until, updated) VALUES('x', ?, NULL, NULL, 'month', 30, 29900, 'c', ?, NULL, NULL, "
+                      "'new', 0, NULL, NULL, 0)", (app.now() - 3601, TERMS_ED))
+        app.poll_payments()
+        with app.store.ro() as c:
+            ok(c.execute("SELECT status FROM orders WHERE pub='x'").fetchone() == ('failed',), 'фон: new старше часа — failed')
+
+    def t_pay_chargeback(self):
+        ok = self.ok
+        app, pay = self.payapp()
+        cl = TClient(app, '198.51.100.71')
+        em = 'back@example.ru'
+        p1, u1 = self.paid(app, cl, em)
+        p2, u2 = self.paid(app, cl, em, 'year')
+        tx1 = self.order(app, p1)[1]
+        pay.st[tx1] = 'CHARGEBACKED'
+        self.hook(app, {'id': tx1, 'status': 'CHARGEBACKED'})
+        self.hook(app, {'id': tx1, 'status': 'CHARGEBACKED'})
+        a = self.access(app, em)
+        alert = [m for m in app.mailer.sent if str(m['To']) == FakeMailer.CONF['SUPPORT']]
+        ok(self.order(app, p1)[2] == 'chargeback' and a[0] == u2 - 30 * DAY and len(alert) == 1 and
+           str(alert[0]['Subject']).startswith('Магнат: банк вернул деньги по заказу %d' % self.order(app, p1)[0]),
+           'chargeback: дни заказа отняты один раз, тревога владельцу')
+        pay.st[tx1] = 'CONFIRMED'
+        self.hook(app, {'id': tx1, 'status': 'CONFIRMED'})
+        ok(self.access(app, em)[0] == a[0] and self.order(app, p1)[2] == 'chargeback' and
+           cl.call('/api/order', {'o': p1}).obj.get('status') == 'failed', 'chargeback: назад в paid не возвращается')
+
+    def t_pay_me_and_stats(self):
+        ok = self.ok
+        app, pay = self.payapp()
+        em = 'me@example.ru'
+        a = self.login(app, em)
+        ok(a.call('/api/me', {}).obj.get('sub') is None, '/api/me: не платил — sub null')
+        _, u = self.paid(app, TClient(app, '198.51.100.81'), em)
+        ok(a.call('/api/me', {}).obj.get('sub') == {'plan': 'month', 'until': u, 'active': True}, '/api/me: sub по почте сессии')
+        self.checkout(TClient(app, '198.51.100.82'), 'wait@example.ru')
+        st = app.stats()
+        ok(st['pay_on'] is True and st['pay_keys'] is True and st['pay_pending'] == 1 and st['pay_paid_month'] == 1
+           and st['pay_sum_month_kop'] == 29900 and st['pay_last_callback'] >= app.now() - 5 and st['access_active'] == 1
+           and '@' not in jdump(st), 'stats: оплата без персональных данных %r' % {k: v for k, v in st.items() if 'pay' in k})
+        h = app.health('GET', mkheaders({}), '127.0.0.1').obj
+        ok(h['pay'] is True and h['payKeys'] is True, 'health: pay и payKeys')
+        pay.k = None
+        ok(app.health('GET', mkheaders({}), '127.0.0.1').obj['payKeys'] is False, 'health: ключей нет — payKeys false')
+        app.cfg.now_shift += 31 * DAY
+        ok(a.call('/api/me', {}).obj['sub']['active'] is False, '/api/me: срок вышел — active false')
+
+    def t_pay_forget(self):
+        ok = self.ok
+        app, pay = self.payapp()
+        em, tg, ip = 'forget@example.ru', '@forget_me', '198.51.100.91'
+        a = self.login(app, em)
+        pub = self.checkout(TClient(app, ip), em, telegram=tg).obj['o']
+        oid, tx = self.order(app, pub)[:2]
+        pay.st[tx] = 'CONFIRMED'
+        self.hook(app, {'id': tx, 'status': 'CONFIRMED', 'payload': em})
+        snap = os.path.join(app.cfg.state, 'pay-snap.db')
+        sqlite_copy(app.cfg.db, snap)
+        a.call('/api/code', {'purpose': 'delete'})
+        ok(a.call('/api/delete', {'code': app.mailer.last_code(em)}).obj == {'ok': True}, 'удаление с оплатой: успех')
+        with app.store.ro() as c:
+            row = c.execute('SELECT email, tg, ip, amount_kop, status, tx FROM orders WHERE id=?', (oid,)).fetchone()
+            raws = c.execute('SELECT raw FROM payment_events WHERE order_id=?', (oid,)).fetchall()
+        ok(row == (None, None, None, 29900, 'paid', tx) and self.access(app, em) is None and all(r[0] is None for r in raws),
+           'удаление: почта, Telegram и IP стёрты из заказа, доступ снят, сумма и номер остались %r' % (row,))
+        raw = b''
+        for suf in ('', '-wal'):
+            if os.path.exists(app.cfg.db + suf):
+                with open(app.cfg.db + suf, 'rb') as f:
+                    raw += f.read()
+        ok(em.encode() not in raw and tg.encode() not in raw and ip.encode() not in raw, 'удаление: в байтах БД их нет')
+        # восстановление старой копии: надгробие стирает и заказы
+        st = Store(snap)
+        app2 = App(app.cfg, st, app.key, app.mailer, pay)
+        app2.replay()
+        with st.ro() as c:
+            left = c.execute('SELECT COUNT(*) FROM orders WHERE email IS NOT NULL').fetchone()[0]
+            acc = c.execute('SELECT COUNT(*) FROM access').fetchone()[0]
+        st.close()
+        ok(left == 0 and acc == 0, 'replay: надгробие стирает почту из заказов и доступ')
+        # брошенный аккаунт (maintain) — то же
+        b = self.login(app, 'idle@example.ru')
+        self.paid(app, TClient(app, '198.51.100.92'), 'idle@example.ru')
+        with app.store.tx() as c:
+            c.execute("UPDATE accounts SET seen='2000-01-01' WHERE id=?", (b.acct,))
+        app.maintain()
+        with app.store.ro() as c:
+            n = c.execute("SELECT COUNT(*) FROM orders WHERE email='idle@example.ru'").fetchone()[0]
+        ok(n == 0 and self.access(app, 'idle@example.ru') is None, 'maintain: брошенный аккаунт — заказы отвязаны, доступ снят')
+
+    def t_pay_grant(self):
+        ok = self.ok
+        app, pay = self.payapp()
+        t0 = app.now()
+        u = app.grant('g@example.ru', 10, 'не включился за 15 минут')
+        with app.store.ro() as c:
+            o = c.execute("SELECT pub, plan, amount_kop, status, until FROM orders WHERE email='g@example.ru'").fetchone()
+            ev = c.execute("SELECT status, src, raw FROM payment_events").fetchall()
+        ok(t0 + 10 * DAY <= u <= app.now() + 10 * DAY and o[1:] == ('grant', 0, 'grant', u) and
+           ev == [('grant', 'admin', 'не включился за 15 минут')] and self.access(app, 'g@example.ru')[0] == u,
+           'grant: заказ grant на 0 ₽, событие admin, доступ')
+        ok(app.grant('g@example.ru', 5) == u + 5 * DAY, 'grant: к остатку')
+        ok(TClient(app).call('/api/order', {'o': o[0]}).obj == {'ok': False, 'err': 'order'}, 'grant по ключу не виден')
+
+    def t_pay_remind(self):
+        ok = self.ok
+        app, pay = self.payapp()
+        em = 'rem@example.ru'
+        u = app.grant(em, 2)
+        mine = lambda: [m for m in app.mailer.sent if str(m['To']) == em]
+        app.mailer.fail = smtplib.SMTPServerDisconnected('x')
+        old, buf = sys.stderr, io.StringIO()
+        sys.stderr = buf
+        try:
+            n0 = app.remind()
+        finally:
+            sys.stderr = old
+        app.mailer.fail = None
+        ok(n0 == 0 and not self.access(app, em)[2], 'напоминание: почта упала — метки нет, повторим через час')
+        n1 = app.remind()
+        n2 = app.remind()
+        text = mine()[0].get_body(('plain',)).get_content() if mine() else ''
+        ok(n1 == 1 and n2 == 0 and len(mine()) == 1 and
+           str(mine()[0]['Subject']) == 'Доступ к Магнату заканчивается %s' % dmy(u)
+           and SITE + 'checkout.html?plan=month' in text and 'Автосписаний нет' in text,
+           'напоминание за 3 дня: одно на этот срок, ссылка продлить')
+        app.cfg.now_shift += 2 * DAY + 60
+        ok(app.remind() == 1 and app.remind() == 0 and str(mine()[-1]['Subject']) == 'Доступ к Магнату закончился',
+           'напоминание: «Доступ закончился» — одно')
+        app.cfg.now_shift += 3 * DAY
+        u2 = app.grant('rem2@example.ru', 1)
+        app.cfg.now_shift += 3 * DAY
+        ok(app.remind() == 0 and len(mine()) == 2, 'напоминание: срок вышел больше 2 суток назад — не пишем')
+        # продлил — новый срок, новые письма; почта не настроена или на паузе — ничего
+        app.grant(em, 2)
+        app.mailer.c = None
+        ok(app.remind() == 0, 'напоминание: почта не настроена — ничего')
+        app.mailer.c = dict(FakeMailer.CONF)
+        open(os.path.join(app.cfg.state, 'mail.off'), 'w').close()
+        ok(app.remind() == 0, 'напоминание: почта на паузе — ничего')
+        os.unlink(os.path.join(app.cfg.state, 'mail.off'))
+        dk = 'day:' + day(app.now())
+        with app.store.ro() as c:
+            before = c.execute('SELECT n FROM mail_count WHERE k=?', (dk,)).fetchone()
+        ok(app.remind() == 1 and str(mine()[-1]['Subject']).startswith('Доступ к Магнату заканчивается'),
+           'напоминание: продлил — новое на новый срок')
+        with app.store.ro() as c:
+            after = c.execute('SELECT n FROM mail_count WHERE k=?', (dk,)).fetchone()
+        ok(after and after[0] == (before[0] if before else 0) + 1, 'напоминание: счётчик писем общий с кодами')
+        app.cfg.mail_day = after[0]
+        app.grant('rem3@example.ru', 1)
+        ok(app.remind() == 0 and not self.access(app, 'rem3@example.ru')[2], 'напоминание: дневной потолок писем')
+
+    def t_pay_secret(self):
+        app, pay = self.payapp()
+        secret = pay.k['secret']
+        old, buf = sys.stderr, io.StringIO()
+        sys.stderr = buf
+        resp = []
+        try:
+            cl = TClient(app, '198.51.100.95')
+            r = self.checkout(cl, 'sec@example.ru')
+            resp.append(r.obj)
+            tx = self.order(app, r.obj['o'])[1]
+            pay.st[tx] = 'CONFIRMED'
+            resp += [self.hook(app, {'id': tx}, sec=secret[:-1]).obj, self.hook(app, {'id': tx}).obj,
+                     self.hook(app, {'id': 'tx-none'}).obj, cl.call('/api/order', {'o': r.obj['o']}).obj,
+                     app.health('GET', mkheaders({}), '127.0.0.1').obj, app.stats()]
+        finally:
+            sys.stderr = old
+        raw = b''
+        for suf in ('', '-wal'):
+            if os.path.exists(app.cfg.db + suf):
+                with open(app.cfg.db + suf, 'rb') as f:
+                    raw += f.read()
+        self.ok(secret not in buf.getvalue() and secret not in jdump(resp) and secret.encode() not in raw
+                and pay.k['mid'] not in jdump(resp), 'ключ Платеги: ни в журнале, ни в ответах, ни в stats, ни в БД')
+
 
 def cmd_selftest(pos, opts):
     t = SelfTest()
@@ -3141,7 +4321,8 @@ def cmd_selftest(pos, opts):
 
 COMMANDS = {'serve': cmd_serve, 'check': cmd_check, 'selftest': cmd_selftest, 'backup': cmd_backup,
             'verify': cmd_verify, 'maintain': cmd_maintain, 'replay': cmd_replay, 'stats': cmd_stats,
-            'mailtest': cmd_mailtest, 'alert': cmd_alert, 'user': cmd_user}
+            'mailtest': cmd_mailtest, 'alert': cmd_alert, 'user': cmd_user, 'grant': cmd_grant,
+            'orders': cmd_orders}
 
 
 def main(argv):

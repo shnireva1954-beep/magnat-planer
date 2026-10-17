@@ -4,7 +4,8 @@
 
 Служба запускается как в бою (`python3 -I api.py serve`) на свободном порту
 127.0.0.1, со своей временной БД; почта — поддельный SMTP на 127.0.0.1
-(stdlib smtpd в 3.12 нет — свой маленький на socketserver). Сеть наружу
+(stdlib smtpd в 3.12 нет — свой маленький на socketserver), Платега —
+поддельный http.server на 127.0.0.1 (MAGNAT_PLATEGA_URL). Сеть наружу
 не нужна. Запуск: `python3 -I tests/api_test.py` (код выхода 0 — зелёное).
 """
 
@@ -13,6 +14,7 @@ import email
 import email.policy
 import hashlib
 import http.client
+import http.server
 import json
 import os
 import re
@@ -26,6 +28,7 @@ import tempfile
 import threading
 import time
 import unittest
+import uuid
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 API = os.path.join(HERE, '..', 'server', 'api', 'api.py')   # тесты живут в tests/: на сервер едет только api.py
@@ -138,6 +141,95 @@ class FakeSMTP(socketserver.ThreadingTCPServer):
         return re.search(r'[0-9]{6}', str(ms[-1]['Subject'])).group(0) if ms else None
 
 
+# ───────────────────────── поддельная Платега ─────────────────────────
+
+MID, SECRET = 'mid-3fa85f64-5717', 'Sx-never-in-logs-9c1e2b'
+
+
+class PlategaHandler(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+
+    def reply(self, code, obj, hdr=()):
+        b = json.dumps(obj).encode()
+        self.send_response(code)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(b)))
+        for k, v in hdr:
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(b)
+
+    def keys_ok(self):
+        return self.headers.get('X-MerchantId') == MID and self.headers.get('X-Secret') == SECRET
+
+    def do_POST(self):
+        srv = self.server
+        n = int(self.headers.get('Content-Length') or 0)
+        body = json.loads(self.rfile.read(n) or b'{}')
+        with srv.lock:
+            srv.reqs.append(('POST', self.path, {k.lower(): v for k, v in self.headers.items()}, body))
+        if not self.keys_ok():
+            return self.reply(401, {'message': 'unauthorized'})
+        if srv.mode == 'down':
+            return self.reply(500, {'message': 'oops'})
+        if srv.mode == 'redirect':
+            return self.reply(302, {}, [('Location', 'http://127.0.0.1:%d/stolen' % srv.server_address[1])])
+        tx = str(uuid.uuid4())
+        with srv.lock:
+            srv.st[tx] = 'PENDING'
+        url = ('http://' if srv.mode == 'http' else 'https://') + 'pay.platega.test/' + tx
+        key = 'url' if self.path == '/v2/transaction/process' else 'redirect'
+        self.reply(200, {'transactionId': tx, 'status': 'PENDING', key: url, 'expiresIn': '00:30:00'})
+
+    def do_GET(self):
+        srv = self.server
+        with srv.lock:
+            srv.reqs.append(('GET', self.path, {k.lower(): v for k, v in self.headers.items()}, None))
+        if srv.delay:
+            time.sleep(srv.delay)
+        tx = self.path.rpartition('/')[2]
+        if not self.path.startswith('/transaction/') or tx not in srv.st:
+            return self.reply(404, {'message': 'not found'})
+        if not self.keys_ok():
+            return self.reply(401, {'message': 'unauthorized'})
+        self.reply(200, {'id': tx, 'status': srv.st[tx], 'paymentDetails': {'amount': 299, 'currency': 'RUB'}})
+
+
+class FakePlatega(http.server.ThreadingHTTPServer):
+    """Платега на 127.0.0.1: создание (универсальная /v2 и со способом), статус GET, журнал запросов."""
+    daemon_threads = True
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.reqs = []       # (метод, путь, заголовки, тело)
+        self.st = {}         # номер платежа → статус для GET
+        self.mode = 'ok'     # ok | down (500) | http (ссылка не https) | redirect (302 на чужой адрес)
+        self.delay = 0
+        super().__init__(('127.0.0.1', 0), PlategaHandler)
+        threading.Thread(target=self.serve_forever, daemon=True).start()
+
+    @property
+    def url(self):
+        return 'http://127.0.0.1:%d' % self.server_address[1]
+
+    def stop(self):
+        self.shutdown()
+        self.server_close()
+
+    def last_tx(self):
+        with self.lock:
+            return list(self.st)[-1]
+
+    def gets(self, tx):
+        with self.lock:
+            return [r for r in self.reqs if r[0] == 'GET' and r[1] == '/transaction/' + tx]
+
+
+def platega_env(method=''):
+    return 'PLATEGA_MERCHANT_ID=%s\nPLATEGA_SECRET=%s\nPLATEGA_METHOD=%s\n' % (MID, SECRET, method)
+
+
 # ───────────────────────── служба ─────────────────────────
 
 def free_port():
@@ -153,21 +245,25 @@ def smtp_env(port, user=BOX, support=SUPPORT, pw=PASSWORD):
 
 
 class Api:
-    def __init__(self, smtp=None, state=None, **env):
+    def __init__(self, smtp=None, state=None, platega=None, **env):
         self.state = state or tempfile.mkdtemp(prefix='magnat-api-test-')
         self.db = os.path.join(self.state, 'magnat.db')
         self.smtp_file = os.path.join(self.state, 'smtp.env')
-        if smtp is not None and not os.path.exists(self.smtp_file):
-            fd = os.open(self.smtp_file, os.O_WRONLY | os.O_CREAT, 0o600)
-            os.write(fd, smtp_env(smtp.port).encode())
-            os.close(fd)
+        self.platega_file = os.path.join(self.state, 'platega.env')    # нет файла — ключей нет
+        for path, txt in ((self.smtp_file, smtp_env(smtp.port) if smtp is not None else None),
+                          (self.platega_file, platega)):
+            if txt is not None and not os.path.exists(path):
+                fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o600)
+                os.write(fd, txt.encode())
+                os.close(fd)
         self.env_over = env
+        self.errs = []          # журналы всех запусков (тест перезапускает службу)
         self.start()
 
     def env(self):
         e = {'PATH': os.environ.get('PATH', '/usr/bin:/bin'), 'MAGNAT_LISTEN': '127.0.0.1:%d' % self.port,
              'MAGNAT_DB': self.db, 'MAGNAT_STATE': self.state, 'MAGNAT_ORIGIN': ORIGIN,
-             'MAGNAT_SMTP_FILE': self.smtp_file, 'MAGNAT_DISK_MIN_MB': '0'}
+             'MAGNAT_SMTP_FILE': self.smtp_file, 'MAGNAT_PLATEGA_FILE': self.platega_file, 'MAGNAT_DISK_MIN_MB': '0'}
         e.update({k: str(v) for k, v in self.env_over.items()})
         return e
 
@@ -189,6 +285,7 @@ class Api:
         o, e = self.p.communicate(timeout=10)
         self.out = o.decode('utf-8', 'replace')
         self.err = e.decode('utf-8', 'replace')
+        self.errs.append(self.out + self.err)
         return self.out, self.err
 
     def cli(self, *args, stdin=None):
@@ -197,9 +294,11 @@ class Api:
         return r.returncode, r.stdout, r.stderr
 
     def sql(self, q, *a):
-        c = sqlite3.connect(self.db)
+        c = sqlite3.connect(self.db, timeout=10)
         try:
-            return c.execute(q, a).fetchall()
+            r = c.execute(q, a).fetchall()
+            c.commit()           # тест иногда двигает время заказа (checked), как будто прошла минута
+            return r
         finally:
             c.close()
 
@@ -333,8 +432,8 @@ class ClosedMode(unittest.TestCase):
     def test_health(self):
         st, hs, r = req(self.api.port, 'GET', '/api/health', ip=None)
         self.assertEqual(st, 200)
-        self.assertEqual(r, {'ok': True, 'v': 'api', 'schema': 1, 'db': True, 'smtp': True, 'open': False,
-                             'paused': False})
+        self.assertEqual(r, {'ok': True, 'v': 'api', 'schema': 2, 'db': True, 'smtp': True, 'open': False,
+                             'paused': False, 'pay': False, 'payKeys': False})
         st, hs, r = req(self.api.port, 'GET', '/api/health', ip='203.0.113.1')
         self.assertEqual((st, r), (404, {'ok': False, 'err': 'nope'}))
 
@@ -611,12 +710,359 @@ class OpenMode(unittest.TestCase):
             self.assertFalse(s in raw, 'в байтах БД есть %r' % s)
         out, err = self.api.stop()
         self.api.start()
-        self.assertIn('start v=api schema=1', err)
+        self.assertIn('start v=api schema=2', err)
         for s in list(self.secrets) + ['192.0.2.', '198.51.100.', '203.0.113.', '@']:
             if s:
                 self.assertNotIn(s, out + err)
         for line in err.splitlines():
             self.assertRegex(line, r'^(start v=\S+ schema=\d+|smtp error \w+|stats .*|err \w+ api\.py:\d+)$')
+
+
+DAY = 86400
+TERMS = '2026-10-17'
+CONSENT = 'Оплачиваю доступ к Магнату на 30 дней — 299 ₽, разово, без автосписаний. Принимаю соглашение.'
+
+
+class PayMode(unittest.TestCase):
+    """Оплата включена (MAGNAT_PAYMENTS=1), ключи Платеги заданы, Платега — поддельная на 127.0.0.1."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.smtp = FakeSMTP()
+        cls.pg = FakePlatega()
+        cls.api = Api(cls.smtp, platega=platega_env(), MAGNAT_OPEN=1, MAGNAT_PAYMENTS=1, MAGNAT_PLATEGA_URL=cls.pg.url,
+                      MAGNAT_TICK=0.2, MAGNAT_MAIL_MIN=1000, MAGNAT_CODE_GAP=0)
+        cls.n = 0
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.api.stop()
+        cls.smtp.stop()
+        cls.pg.stop()
+        shutil.rmtree(cls.api.state, ignore_errors=True)
+
+    def client(self):
+        PayMode.n += 1                 # своя подсеть /24 на каждого покупателя: лимиты оформления не мешают
+        return Client(self.api, '198.18.%d.7' % PayMode.n)
+
+    def checkout(self, c, em, plan='month', **kw):
+        body = {'plan': plan, 'email': em, 'telegram': '', 'consent': CONSENT, 'terms': TERMS}
+        body.update(kw)
+        return c('/api/checkout', body)
+
+    def hook(self, tx, status='CONFIRMED', mid=MID, secret=SECRET, **extra):
+        body = dict({'id': tx, 'status': status}, **extra)
+        return req(self.api.port, 'POST', '/api/platega/callback', body, ip='203.0.113.80',
+                   headers={'Origin': None, 'Sec-Fetch-Site': None, 'X-MerchantId': mid, 'X-Secret': secret})
+
+    def order(self, pub):
+        return self.api.sql('SELECT id, tx, status, until, email, tg, ip FROM orders WHERE pub=?', pub)[0]
+
+    def until(self, em):
+        r = self.api.sql('SELECT until FROM access WHERE email=?', em)
+        return r[0][0] if r else None
+
+    def pay(self, em, plan='month', c=None):
+        """Оформить и оплатить через колбэк: (ключ заказа, номер платежа, срок)."""
+        r = self.checkout(c or self.client(), em, plan)
+        self.assertTrue(r.get('ok'), r)
+        tx = self.pg.last_tx()
+        self.pg.st[tx] = 'CONFIRMED'
+        self.assertEqual(self.hook(tx)[::2], (200, {'ok': True}))
+        return r['o'], tx, self.until(em)
+
+    def wait(self, cond, sec=8):
+        t = time.monotonic()
+        while time.monotonic() - t < sec:
+            if cond():
+                return True
+            time.sleep(0.1)
+        return False
+
+    def test_a_health(self):
+        st, hs, r = req(self.api.port, 'GET', '/api/health', ip=None)
+        self.assertEqual((st, r['schema'], r['pay'], r['payKeys']), (200, 2, True, True))
+
+    def test_checkout_callback_order(self):
+        em = 'buyer@example.ru'
+        c = self.client()
+        r = self.checkout(c, ' Buyer@Example.ru ', telegram='@buyer_tg')
+        self.assertTrue(r['ok'] and r['url'].startswith('https://pay.platega.test/') and
+                        re.fullmatch(r'[A-Za-z0-9_-]{22}', r['o']), r)
+        self.assertEqual(set(r), {'ok', 'url', 'o'})
+        m, path, h, body = self.pg.reqs[-1]
+        oid, tx = self.order(r['o'])[:2]
+        self.assertEqual((m, path, h['x-merchantid'], h['x-secret'], h['content-type']),
+                         ('POST', '/v2/transaction/process', MID, SECRET, 'application/json'))
+        self.assertEqual(body, {'paymentDetails': {'amount': 299, 'currency': 'RUB'},
+                                'description': 'Магнат — доступ на 30 дней (заказ %d)' % oid,
+                                'return': 'https://magnat-planer.ru/checkout.html?o=' + r['o'],
+                                'failedUrl': 'https://magnat-planer.ru/checkout.html?o=' + r['o'] + '&fail=1',
+                                'payload': r['o'], 'metadata': {'orderId': str(oid)}})
+        self.assertEqual(self.order(r['o'])[1:], (self.pg.last_tx(), 'pending', None, em, '@buyer_tg', c.ip))
+        self.assertEqual(c('/api/order', {'o': r['o']}), {'ok': True, 'status': 'pending', 'plan': 'month',
+                                                          'email': 'b•••@example.ru'})
+        # неверный ключ: 403, доступа нет, Платегу не спрашивали
+        self.pg.st[tx] = 'CONFIRMED'
+        for kw in ({'secret': 'wrong'}, {'mid': 'other'}, {'secret': None}):
+            self.assertEqual(self.hook(tx, **kw)[::2], (403, {'ok': False, 'err': 'origin'}))
+        self.assertIsNone(self.until(em))
+        self.assertEqual(self.pg.gets(tx), [])
+        # тело говорит CONFIRMED, Платега на GET — PENDING: доступа нет
+        self.pg.st[tx] = 'PENDING'
+        self.assertEqual(self.hook(tx)[::2], (200, {'ok': True}))
+        g = self.pg.gets(tx)
+        self.assertEqual(len(g), 1)
+        self.assertEqual((g[0][2]['x-merchantid'], g[0][2]['x-secret']), (MID, SECRET))
+        self.assertIsNone(self.until(em))
+        self.assertEqual(self.order(r['o'])[2], 'pending')
+        # верный
+        self.pg.st[tx] = 'CONFIRMED'
+        t0 = int(time.time())
+        self.assertEqual(self.hook(tx)[::2], (200, {'ok': True}))
+        u = self.until(em)
+        self.assertTrue(t0 + 30 * DAY - 1 <= u <= int(time.time()) + 30 * DAY + 1, (u, t0))
+        self.assertEqual(self.order(r['o'])[2:4], ('paid', u))
+        self.assertTrue(self.wait(lambda: self.smtp.msgs(em)))
+        ms = self.smtp.msgs(em)
+        self.assertEqual(len(ms), 1)
+        self.assertTrue(str(ms[0]['Subject']).startswith('Оплата прошла — доступ к Магнату до '))
+        text = ms[0].get_body(('plain',)).get_content()
+        self.assertIn('заказ %d' % oid, text)
+        self.assertIn('автосписаний нет', text)
+        # повтор колбэка — ни дня сверху, второго письма нет
+        self.assertEqual(self.hook(tx)[::2], (200, {'ok': True}))
+        self.assertEqual(self.until(em), u)
+        self.assertEqual(self.api.sql("SELECT COUNT(*) FROM payment_events WHERE order_id=? AND status='paid'", oid)[0][0], 1)
+        time.sleep(0.3)
+        self.assertEqual(len(self.smtp.msgs(em)), 1)
+        self.assertEqual(c('/api/order', {'o': r['o']}), {'ok': True, 'status': 'paid', 'plan': 'month', 'until': u,
+                                                          'email': 'b•••@example.ru'})
+        self.assertEqual(c('/api/order', {'o': 'Z' * 22}), {'ok': False, 'err': 'order'})
+        # неизвестный номер — 200 (Платега не будет повторять), в журнале «callback unknown»
+        self.assertEqual(self.hook(str(uuid.uuid4()))[::2], (200, {'ok': True}))
+
+    def test_checkout_bad(self):
+        c = self.client()
+        n = len(self.pg.reqs)
+        for kw in ({'plan': 'week'}, {'telegram': '@1x'}, {'consent': 'да'}, {'consent': None}):
+            self.assertEqual(self.checkout(c, 'bad@example.ru', **kw), {'ok': False, 'err': 'bad'}, kw)
+            self.assertEqual(c.status, 400)
+        self.assertEqual(self.checkout(c, 'не почта'), {'ok': False, 'err': 'email'})
+        self.assertEqual(self.checkout(c, 'bad@example.ru', terms='2026-10-13'), {'ok': False, 'err': 'terms'})
+        self.assertEqual(req(self.api.port, 'GET', '/api/checkout')[::2], (405, {'ok': False, 'err': 'method'}))
+        self.assertEqual(req(self.api.port, 'POST', '/api/checkout', {}, headers={'Origin': 'https://evil.example'})[0], 403)
+        self.assertEqual(len(self.pg.reqs), n)
+        self.assertEqual(self.api.sql("SELECT COUNT(*) FROM orders WHERE email='bad@example.ru'")[0][0], 0)
+
+    def test_extend_from_remaining(self):
+        em = 'ext@example.ru'
+        _, _, u1 = self.pay(em)
+        _, _, u2 = self.pay(em, 'year')
+        self.assertEqual(u2, u1 + 365 * DAY)
+        self.assertEqual(self.api.sql('SELECT plan FROM access WHERE email=?', em)[0][0], 'year')
+
+    def test_order_page_polls(self):
+        em = 'page@example.ru'
+        c = self.client()
+        pub = self.checkout(c, em)['o']
+        tx = self.pg.last_tx()
+        self.pg.st[tx] = 'CONFIRMED'
+        self.assertEqual(c('/api/order', {'o': pub})['status'], 'pending')     # проверяли только что — не спрашиваем
+        self.assertEqual(self.pg.gets(tx), [])
+        self.api.sql('UPDATE orders SET checked=checked-20 WHERE pub=?', pub)
+        self.assertEqual(c('/api/order', {'o': pub})['status'], 'paid')
+        self.assertEqual(len(self.pg.gets(tx)), 1)
+        self.assertIsNotNone(self.until(em))
+
+    def test_background_polls(self):
+        em = 'bg@example.ru'
+        pub = self.checkout(self.client(), em)['o']
+        tx = self.pg.last_tx()
+        self.pg.st[tx] = 'CONFIRMED'
+        time.sleep(0.5)
+        self.assertEqual(self.order(pub)[2], 'pending')                       # моложе минуты с проверки — ждём
+        self.api.sql('UPDATE orders SET checked=checked-120 WHERE pub=?', pub)
+        self.assertTrue(self.wait(lambda: self.order(pub)[2] == 'paid'), self.order(pub))
+        self.assertEqual(self.api.sql("SELECT src FROM payment_events WHERE status='paid' AND tx=?", tx), [('poll',)])
+
+    def test_race_one_grant(self):
+        em = 'race@example.ru'
+        c = self.client()
+        pub = self.checkout(c, em)['o']
+        oid, tx = self.order(pub)[:2]
+        self.pg.st[tx] = 'CONFIRMED'
+        self.pg.delay = 0.4
+        try:
+            self.api.sql('UPDATE orders SET checked=checked-120 WHERE pub=?', pub)  # фон тоже возьмётся
+            t0 = int(time.time())
+            ts = [threading.Thread(target=f) for f in (lambda: self.hook(tx), lambda: self.hook(tx),
+                                                       lambda: c('/api/order', {'o': pub}), lambda: self.hook(tx))]
+            for t in ts:
+                t.start()
+            for t in ts:
+                t.join()
+            self.assertTrue(self.wait(lambda: self.order(pub)[2] == 'paid'))
+            time.sleep(0.6)
+        finally:
+            self.pg.delay = 0
+        u = self.until(em)
+        self.assertTrue(t0 + 30 * DAY - 1 <= u <= t0 + 30 * DAY + 3, (u, t0))
+        self.assertEqual(self.api.sql("SELECT COUNT(*) FROM payment_events WHERE order_id=? AND status='paid'", oid)[0][0], 1)
+        self.assertEqual(len(self.smtp.msgs(em)), 1)
+
+    def test_chargeback(self):
+        em = 'back@example.ru'
+        p1, tx1, u1 = self.pay(em)
+        _, _, u2 = self.pay(em, 'year')
+        n = len(self.smtp.msgs(SUPPORT))
+        self.pg.st[tx1] = 'CHARGEBACKED'
+        self.assertEqual(self.hook(tx1, 'CHARGEBACKED')[::2], (200, {'ok': True}))
+        self.assertEqual(self.hook(tx1, 'CHARGEBACKED')[::2], (200, {'ok': True}))
+        self.assertEqual(self.order(p1)[2], 'chargeback')
+        self.assertEqual(self.until(em), u2 - 30 * DAY)
+        self.assertTrue(self.wait(lambda: len(self.smtp.msgs(SUPPORT)) == n + 1))
+        self.assertTrue(str(self.smtp.msgs(SUPPORT)[-1]['Subject']).startswith('Магнат: банк вернул деньги по заказу'))
+        self.assertEqual(Client(self.api)('/api/order', {'o': p1})['status'], 'failed')
+
+    def test_me_sub(self):
+        em = 'sub@example.ru'
+        a = Client(self.api, '192.0.2.90')
+        a.login(self.smtp, em)
+        self.assertIsNone(a('/api/me', {})['sub'])
+        _, _, u = self.pay(em)
+        self.assertEqual(a('/api/me', {})['sub'], {'plan': 'month', 'until': u, 'active': True})
+
+    def test_delete_forgets_orders(self):
+        em, tg = 'gone-pay@example.ru', '@gone_pay'
+        a = Client(self.api, '192.0.2.91')
+        a.login(self.smtp, em)
+        c = self.client()
+        pub = self.checkout(c, em, telegram=tg)['o']
+        tx = self.pg.last_tx()
+        self.pg.st[tx] = 'CONFIRMED'
+        self.hook(tx)
+        self.assertIsNotNone(self.until(em))
+        self.assertTrue(a('/api/code', {'purpose': 'delete'})['ok'])
+        self.assertEqual(a('/api/delete', {'code': self.smtp.last_any_code(em)}), {'ok': True})
+        self.assertEqual(self.order(pub)[2:], ('paid', self.order(pub)[3], None, None, None))
+        self.assertEqual(self.api.sql('SELECT amount_kop FROM orders WHERE pub=?', pub), [(29900,)])
+        self.assertIsNone(self.until(em))
+        raw = self.api.raw_db()
+        for s in (em, tg, c.ip):
+            self.assertNotIn(s.encode(), raw)
+
+    def test_cli(self):
+        em = 'cli-pay@example.ru'
+        pub, tx, u = self.pay(em)
+        oid = self.order(pub)[0]
+        rc, o, e = self.api.cli('grant', 'grant@example.ru', '10', '--db', self.api.db, '--note', 'не включился')
+        self.assertEqual(rc, 0, o + e)
+        self.assertRegex(o.decode().strip(), r'^grant-ok until=\d{4}-\d{2}-\d{2}$')
+        self.assertTrue(10 * DAY - 60 <= self.until('grant@example.ru') - time.time() <= 10 * DAY + 60)
+        for bad in ('-5', '0', '3661', 'x'):
+            self.assertEqual(self.api.cli('grant', 'grant@example.ru', bad, '--db', self.api.db)[0], 2, bad)
+        self.assertEqual(self.api.cli('grant', 'не почта', '5', '--db', self.api.db)[0], 1)
+        rc, o, e = self.api.cli('orders', '--db', self.api.db, '--month', time.strftime('%Y-%m', time.gmtime(time.time())))
+        out = o.decode()
+        self.assertEqual(rc, 0, out + e.decode())
+        self.assertRegex(out, r'(?m)^\d\d\.\d\d\.\d{4} \d\d:\d\d UTC · 299 ₽ · месяц · заказ %d · c•••@example\.ru$' % oid)
+        self.assertRegex(out, r'(?m)^Итого за \d{4}-\d\d: \d+ оплат\w* на [\d ]+ ₽\.$')
+        for who in re.findall(r'(\S+)@', out):
+            self.assertRegex(who, r'^.•••$')               # адреса только маской
+        self.assertNotIn('grant@', out)
+        self.assertEqual(self.api.cli('orders', '--db', self.api.db, '--month', '2026-13')[0], 2)
+        rc, o, e = self.api.cli('orders', '--db', self.api.db, '--month', '2001-01')
+        self.assertEqual((rc, o.decode().strip()), (0, 'За 2001-01 оплат нет.'))
+        rc, o, e = self.api.cli('stats', '--db', self.api.db)
+        st = json.loads(o)
+        self.assertTrue(st['pay_on'] and st['pay_keys'] and st['pay_paid_month'] >= 1 and st['pay_last_callback'] > 0
+                        and st['access_active'] >= 2 and st['pay_sum_month_kop'] >= 29900, st)
+        self.assertNotIn(b'@', o)
+        self.assertNotIn(SECRET.encode(), o + e)
+        # запросы людей: заказы без аккаунта видны и стираются
+        rc, o, e = self.api.cli('user', 'show', em, '--db', self.api.db)
+        out = o.decode()
+        self.assertIn('Аккаунта с этим адресом нет.', out)
+        self.assertRegex(out, r'Заказы \(1\): \d\d\.\d\d\.\d{4} · месяц · 299 ₽ · оплачен · заказ %d' % oid)
+        self.assertIn('Доступ: до ', out)
+        self.assertNotIn(em, out)
+        rc, o, e = self.api.cli('user', 'export', em, '--db', self.api.db, '--creds', '-',
+                                stdin=smtp_env(self.smtp.port).encode())
+        self.assertEqual((rc, o.strip()), (0, b'export-ok'))
+        att = [p for p in self.smtp.msgs(em)[-1].iter_attachments()][0]
+        data = json.loads(att.get_content())
+        self.assertEqual((data['account'], data['orders'][0]['order'], data['orders'][0]['status'], data['access']['until']),
+                         (None, oid, 'paid', u))
+        rc, o, e = self.api.cli('user', 'delete', em, '--db', self.api.db)
+        self.assertEqual(rc, 0)
+        self.assertIn('заказы (1) отвязаны', o.decode())
+        self.assertEqual(self.order(pub)[4:], (None, None, None))
+        self.assertIsNone(self.until(em))
+
+    def test_zy_reminder_once(self):
+        em = 'remind@example.ru'
+        rc, o, e = self.api.cli('grant', em, '2', '--db', self.api.db)
+        self.assertEqual(rc, 0, o + e)
+        self.api.stop()
+        self.api.start()                     # письма о сроке — на первом шаге фона после старта
+        self.assertTrue(self.wait(lambda: self.smtp.msgs(em)), 'напоминание не пришло')
+        m = self.smtp.msgs(em)[0]
+        self.assertTrue(str(m['Subject']).startswith('Доступ к Магнату заканчивается '))
+        self.assertIn('https://magnat-planer.ru/checkout.html?plan=month', m.get_body(('plain',)).get_content())
+        self.assertTrue(self.api.sql('SELECT warned FROM access WHERE email=?', em)[0][0].endswith(':soon'))
+        self.api.stop()
+        self.api.start()
+        time.sleep(1.5)
+        self.assertEqual(len(self.smtp.msgs(em)), 1)
+
+    def test_zz_secret_and_journal(self):
+        raw = self.api.raw_db()
+        self.assertNotIn(SECRET.encode(), raw)
+        self.api.stop()
+        self.api.start()
+        logs = ''.join(self.api.errs)
+        self.assertNotIn(SECRET, logs)
+        self.assertNotIn('@', logs)
+        self.assertIn('callback unknown', logs)
+        for line in logs.splitlines():
+            self.assertRegex(line, r'^(start v=\S+ schema=\d+|smtp error \w+|stats .*|platega \w+ \w+|callback unknown|'
+                                   r'err \w+ api\.py:\d+)$')
+
+
+class PayFaults(unittest.TestCase):
+    """Ключей нет, Платега лежит, отдаёт не https или перенаправляет; форма со способом оплаты."""
+
+    def test_faults(self):
+        pg = FakePlatega()
+        off = Api(None, MAGNAT_PAYMENTS=1, MAGNAT_PLATEGA_URL=pg.url)
+        on = Api(None, platega=platega_env(), MAGNAT_PAYMENTS=1, MAGNAT_PLATEGA_URL=pg.url)
+        sbp = Api(None, platega=platega_env('2'), MAGNAT_PAYMENTS=1, MAGNAT_PLATEGA_URL=pg.url)
+        body = {'plan': 'month', 'email': 'f@example.ru', 'telegram': '', 'consent': CONSENT, 'terms': TERMS}
+        try:
+            self.assertEqual(Client(off)('/api/checkout', body), {'ok': False, 'err': 'pay_off'})
+            self.assertFalse(req(off.port, 'GET', '/api/health', ip=None)[2]['payKeys'])
+            self.assertEqual(off.sql('SELECT COUNT(*) FROM orders')[0][0], 0)
+            self.assertEqual(pg.reqs, [])
+            for i, mode in enumerate(('down', 'http', 'redirect')):
+                pg.mode = mode
+                self.assertEqual(Client(on, '192.0.2.%d' % (i + 1))('/api/checkout', body),
+                                 {'ok': False, 'err': 'platega'}, mode)
+                self.assertEqual(on.sql('SELECT status, tx FROM orders ORDER BY id DESC LIMIT 1'), [('failed', None)], mode)
+            self.assertFalse(any(r[1] == '/stolen' for r in pg.reqs), 'перенаправление выполнено — ключ ушёл бы чужим')
+            pg.mode = 'ok'
+            r = Client(sbp)('/api/checkout', body)
+            self.assertTrue(r['ok'] and r['url'].startswith('https://'), r)
+            self.assertEqual((pg.reqs[-1][1], pg.reqs[-1][3]['paymentMethod']), ('/transaction/process', 2))
+        finally:
+            outs = [a.stop() for a in (off, on, sbp)]
+            pg.stop()
+            for a in (off, on, sbp):
+                shutil.rmtree(a.state, ignore_errors=True)
+        err = outs[1][1]
+        self.assertIn('platega create http500', err)
+        self.assertIn('platega create http302', err)
+        self.assertNotIn(SECRET, ''.join(o + e for o, e in outs))
 
 
 class MailFaults(unittest.TestCase):

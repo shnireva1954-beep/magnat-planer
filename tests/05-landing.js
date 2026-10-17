@@ -120,7 +120,7 @@ function serve() {
   const stale = await p.evaluate(() => [...document.querySelectorAll('[data-app="start"]')].filter(a => a.getAttribute("href") !== "./x?start").length);
   ok(t.includes("399 ₽") && t.includes("2 990 ₽") && !t.includes("299 ₽") && !t.includes("1 490"), "сменил цену в CFG — сменилась везде");
   const trials = await p.evaluate(() => [...new Set([...document.querySelectorAll('[data-k="trial"]')].map(e => e.textContent.replace(/\u00a0/g, " ")))]);
-  ok(t.includes("Сначала 3 дня бесплатно") && t.includes("3 дня бесплатно, затем 2 990 ₽ в год") && JSON.stringify(trials) === '["3 дня"]' && !/7 дней бесплатно/.test(t),
+  ok(t.includes("Сначала 3 дня бесплатно") && t.includes("3 дня бесплатно, затем 2 990 ₽ за год") && JSON.stringify(trials) === '["3 дня"]' && !/7 дней бесплатно/.test(t),
     "сменил пробный срок в CFG — сменился везде, и в вопросах (и склонение): " + JSON.stringify(trials));
   ok(stale === 0, "сменил адрес в CFG — все «Начать бесплатно» ведут туда");
   await fresh();
@@ -128,7 +128,7 @@ function serve() {
   const n0 = await note(); await p.click('[data-plan="month"]');
   const n1 = await note(), chk = await p.evaluate(() => [...document.querySelectorAll("[data-plan]")].map(x => x.getAttribute("aria-checked")).join(","));
   await p.click('[data-plan="year"]'); const n2 = await note();
-  ok(n0.includes(`${nf(cfg.year)} ₽ в год`) && n1.includes(`${nf(cfg.month)} ₽ в месяц`) && n2 === n0 && chk === "false,true",
+  ok(n0.includes(`${nf(cfg.year)} ₽ за год`) && n1.includes(`${nf(cfg.month)} ₽ за 30 дней`) && n2 === n0 && chk === "false,true",
     `тариф переключается: год → «${n0}» · месяц → «${n1}»`);
 
   // ── 3) мини-игра и телефон считают как приложение ─────────────────────────

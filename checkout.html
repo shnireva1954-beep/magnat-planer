@@ -3,23 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Оформление подписки — Магнат</title>
-<meta name="description" content="Оформление подписки на Магнат: тариф, e-mail, согласие на автопродление и оплата через СБП.">
+<title>Оплата доступа — Магнат</title>
+<meta name="description" content="Оплата доступа к Магнату на 30 дней или на год: тариф, e-mail и разовая оплата через Platega — без автосписаний.">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#080b11">
 <link rel="icon" href="icon.png">
 <link rel="stylesheet" href="doc.css">
 <!--
-  Оформление подписки (09.10.2026) — путь покупки, который платёжный сервис хочет видеть
-  до согласования. Устройство и что обязано стать правдой при включении оплаты — CLAUDE.md,
+  Оплата доступа (09.10.2026, разовая — 17.10.2026). Платега дала мерчант без автосписаний,
+  поэтому оплата разовая: 30 дней или год, продлить — оплатить снова. Устройство — CLAUDE.md,
   раздел «Оформление подписки». Коротко:
-  • цена — в CFG скрипта, та же, что в тарифах (data-price), сторожит tests/08-checkout.js;
+  • цена и сроки — в CFG скрипта, те же, что в тарифах (data-price) и в PLANS сервера
+    (server/api/api.py), сторожит tests/08-checkout.js;
   • CFG.pay пустой — оплата не подключена: форма проверяется, но НИКУДА не уходит;
+  • вписан — заказ уходит POST JSON на свой /api/checkout, сервер отвечает ссылкой на страницу
+    Платеги; вернулся оттуда (?o=номер) — страница сама спрашивает /api/order, прошла ли оплата;
+  • данные сервера — только через textContent: разметку из строк страница не собирает вовсе;
   • стили страницы — здесь, а не в doc.css: устаревший doc.css из кэша не сломает форму.
 -->
 <style>
   :root{--danger:#ff6b6b;
     --chk:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 12.4 4 4 8-8.6' fill='none' stroke='%2304120b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+  /* у кнопок свой display — без этого атрибут hidden их не прячет */
+  [hidden]{display:none !important;}
   form{margin-top:22px;}
   fieldset{border:0; min-width:0;}
   legend,.lbl{display:block; font-size:15px; font-weight:700; color:var(--ink); margin-bottom:8px;}
@@ -35,7 +41,6 @@
   .opt .t{display:flex; flex-direction:column; min-width:0;}
   .opt .n{font-size:14px; font-weight:700; color:var(--mut);}
   .opt .p{font-size:24px; font-weight:800; letter-spacing:-.02em; line-height:1.15; color:var(--ink);}
-  .opt .p small{font-size:14px; font-weight:600; color:var(--mut);}
   .opt .s{font-size:13.5px; color:var(--mut);}
   .opt .tag{position:absolute; top:-11px; right:14px; background:var(--emerald); color:#04140c; font-size:12px; font-weight:800; padding:3px 10px; border-radius:99px;}
   .inp{display:block; width:100%; min-height:52px; padding:12px 14px; border-radius:12px; border:1.5px solid var(--line2); background:var(--panel); color:var(--ink); font:inherit; font-size:16px;}
@@ -44,7 +49,7 @@
   .inp[aria-invalid="true"]{border-color:var(--danger);}
   .inp[aria-invalid="true"]:focus{box-shadow:0 0 0 3px rgba(255,107,107,.2);}
   /* шапка липкая: поле с ошибкой и ответ после отправки не прячутся под ней */
-  .inp,.check,#done{scroll-margin-top:76px;}
+  .inp,.check,#done,#back,#payErr{scroll-margin-top:76px;}
   .hint{font-size:14px; color:var(--mut); margin-top:6px;}
   .err{font-size:14px; color:var(--danger); margin-top:6px; font-weight:600;}
   .sum{display:flex; flex-direction:column; gap:4px; margin-top:24px;}
@@ -57,16 +62,17 @@
   .check input:checked{border-color:var(--emerald); background:var(--emerald) var(--chk) center/18px no-repeat;}
   .check input:focus-visible{outline:2px solid var(--emerald); outline-offset:3px;}
   .check:has(input[aria-invalid="true"]){border-color:var(--danger);}
-  .check span{font-size:15px; color:#d4dee9;}
-  .legal{font-size:14px; color:var(--mut); margin-top:16px;}
+  .check > span{font-size:15px; color:#d4dee9; min-width:0;}
   .pay{display:flex; align-items:center; justify-content:center; width:100%; min-height:56px; margin-top:16px; padding:0 20px; border:0; border-radius:16px; cursor:pointer;
     background:linear-gradient(180deg,#6af4b4 0%,#2fe38f 48%,#22cd7f 100%); color:#04140c; font:inherit; font-size:17px; font-weight:800; text-decoration:none;}
   .pay:focus-visible{outline:2px solid var(--ink); outline-offset:3px;}
   .pay[disabled]{opacity:.6; cursor:default;}
+  .pay.alt{background:var(--panel); color:var(--ink); border:1.5px solid var(--line2);}
   .safe{font-size:14px; color:var(--mut); margin-top:12px; text-align:center;}
-  #done{margin-top:22px;}
-  #done h2{margin-top:0;}
-  #done:focus{outline:none;}
+  #done,#back{margin-top:22px;}
+  #done h2,#back h2{margin-top:0;}
+  #done:focus,#back:focus{outline:none;}
+  #back p{overflow-wrap:anywhere;}
 </style>
 </head>
 <body>
@@ -76,24 +82,24 @@
 </div></header>
 
 <main class="wrap">
-  <h1>Оформление подписки</h1>
-  <p class="lead">Выбери тариф и оставь e-mail — дальше оплата через СБП в приложении твоего банка.</p>
+  <h1>Оплата доступа</h1>
+  <p class="lead" id="lead">Выбери срок и оставь e-mail — дальше оплата на странице сервиса Platega: СБП или другой способ, который там показан.</p>
 
-  <div class="box note" id="soon"><b>Оплата на сайте подключается.</b> Пока она не включена, оформить подписку нельзя — зато Магнат открыт целиком и бесплатно.</div>
+  <div class="box note" id="soon"><b>Оплата на сайте подключается.</b> Пока она не включена, оплатить доступ нельзя — зато Магнат открыт целиком и бесплатно.</div>
 
   <form id="buy" method="post" action="" novalidate>
     <fieldset>
       <legend>Тариф</legend>
       <div class="opts">
-        <label class="opt"><input type="radio" name="plan" value="year" checked><span class="t"><span class="n">Год</span><span class="p num" data-price="year">1 490 ₽<small> / год</small></span><span class="s">≈ 124 ₽ в месяц</span></span><span class="tag">−58%</span></label>
-        <label class="opt"><input type="radio" name="plan" value="month"><span class="t"><span class="n">Месяц</span><span class="p num" data-price="month">299 ₽<small> / месяц</small></span><span class="s">Продлевается каждый месяц</span></span></label>
+        <label class="opt"><input type="radio" name="plan" value="year" checked><span class="t"><span class="n">Год</span><span class="p num" data-price="year">1 490 ₽</span><span class="s" data-sub="year">Доступ на 365 дней (≈ 124 ₽ в месяц)</span></span><span class="tag" id="save">−58%</span></label>
+        <label class="opt"><input type="radio" name="plan" value="month"><span class="t"><span class="n">Месяц</span><span class="p num" data-price="month">299 ₽</span><span class="s" data-sub="month">Доступ на 30 дней</span></span></label>
       </div>
     </fieldset>
 
     <div class="field">
       <label class="lbl" for="email">E-mail</label>
       <input class="inp" id="email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" maxlength="254" placeholder="name@mail.ru" required aria-describedby="emailHint emailErr">
-      <p class="hint" id="emailHint">Сюда придёт письмо об оплате со ссылкой для отмены подписки. По этому адресу поддержка свяжется с тобой, если с оплатой что-то пойдёт не так.</p>
+      <p class="hint" id="emailHint">На этот адрес привяжем доступ и пришлём письмо об оплате. В приложении войдёшь по этой почте.</p>
       <p class="err" id="emailErr" hidden>Проверь e-mail: нужен адрес вида name@mail.ru</p>
     </div>
 
@@ -105,42 +111,53 @@
     </div>
 
     <div class="box sum" aria-live="polite">
-      <div class="row"><span>К оплате сейчас</span><b class="num" id="sumNow">1 490 ₽</b></div>
-      <p id="sumNext">Дальше — 1 490 ₽ раз в год, пока не отменишь подписку.</p>
+      <div class="row"><span>К оплате</span><b class="num" id="sumNow">1 490 ₽</b></div>
+      <p id="sumDays">Доступ на 365 дней.</p>
+      <p>Разовая оплата, без автосписаний. Продлить — оплатить снова, дни прибавятся.</p>
     </div>
 
-    <label class="check"><input type="checkbox" id="autopay" name="autopay" value="1" aria-describedby="autoErr"><span id="autoTxt">Соглашаюсь на автопродление подписки: 1 490 ₽ списываются раз в год, пока я её не отменю. Отменить можно в любой момент.</span></label>
-    <p class="err" id="autoErr" hidden>Без согласия на автопродление подписку не оформить. Не хочешь — пользуйся бесплатными днями.</p>
+    <!-- что именно человек принял — этот текст уходит вместе с заказом и хранится как доказательство согласия -->
+    <label class="check"><input type="checkbox" id="agree" aria-describedby="agreeErr"><span id="agreeTxt"><span id="agreeLead">Оплачиваю доступ к Магнату на 365 дней — 1 490 ₽, разово, без автосписаний.</span> Принимаю <a href="terms.html" target="_blank" rel="noopener">пользовательское соглашение</a>, с <a href="privacy.html" target="_blank" rel="noopener">политикой конфиденциальности</a> ознакомлен.</span></label>
+    <p class="err" id="agreeErr" hidden>Отметь согласие — без него оплату не оформить.</p>
 
-    <!-- что именно человек принял — уходит вместе с заказом и хранится как доказательство согласия -->
-    <input type="hidden" name="consent" id="consent" value="">
-    <input type="hidden" name="terms" value="2026-10-13">
+    <!-- редакция соглашения: сторож сверяет с датой в terms.html и TERMS_ED сервера -->
+    <input type="hidden" name="terms" id="terms" value="2026-10-17">
 
-    <p class="legal">Нажимая «Перейти к оплате», ты принимаешь <a href="terms.html">пользовательское соглашение</a> и подтверждаешь, что ознакомлен с <a href="privacy.html">политикой конфиденциальности</a>.</p>
-    <!-- без скрипта кнопка выключена: иначе форма ушла бы на сервер, который её ещё не принимает -->
+    <!-- без скрипта кнопка выключена: иначе форма ушла бы на сервер, который её не принимает -->
     <button class="pay" type="submit" id="payBtn" disabled>Перейти к оплате</button>
-    <p class="safe">Оплата — через СБП в приложении твоего банка. Данные карты и счёта к нам не попадают: платёж проводит сервис Platega.</p>
+    <p class="err" id="payErr" role="alert" hidden></p>
+    <p class="safe">Оплата — на странице сервиса Platega: СБП или другой способ, который там показан. Данные карты и счёта к нам не попадают.</p>
   </form>
 
   <div class="box" id="done" hidden tabindex="-1" role="status">
     <h2>Оплата пока не подключена</h2>
-    <p>Мы ждём, когда платёжный сервис её согласует. Ничего не списано, и данные формы никуда не отправлены.</p>
+    <p>Ничего не списано, и данные формы никуда не отправлены.</p>
     <p>А пока Магнат открыт целиком и бесплатно.</p>
     <a class="pay" href="app.html?start">Открыть Магнат</a>
   </div>
 
+  <!-- возврат со страницы оплаты: checkout.html?o=<номер заказа>[&fail=1] -->
+  <div class="box" id="back" hidden tabindex="-1" role="status" aria-live="polite">
+    <h2 id="backTitle">Проверяем оплату…</h2>
+    <p id="backTxt">Спрашиваем, как прошла оплата.</p>
+    <p class="hint" id="backHint" hidden></p>
+    <a class="pay" id="backGo" href="app.html" hidden>Открыть Магнат</a>
+    <button class="pay alt" type="button" id="again" hidden>Проверить ещё раз</button>
+  </div>
+
   <h2>Что будет после оплаты</h2>
   <ol class="steps">
-    <li>Банк попросит подтвердить подписку — один раз, в его приложении через СБП.</li>
-    <li>Доступ включается сразу после подтверждения оплаты, на e-mail приходит письмо об оплате.</li>
-    <li>Через месяц или год подписка продлевается сама — на ту же сумму.</li>
-    <li>Отменить можно в любой момент: по ссылке из письма или написав в поддержку. Передумал — вернём деньги за неиспользованные дни.</li>
+    <li>На странице Platega выбери способ оплаты и подтверди платёж.</li>
+    <li>После подтверждения вернёшься сюда — доступ включится, на e-mail придёт письмо об оплате.</li>
+    <li>В приложении войди по этой почте — доступ откроется на всех твоих телефонах.</li>
+    <li>Автосписаний нет: за 3 дня до конца срока пришлём письмо. Продлить — оплатить снова, дни прибавятся к остатку.</li>
+    <li>Передумал — напиши в поддержку: вернём деньги за неиспользованные полные дни.</li>
   </ol>
 
   <h2 id="support">Вопросы об оплате</h2>
   <div class="box support">
     <a class="contact" href="mailto:planermagnat@gmail.com">planermagnat@gmail.com</a>
-    <span style="color:var(--mut)">Оплата, отмена, возврат. Обычно отвечаем в течение дня.</span>
+    <span style="color:var(--mut)">Оплата, продление, возврат. Обычно отвечаем в течение дня.</span>
   </div>
 </main>
 
@@ -156,39 +173,46 @@
 
 <script>
 // ═══ ВСЁ, ЧТО МЕНЯЕТСЯ, — ЗДЕСЬ ═══════════════════════════════════════════════
-// Цена — та же, что в тарифах (data-price в pricing.html), разойдётся — краснеет
-// tests/08-checkout.js. pay — адрес нашего сервера, который записывает заказ и создаёт
-// подписку в платёжном сервисе. Пока он пустой, оплата не подключена: форма проверяется,
-// но никуда не отправляется — политика обещает, что данные к нам не уходят.
+// Цена и срок — те же, что в тарифах (data-price в pricing.html) и в PLANS сервера
+// (server/api/api.py), разойдутся — краснеет tests/08-checkout.js. pay — адрес нашего
+// сервера, который записывает заказ и создаёт счёт в Платеге. Пока он пустой, оплата не
+// подключена: форма проверяется, но никуда не отправляется — политика обещает, что данные
+// к нам не уходят. order — там же статус заказа после возврата; без pay его не спрашиваем.
 const CFG = {
-  month: 299,   // ₽ в месяц
-  year: 1490,   // ₽ в год
-  pay: "",      // "" — оплата не подключена
+  month: 299,   // ₽ за 30 дней
+  year: 1490,   // ₽ за 365 дней
+  days: { month: 30, year: 365 },
+  pay: "",      // "" — оплата не подключена; "/api/checkout" — живая
+  order: "/api/order",
 };
 
 const $ = id => document.getElementById(id);
 const nf = n => Math.round(n).toLocaleString("ru-RU").replace(/\s/g, " ");
 const form = $("buy");
-const PER = { month: ["раз в месяц", "/ месяц"], year: ["раз в год", "/ год"] };
 const plan = () => (form.querySelector('input[name="plan"]:checked') || {}).value || "year";
+const isPlan = v => v === "month" || v === "year";
+const params = new URLSearchParams(location.search);
 
 // тариф из адреса: тарифы и главная ведут сюда с ?plan=month или ?plan=year.
 // Только из списка: чужое значение в селекторе роняло бы скрипт, а с ним и кнопку
 (function () {
-  const want = new URLSearchParams(location.search).get("plan");
-  if (want === "month" || want === "year") form.querySelector(`input[name="plan"][value="${want}"]`).checked = true;
+  const want = params.get("plan");
+  if (isPlan(want)) form.querySelector(`input[name="plan"][value="${want}"]`).checked = true;
 })();
 
 function fill() {
-  document.querySelectorAll("[data-price]").forEach(el => {
-    const k = el.dataset.price; el.innerHTML = `${nf(CFG[k])} ₽<small> ${PER[k][1]}</small>`;
-  });
+  document.querySelectorAll("[data-price]").forEach(el => { el.textContent = `${nf(CFG[el.dataset.price])} ₽`; });
+  $("save").textContent = `−${Math.round((1 - CFG.year / (CFG.month * 12)) * 100)}%`;
+  document.querySelector('[data-sub="month"]').textContent = `Доступ на ${CFG.days.month} дней`;
+  document.querySelector('[data-sub="year"]').textContent = `Доступ на ${CFG.days.year} дней (≈ ${nf(CFG.year / 12)} ₽ в месяц)`;
   const k = plan(), sum = `${nf(CFG[k])} ₽`;
   $("sumNow").textContent = sum;
-  $("sumNext").textContent = `Дальше — ${sum} ${PER[k][0]}, пока не отменишь подписку.`;
-  $("autoTxt").textContent = `Соглашаюсь на автопродление подписки: ${sum} списываются ${PER[k][0]}, пока я её не отменю. Отменить можно в любой момент.`;
+  $("sumDays").textContent = `Доступ на ${CFG.days[k]} дней.`;
+  $("agreeLead").textContent = `Оплачиваю доступ к Магнату на ${CFG.days[k]} дней — ${sum}, разово, без автосписаний.`;
   $("soon").hidden = !!CFG.pay;
 }
+// согласие ровно как его видит человек — с ним уходит заказ
+const consent = () => $("agreeTxt").textContent.replace(/\s+/g, " ").trim();
 
 // e-mail: что-то@домен.зона, без пробелов
 const emailOk = s => s.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$/.test(s);
@@ -203,13 +227,13 @@ function mark(input, err, good) {
 }
 
 function check() {
-  const email = $("email"), tg = $("tg"), auto = $("autopay");
+  const email = $("email"), tg = $("tg"), agree = $("agree");
   email.value = email.value.trim();
   const t = tgClean(tg.value);
   const res = [
     [email, mark(email, "emailErr", emailOk(email.value))],
     [tg, mark(tg, "tgErr", tgOk(t))],
-    [auto, mark(auto, "autoErr", auto.checked)],
+    [agree, mark(agree, "agreeErr", agree.checked)],
   ];
   const first = res.find(r => !r[1]);
   if (first) { first[0].focus(); return false; }
@@ -219,31 +243,136 @@ function check() {
 
 form.addEventListener("change", e => {
   if (e.target.name === "plan") fill();
-  if (e.target.id === "autopay" && e.target.checked) mark(e.target, "autoErr", true);
+  if (e.target.id === "agree" && e.target.checked) mark(e.target, "agreeErr", true);
 });
 // ошибку под полем убираем, как только человек её исправил
 $("email").addEventListener("input", e => { if (e.target.getAttribute("aria-invalid") === "true" && emailOk(e.target.value.trim())) mark(e.target, "emailErr", true); });
 $("tg").addEventListener("input", e => { if (e.target.getAttribute("aria-invalid") === "true" && tgOk(tgClean(e.target.value))) mark(e.target, "tgErr", true); });
 
-form.addEventListener("submit", e => {
-  if (!check()) { e.preventDefault(); return; }
-  $("consent").value = $("autoTxt").textContent;
+const smooth = () => matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+const reveal = el => { el.hidden = false; el.focus(); el.scrollIntoView({ block: "start", behavior: smooth() }); };
+
+// ЕДИНСТВЕННЫЙ запрос страницы: POST JSON на свой же адрес /api/… из CFG, ответ не дольше
+// 30 с (сервер ждёт Платегу до 20 с). Ответ — объект с ok, иначе {ok:false, err:'down'};
+// нет сети — 'net', не дождались — 'timeout'. Чужой адрес сюда не пройдёт
+async function api(url, body) {
+  if (!/^\/api\/[\w-]+$/.test(url)) return { ok: false, err: "off" };
+  if (navigator.onLine === false) return { ok: false, err: "net" };
+  const ac = new AbortController(), t = setTimeout(() => ac.abort(), 30000);
+  try {
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      credentials: "same-origin", cache: "no-store", signal: ac.signal });
+    const j = await r.json().catch(() => null);
+    return j && typeof j === "object" && typeof j.ok === "boolean" ? j : { ok: false, err: "down" };
+  } catch (e) { return { ok: false, err: ac.signal.aborted ? "timeout" : "net" }; }
+  finally { clearTimeout(t); }
+}
+
+// что сказать, если оплата не началась (почта — под полем, а не здесь)
+const SAY = {
+  pay_off: "Оплата пока не подключена — ничего не списано. Попробуй позже или напиши в поддержку.",
+  platega: "Платёжный сервис не ответил, попробуй через минуту. Ничего не списано.",
+  slow: "Слишком часто — попробуй немного позже. Если срочно — напиши в поддержку.",
+  terms: "Условия обновились — обнови страницу и проверь новую редакцию соглашения.",
+  net: "Нет связи с сервером — проверь интернет и попробуй снова.",
+  timeout: "Сервер долго не отвечает — попробуй через минуту. Ничего не списано.",
+  link: "Платёжный сервис вернул неверную ссылку — оплата не начата, ничего не списано. Попробуй через минуту.",
+  bad: "Что-то в форме не так — проверь поля и попробуй снова.",
+  down: "Не получилось начать оплату — попробуй через минуту. Не выйдет — напиши в поддержку.",
+};
+
+let sending = false;
+form.addEventListener("submit", async e => {
+  e.preventDefault();
+  if (sending) return;
+  $("payErr").hidden = true;
+  if (!check()) return;
   if (!CFG.pay) {
     // оплата не подключена: ничего не отправляем, честно говорим, что дальше
-    e.preventDefault();
-    form.hidden = true; $("soon").hidden = true;
-    const d = $("done"); d.hidden = false; d.focus();
-    d.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    form.hidden = true; $("soon").hidden = true; $("lead").hidden = true;
+    reveal($("done"));
     return;
   }
-  form.action = CFG.pay;
+  sending = true;
   $("payBtn").disabled = true; $("payBtn").textContent = "Переходим к оплате…";
+  const order = { plan: plan(), email: $("email").value, telegram: $("tg").value, consent: consent(), terms: $("terms").value };
+  const r = await api(CFG.pay, order);
+  // на страницу оплаты — только по https://: иная ссылка от сервера — ошибка, а не переход
+  if (r.ok && typeof r.url === "string" && /^https:\/\//i.test(r.url)) {
+    try { localStorage.setItem("magnat_pay_v1", JSON.stringify({ o: String(r.o || ""), email: order.email, plan: order.plan, at: Date.now() })); } catch (e) {}
+    location.assign(r.url);
+    return;
+  }
+  ready();
+  if (!r.ok && r.err === "email") { mark($("email"), "emailErr", false); $("email").focus(); return; }
+  const m = $("payErr");
+  m.textContent = r.ok ? SAY.link : SAY[r.err] || SAY.down;
+  m.hidden = false; m.scrollIntoView({ block: "nearest", behavior: smooth() });
 });
 // кнопка оживает только со скриптом; вернулся «Назад» со страницы оплаты — снова живая
-const ready = () => { $("payBtn").disabled = false; $("payBtn").textContent = "Перейти к оплате"; };
+function ready() { sending = false; $("payBtn").disabled = false; $("payBtn").textContent = "Перейти к оплате"; }
 addEventListener("pageshow", ready);
 
+// ═══ ВОЗВРАТ СО СТРАНИЦЫ ОПЛАТЫ: ?o=<номер заказа>[&fail=1] ═══════════════════════
+// Номер — 22 знака, как RE_PUB сервера; кривой — обычная форма. Сервер отвечает статусом
+// pending | paid | failed; спрашиваем сразу и каждые 3 с до 3 минут, дальше — кнопкой.
+// fail=1 — Платега вернула на «не прошла»: верим ей, если сервер не говорит «оплачено».
+// Пока CFG.pay пустой, не спрашиваем ничего
+const RE_PUB = /^[A-Za-z0-9_-]{22}$/;
+const POLL = { every: 3000, for: 180000 };
+const O = params.get("o"), FAIL = params.get("fail") === "1";
+// until сервера — секунды; на всякий случай принимаем и миллисекунды
+const date = t => { const d = new Date(t < 1e11 ? t * 1000 : t); return [d.getDate(), d.getMonth() + 1].map(n => String(n).padStart(2, "0")).join(".") + "." + d.getFullYear(); };
+
+function view(title, text, opt) {
+  opt = opt || {};
+  $("backTitle").textContent = title; $("backTxt").textContent = text;
+  $("backHint").textContent = opt.hint || ""; $("backHint").hidden = !opt.hint;
+  const go = $("backGo"); go.hidden = !opt.go;
+  if (opt.go) { go.textContent = opt.go[0]; go.href = opt.go[1]; }
+  $("again").hidden = !opt.again;
+}
+// тариф для «Попробовать снова»: из ответа сервера или из своего заказа на этом телефоне
+function retryPlan(r) {
+  if (r && isPlan(r.plan)) return r.plan;
+  try { const s = JSON.parse(localStorage.getItem("magnat_pay_v1") || "null"); if (s && s.o === O && isPlan(s.plan)) return s.plan; } catch (e) {}
+  return "";
+}
+function failed(r) {
+  const k = retryPlan(r);
+  view("Оплата не прошла", "Деньги не списаны. Можно попробовать ещё раз — тем же или другим способом.", { go: ["Попробовать снова", "checkout.html" + (k ? "?plan=" + k : "")] });
+}
+function paid(r) {
+  const until = Number.isFinite(r.until) && r.until > 0 ? `Доступ до ${date(r.until)}.` : "Доступ включён.";
+  const mail = typeof r.email === "string" && r.email ? `по почте ${r.email}` : "по почте из заказа";
+  view("Оплата прошла", until, { hint: `В приложении войди ${mail} — доступ включится на всех твоих телефонах.`, go: ["Открыть Магнат", "app.html"] });
+}
+
+let pollTill = 0, pollTimer = 0;
+async function poll() {
+  clearTimeout(pollTimer);
+  const r = await api(CFG.order, { o: O });
+  if (r.ok && r.status === "paid") return paid(r);
+  if (!r.ok && r.err === "order") return view("Заказ не найден", "Ссылка с ошибкой или устарела. Если деньги списались — напиши в поддержку, разберёмся.", { go: ["Оформить заново", "checkout.html"] });
+  if (FAIL || (r.ok && r.status === "failed")) return failed(r);
+  if (Date.now() >= pollTill) {
+    return view("Оплата ещё не подтвердилась", "Если деньги списались, доступ включится сам, как только платёжный сервис подтвердит оплату, — придёт письмо. Прошло 15 минут, а доступа нет — напиши в поддержку, включим вручную.", { again: true });
+  }
+  view("Ждём подтверждения оплаты…", r.ok ? "Обычно это меньше минуты. Страницу можно не обновлять — проверяем сами."
+    : r.err === "net" ? "Нет связи — пробуем ещё раз через пару секунд." : "Сервер пока не ответил — пробуем ещё раз.");
+  pollTimer = setTimeout(poll, POLL.every);
+}
+function startPoll() { pollTill = Date.now() + POLL.for; $("again").hidden = true; poll(); }
+$("again").addEventListener("click", startPoll);
+
 fill(); ready();
+if (O && RE_PUB.test(O)) {
+  form.hidden = true; $("soon").hidden = true; $("lead").hidden = true;
+  if (!CFG.pay) view("Оплата пока не подключена", "Проверить заказ отсюда сейчас нельзя. Если деньги списались — напиши в поддержку, включим доступ вручную.", { go: ["Открыть Магнат", "app.html"] });
+  else if (FAIL) failed(null);
+  reveal($("back"));
+  if (CFG.pay) startPoll();
+}
 </script>
 </body>
 </html>

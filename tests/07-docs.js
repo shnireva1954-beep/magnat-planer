@@ -8,13 +8,18 @@
 //      cookie после входа; сам вход в коде есть, но выключен — ACCOUNT_ON=false,
 //      и для посетителя всё по-прежнему): в коде нет XMLHttpRequest,
 //      sendBeacon, WebSocket, EventSource, document.cookie, чужих скриптов и
-//      адресов наружу, а каждый fetch( в app.html — только на свой '/api/…'; в
+//      адресов наружу, а каждый fetch( в app.html — только на свой '/api/…', в
+//      checkout.html — только на CFG.pay или '/api/order', на главной fetch нет; в
 //      браузере посетитель (file:// и свой сервер) не делает ни одного запроса к
 //      /api и на чужие адреса и не получает cookie; на file:// и в рамке Claude
 //      — даже с флагом предпросмотра владельца. Добавил аналитику или включил
 //      вход — сначала политика; политика обязана называть cookie «__Host-mg»,
 //      Россию, «Удалить аккаунт», «Тело» только на телефоне, сроки 30/90 дней и
 //      Роскомнадзор (план аккаунта, §9), а api.py — не писать личное в журнал;
+//   3в. оплата разовая (17.10.2026): политика называет Platega, что ей уходит, 5 лет
+//      и отвязку заказов при удалении аккаунта; соглашение — разовую оплату без
+//      автосписаний, 30 и 365 дней, прибавку срока и возврат; ни одна страница сайта
+//      не обещает автопродление, автосписание, отмену подписки или ссылку отмены;
 //   4. страницы в браузере: без ошибок под той же CSP, что на сервере (берётся из
 //      server/Caddyfile), свой шрифт, без прокрутки вбок на 320–1280;
 //   5. в приложении ссылки на всё это — в приветствии и внизу «Обзора».
@@ -29,7 +34,7 @@ const SITE = "https://magnat-planer.ru/";
 const read = f => fs.readFileSync(path.join(APP_DIR, f), "utf8");
 const app = read("app.html");
 const land = read("index.html");   // продающая страница — те же обещания политики
-const buy = read("checkout.html"); // оформление подписки: пока оплата не подключена — тоже ничего наружу
+const buy = read("checkout.html"); // оформление оплаты: заказ — только на свой сервер, пока CFG.pay пуст — ничего
 
 // seen — сюда пишется каждый пришедший запрос (путь и был ли заголовок Cookie):
 // так видно и то, что ушло из service worker или при закрытии страницы (keepalive).
@@ -150,14 +155,37 @@ function netSpy(flag) {
     [new RegExp(String.raw`\.src\s*=\s*['"\x60]` + EXT), ".src = чужой адрес"],
   ];
   // fetch: в app.html — только вызов с адресом-литералом '/api/…' (свой сервер, тот же
-  // адрес; на file:// и в рамке Claude он до сети не дойдёт), в главной и оформлении
-  // подписки — ни одного. fetch без вызова (const f = fetch) — обход этой проверки.
+  // адрес; на file:// и в рамке Claude он до сети не дойдёт), на главной — ни одного.
+  // fetch без вызова (const f = fetch) — обход этой проверки.
   const fetchRule = (src, apiOk) => hits(src, /\bfetch\b/).filter(h => !(apiOk && /^fetch\s*\(\s*(['"`])\/api\/[\w\-/]*/.test(src.slice(h.i))));
-  for (const [name, src, apiOk] of [["приложении", app, true], ["продающей странице", land, false], ["оформлении подписки", buy, false]]) {
+  // Оформление оплаты (17.10.2026, разовая): заказ уходит только на свой сервер — каждый
+  // fetch( на CFG.pay или литерал '/api/order'. Через помощника тоже можно: fetch(x) внутри
+  // function имя(x, …), которая первым делом отсекает всё, кроме '/api/…', и которую зовут
+  // только с CFG.pay, '/api/order' или CFG.order (если в CFG это литерал '/api/order').
+  // Сам CFG.pay — пустой (оплата не подключена: ни одного запроса) или '/api/checkout'.
+  const cfgOrder = /\border\s*:\s*(['"`])\/api\/order\1/.test(buy);
+  const payArg = a => a === "CFG.pay" || /^(['"`])\/api\/order\1$/.test(a) || (cfgOrder && a === "CFG.order");
+  const firstArg = (src, i) => (src.slice(i).match(/^[\w$.]+\s*\(\s*([^,()]+?)\s*[,)]/) || [])[1] || "";
+  const payFetch = src => hits(src, /\bfetch\b/).filter(h => {
+    const a = firstArg(src, h.i);
+    if (payArg(a)) return false;
+    if (!/^[A-Za-z_$][\w$]*$/.test(a)) return true;
+    const d = [...src.slice(0, h.i).matchAll(new RegExp(String.raw`\bfunction\s+([A-Za-z_$][\w$]*)\s*\(\s*` + a + String.raw`\b`, "g"))].pop();
+    if (!d) return true;
+    const guard = new RegExp(String.raw`\{\s*if\s*\(\s*!\s*\/\^\\\/api\\\/[^\n]*?\/\.test\(\s*` + a + String.raw`\s*\)\s*\)\s*return\b`).test(src.slice(d.index, h.i));
+    const calls = hits(src, new RegExp(String.raw`\b` + d[1] + String.raw`\s*\(`)).filter(c => !/function\s+$/.test(src.slice(Math.max(0, c.i - 12), c.i)));
+    return !(guard && calls.length && calls.every(c => payArg(firstArg(src, c.i))));
+  });
+  const payCfg = /\bpay\s*:\s*(['"`])(?:\/api\/checkout)?\1\s*,/.test(buy);
+  for (const [name, src, fetches, fine] of [
+    ["приложении", app, fetchRule(app, true), " (fetch — только на свой '/api/…')"],
+    ["продающей странице", land, fetchRule(land, false), ", fetch нет"],
+    ["оформлении оплаты", buy, payFetch(buy), " (fetch — только на CFG.pay и '/api/order', CFG.pay — пусто или '/api/checkout')"]]) {
     const found = LEAKS.flatMap(([re, what]) => hits(src, re).map(h => what + " (" + h.at + ")"))
-      .concat(fetchRule(src, apiOk).map(h => (apiOk ? "fetch не на свой '/api/…'" : "fetch") + " (" + h.at + ")"));
+      .concat(fetches.map(h => (src === app ? "fetch не на свой '/api/…'" : src === buy ? "fetch не на CFG.pay и не на '/api/order'" : "fetch") + " (" + h.at + ")"))
+      .concat(src === buy && !payCfg ? ["CFG.pay — не пусто и не '/api/checkout'"] : []);
     found.length ? bad("в " + name + " есть путь наружу, cookie или чужой скрипт — а политика обещает обратное; сначала поправь privacy.html: " + found.slice(0, 4).join("; "))
-      : ok("в " + name + " нет запросов наружу, cookie и чужих скриптов" + (apiOk ? " (fetch — только на свой '/api/…')" : ", fetch нет") + " — как написано в политике");
+      : ok("в " + name + " нет запросов наружу, cookie и чужих скриптов" + fine + " — как написано в политике");
   }
   // cookie нет нигде на сайте: ни в одной странице, ни в service worker
   const everywhere = fs.readdirSync(APP_DIR).filter(f => /\.(html|js)$/.test(f));
@@ -195,6 +223,39 @@ function netSpy(flag) {
   const off = Object.keys(td).filter(k => ta[k] !== td[k]);
   off.length ? bad("цвета страниц разошлись с приложением: " + off.map(k => `--${k} ${td[k]} ≠ ${ta[k]}`).join(", ")) : ok(`цвета страниц — из приложения (${Object.keys(td).length} токенов)`);
 
+  // ---- 3в. Оплата разовая (17.10.2026) ---------------------------------------
+  // Платега дала мерчант без автосписаний: месяц или год разовой оплатой. Политика обязана
+  // сказать, кому и что уходит, сколько хранится и что стирается при удалении аккаунта (так
+  // делает forget_payments в api.py); соглашение — сам договор: разово, без автосписаний,
+  // 30 и 365 дней, срок прибавляется, возврат за неиспользованные дни (ст. 32 ЗоЗПП).
+  console.log("\n3в. Оплата разовая: политика и соглашение говорят о ней правду, автопродления нет нигде");
+  const PAY = [["Platega", "кто проводит оплату"], ["только сумму и номер заказа", "что уходит в Platega"], ["о заказах и оплатах — 5 лет", "срок сведений об оплатах"],
+    ["e-mail, Telegram и IP-адрес стираются из заказов", "отвязка заказов при удалении аккаунта"],
+    ["записывается в одном случае — при оформлении оплаты", "IP пишется в заказ, а не «только в памяти»"], ["пункт 2 части 1 статьи 6", "основание для учёта оплат"]];
+  const payLost = PAY.filter(([s]) => !pv.includes(s));
+  payLost.length ? bad("в privacy.html об оплате нет: " + payLost.map(([s, w]) => `«${s}» (${w})`).join(", "))
+    : ok(`политика об оплате: Platega получает только сумму и номер заказа, 5 лет, при удалении аккаунта почта, Telegram и IP стираются из заказов (${PAY.length} фраз)`);
+  const TERMS = [["Оплата разовая", "разовая оплата"], ["автосписаний нет", "без автосписаний"], ["прибавляется к оставшемуся", "продление прибавляет к остатку"],
+    ["за 30 дней", "срок месяца"], ["за 365 дней", "срок года"], ["неиспользованные полные дни", "возврат за остаток (ст. 32 ЗоЗПП)"],
+    ["статья 782", "право отказаться (ГК РФ)"], ["полностью", "ошибочная или двойная оплата"]];
+  const termsLost = TERMS.filter(([s]) => !tm.includes(s));
+  termsLost.length ? bad("в terms.html об оплате нет: " + termsLost.map(([s, w]) => `«${s}» (${w})`).join(", "))
+    : ok(`соглашение: оплата разовая, автосписаний нет, 30 и 365 дней, срок прибавляется, возврат за неиспользованные дни (${TERMS.length} фраз)`);
+  // Ни одна страница сайта не обещает автопродление, автосписание, отмену подписки и ссылку
+  // отмены: их нет. «Автосписаний» — только в отрицании: «без автосписаний», «автосписаний нет».
+  // Комментарии кода и разметки человек не видит — их не смотрим.
+  const prose = src => src.replace(/<!--[\s\S]*?-->/g, " ").replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|\s)\/\/[^\n]*/g, "$1");
+  const autoHits = [];
+  for (const f of fs.readdirSync(APP_DIR).filter(f => /\.html$/.test(f))) {
+    const t = prose(read(f));
+    for (const m of t.matchAll(/автопродл[а-яё]*|автосписан[а-яё]*|отмен[а-яё]*(?:\s|&nbsp;)+подписк[а-яё]*|ссылк[а-яё]*(?:\s|&nbsp;)+(?:для(?:\s|&nbsp;)+)?отмен[а-яё]*/gi)) {
+      const w = m[0].toLowerCase(), pre = t.slice(Math.max(0, m.index - 12), m.index), post = t.slice(m.index + m[0].length, m.index + m[0].length + 12);
+      if (w === "автосписаний" && (/(?:^|[^а-яё])без(?:\s|&nbsp;)+$/i.test(pre) || /^(?:\s|&nbsp;)+нет(?![а-яё])/i.test(post))) continue;
+      autoHits.push(f + ": «" + (pre.split(/[\n>]/).pop() + m[0] + post.split(/[\n<]/)[0]).trim() + "»");
+    }
+  }
+  autoHits.length ? bad("страница обещает то, чего нет (оплата разовая, автосписаний нет): " + autoHits.slice(0, 4).join("; "))
+    : ok("ни одна страница сайта не обещает автопродление, автосписание, отмену подписки или ссылку отмены — только «без автосписаний»");
   const servers = [];
   const b = await chromium.launch({ executablePath: chromePath() });
   try {

@@ -278,18 +278,21 @@ ok "Сайт скачан: версия $(basename "$(readlink "$BASE/current")"
 # Код из репозитория root не запускает никогда: magnat.sh зовёт api.py через
 # runuser. Ставит и обновляет API выкладка (magnat deploy → apply_api):
 # проверка на копии базы → копия базы → переключение → ответ /api/health,
-# иначе — прежний. Почта для кодов — отдельно, руками: magnat mail.
+# иначе — прежний. Почта для кодов — отдельно, руками: magnat mail; ключи
+# Платеги для оплаты — так же: magnat platega.
 echo; echo "--- 5/8 API входа по почте (закрыт: код — только ящикам владельца) ---"
 id magnat-api >/dev/null 2>&1 ||
   useradd --system --home-dir /var/lib/magnat-api --no-create-home --shell /usr/sbin/nologin magnat-api
 install -d -o magnat-api -g magnat-api -m 0700 /var/lib/magnat-api /var/lib/magnat-api/tmp /var/lib/magnat-api/backup
 install -d -o root -g root -m 0700 /etc/magnat /var/backups/magnat /var/backups/magnat/deploy /var/backups/magnat/offsite
-# Пустой smtp.env — служба стартует и без почты (LoadCredential без файла не стартует).
+# Пустые smtp.env и platega.env — служба стартует и без почты, и без ключей Платеги
+# (LoadCredential без файла не стартует). Заполняют их magnat mail и magnat platega.
 [ -e /etc/magnat/smtp.env ] || install -o root -g root -m 0600 /dev/null /etc/magnat/smtp.env
+[ -e /etc/magnat/platega.env ] || install -o root -g root -m 0600 /dev/null /etc/magnat/platega.env
 install -d -o root -g root -m 0755 /srv/magnat-api /srv/magnat-api/releases
 cat > /etc/systemd/system/magnat-api.service <<'EOF'
 [Unit]
-Description=Magnat API: login by e-mail code and sync
+Description=Magnat API: login by e-mail code, sync and payments
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=0
@@ -299,6 +302,7 @@ User=magnat-api
 Group=magnat-api
 Environment=MAGNAT_LISTEN=127.0.0.1:8787 MAGNAT_DB=/var/lib/magnat-api/magnat.db MAGNAT_STATE=/var/lib/magnat-api MAGNAT_ORIGIN=https://magnat-planer.ru
 LoadCredential=smtp:/etc/magnat/smtp.env
+LoadCredential=platega:/etc/magnat/platega.env
 ExecStart=/usr/bin/python3 -I /srv/magnat-api/current/api.py serve
 Restart=on-failure
 RestartSec=3
@@ -486,6 +490,9 @@ echo
 if ! grep -q '^SMTP_PASS=.' /etc/magnat/smtp.env 2>/dev/null; then
   echo
   echo "Дальше — почта для кодов входа, один раз: набери  magnat mail"
+fi
+if ! grep -q '^PLATEGA_SECRET=.' /etc/magnat/platega.env 2>/dev/null; then
+  echo "Ключи Платеги для оплаты Магната (один раз, из её кабинета): magnat platega"
 fi
 if [ ! -s /etc/magnat/disk.auth ]; then
   echo "Копия базы вне сервера (Яндекс Диск, по желанию, один раз): magnat backup-setup — как получить токен, в server/README.md"
