@@ -838,9 +838,12 @@ async function walkTabs(p, label) {
     await startClean(p);
     const fit = async () => p.evaluate(() => { window.scrollTo(0, 1e6); const n = document.querySelector('nav.tabs').getBoundingClientRect().top;
       const last = [...document.querySelectorAll('#v-home > *')].filter(e => e.offsetHeight).pop().getBoundingClientRect();
-      const sw = document.querySelector('.sw[data-sec]'), r = sw && sw.offsetHeight ? sw.getBoundingClientRect() : null;
-      const hit = r ? [[r.left + r.width / 2, r.top - 8], [r.left + r.width / 2, r.bottom + 8]].every(([x, y]) => document.elementFromPoint(x, y) === sw) : null;
-      return { scroll: document.documentElement.scrollWidth - innerWidth, last: Math.round(last.bottom), nav: Math.round(n), hit }; });
+      const scroll = document.documentElement.scrollWidth - innerWidth, lastB = Math.round(last.bottom);
+      // выключатель — в середину экрана: внизу страницы он мог уехать под шапку (по http с карточкой аккаунта на 320 px)
+      const sw = document.querySelector('.sw[data-sec]'); let hit = null;
+      if (sw && sw.offsetHeight) { sw.scrollIntoView({ block: 'center' }); const r = sw.getBoundingClientRect();
+        hit = [[r.left + r.width / 2, r.top - 8], [r.left + r.width / 2, r.bottom + 8]].every(([x, y]) => document.elementFromPoint(x, y) === sw); }
+      return { scroll, last: lastB, nav: Math.round(n), hit }; });
     const a = await fit();
     await p.click('#moreBtn'); await p.waitForTimeout(300);
     const c = await fit();
