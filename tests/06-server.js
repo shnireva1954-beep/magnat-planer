@@ -879,7 +879,9 @@ exit 0
           ? ok(`колбэк Платеги через Caddy: POST без Origin доходит до API целиком (${cbBody.length} байт) с X-MerchantId и X-Secret`)
           : bad(`колбэк через Caddy: ${cbr.status} ${JSON.stringify(hcb && { ...hcb, at: undefined })}`);
         const q = (o) => L.request(C.port, o).catch(e => ({ status: 0, text: String(e.message), h: {} }));
-        const big = await q({ method: "POST", path: "/api/sync", body: Buffer.alloc(3 << 20, 97), headers: { "Content-Type": "application/json" } });
+        // Expect: 100-continue: Caddy отказывает по Content-Length до тела; без него клиент
+        // дописывал 3 МБ в закрытое соединение и терял ответ (lib.js, request)
+        const big = await q({ method: "POST", path: "/api/sync", body: Buffer.alloc(3 << 20, 97), headers: { "Content-Type": "application/json", "Expect": "100-continue" } });
         const hid = await q({ path: "/server/api/api.py" });
         big.status === 413 && big.text === '{"ok":false,"err":"big"}' && /application\/json/.test(big.h["content-type"] || "") && !big.h.server && hid.status === 404
           ? ok("тело 3 МБ → 413 {\"ok\":false,\"err\":\"big\"} (JSON, без Server); /server/api/api.py — по-прежнему 404")

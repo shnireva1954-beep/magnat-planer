@@ -146,9 +146,16 @@ function request(port, { method = "GET", path: p = "/", headers = {}, body, host
       else { data = Buffer.from(JSON.stringify(body)); if (!has("content-type")) h["Content-Type"] = "application/json"; }
       if (!has("content-length") && !has("transfer-encoding")) h["Content-Length"] = data.length;
     }
+    // Expect: 100-continue — тело только после «100 Continue». Caddy отказывает 413 по
+    // Content-Length сразу, и клиент, дописывая 3 МБ, ловил сброс раньше ответа:
+    // «write ECONNRESET» в 06-server 19 раз из 20 (12.11.2026). «Continue» бывает и два
+    // (Caddy и API за ним) — тело уходит один раз
+    const expect = !!data && Object.entries(h).some(([k, v]) => k.toLowerCase() === "expect" && /100-continue/i.test(String(v)));
+    let sent = !expect;
     const req = http.request({ host, port, method, path: p, headers: h, agent: false }, r => {
       const b = []; r.on("data", d => b.push(d)); r.on("error", rej);
       r.on("end", () => {
+        if (!sent) req.destroy();   // отказали до тела — тело не шлём, соединение закрываем
         const buf = Buffer.concat(b), text = buf.toString("utf8"); let json = null;
         try { json = JSON.parse(text); } catch (e) {}
         const cookie = (r.headers["set-cookie"] || []).map(c => c.split(";")[0]).join("; ");
@@ -156,6 +163,7 @@ function request(port, { method = "GET", path: p = "/", headers = {}, body, host
       });
     });
     req.on("error", rej); req.setTimeout(timeout, () => req.destroy(new Error("timeout")));
+    if (expect) { req.on("continue", () => { if (sent) return; sent = true; req.write(data); req.end(); }); req.flushHeaders(); return; }
     if (data) req.write(data);
     req.end();
   });
