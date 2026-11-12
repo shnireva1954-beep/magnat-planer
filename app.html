@@ -291,6 +291,15 @@
   .legal{display:flex; flex-wrap:wrap; justify-content:center; gap:0 16px; margin:14px 0 4px;} .legal a{display:inline-flex; align-items:center; min-height:32px; color:var(--mut2); font-size:12px; text-decoration:none;} .legal a:hover,.legal a:focus-visible{color:var(--ink); text-decoration:underline;} .modal .legal{display:grid; grid-template-columns:repeat(2,auto); justify-content:center; justify-items:center; gap:0 22px; margin-top:12px;}
   .bkrow{display:flex; gap:10px; margin-top:22px;}
   .bk{flex:1; padding:11px 8px; border-radius:11px; background:var(--panel); border:1px solid var(--line2); color:var(--mut); font-size:12.5px; cursor:pointer;}
+  .morebtn{display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:48px; margin-top:13px; padding:12px; border-radius:14px; background:var(--panel); border:1px solid var(--line2); color:var(--mut); font:inherit; font-size:13.5px; font-weight:600; cursor:pointer;}
+  .morebtn .go{display:inline-block; transition:transform .2s;} .morebtn[aria-expanded="true"] .go{transform:rotate(90deg);}
+  .hsum{display:flex; align-items:center; gap:6px; margin-top:11px; font-size:12.5px; color:var(--mut);} .hsum b{color:var(--ink); font-weight:700;}
+  .hero:not(.simple) .hsum, .hero.simple .lvl-next, .hero.simple .tiles, .hero.simple .shl:not(.hot){display:none;}
+  .tab[hidden], .card[hidden]{display:none;}
+  .secs{margin-top:13px;} .secs .sr{display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:48px; font-size:13.5px; color:var(--ink);} .secs .sr small{display:block; color:var(--mut2); font-size:11.5px; margin-top:1px;}
+  .sw{flex:none; width:46px; height:28px; border-radius:14px; border:1px solid var(--line2); background:var(--panel); position:relative; cursor:pointer; padding:0;}
+  .sw::after{content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:var(--mut2); transition:transform .18s, background .18s;}
+  .sw[aria-checked="true"]{background:#0e2f2240; border-color:#1f8f61;} .sw[aria-checked="true"]::after{transform:translateX(18px); background:var(--emerald);}
   .bknote{text-align:center; font-size:10.5px; color:var(--mut2); margin-top:8px; line-height:1.5;}
   /* аккаунт (R2, виден только при входе по почте): карточка на «Обзоре» вместо копии и лист входа */
   .acc{margin-top:22px;}
@@ -1985,7 +1994,26 @@ function askModal(title, fields, opts){
   });
 }
 
+// Обзор без «каши» (слово владельца 03.11.2026: «куча всего… каша, будто ничего не понятно»):
+// на первом экране — сегодняшние галочки, уровень и урок; сводки, империя, копия данных и
+// сброс — под одной кнопкой «Ещё». Развёрнуто ли и какие разделы включены — память этого
+// телефона, а не S: это вид экрана, в аккаунт и в копию данных он не едет.
+const MORE_KEY="magnat_more_open", SEC_KEY="magnat_sections";
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+const moreOpen=()=>lsGet(MORE_KEY)==="1";
+// «Финансы» и «Тело» — вкладки по желанию: видны, если человек включил сам или в них уже есть
+// его записи. Записи примера (demoData) не в счёт — пример тоже открывается четырьмя вкладками.
+function secPref(){ try{ return JSON.parse(lsGet(SEC_KEY)||"{}")||{}; }catch(e){ return {}; } }
+function secOn(id){
+  if(id!=="money"&&id!=="body") return true;
+  const p=secPref()[id]; if(p===1||p===0) return !!p;
+  if(S.demoData) return false;
+  return id==="money" ? S.finance.entries.length>0 : (S.body.log.length>0||!!S.body.goalW);
+}
+function secSet(id,on){ const p=secPref(); p[id]=on?1:0; lsSet(SEC_KEY,JSON.stringify(p)); }
 function vHome(root){
+  const open=moreOpen();
   const xp=totalXP(),L=levelOf(xp),r=rankOf(L),nr=RANKS[r+1],st=curStreak();
   const lo=xpForLevel(L),hi=xpForLevel(L+1),pct=Math.max(4,Math.min(100,Math.round((xp-lo)/(hi-lo)*100)));
   const me=monthEntries();
@@ -2010,7 +2038,7 @@ function vHome(root){
      <div class="tchips tlist" id="todayChips"></div>
    </div>
    ${revCard()}
-   <div class="glass hero" style="margin-top:13px">
+   <div class="glass hero${open?"":" simple"}" style="margin-top:13px">
      <div class="hero-row pgo" id="heroPath" role="button" tabindex="0">
        <div><div class="lvl-tag">◆ путь магната <span class="go">›</span></div><div class="lvl-name">Уровень ${L}</div><div class="lvl-rank">${rankName(r)}</div></div>
        <div class="rbadge">${rankIco(r)}</div>
@@ -2023,26 +2051,35 @@ function vHome(root){
        <div class="tile"><div class="v e">×${dcm(mult(st).toFixed(1))}</div><div class="l">бонус серии</div></div>
        <div class="tile"><div class="v vi">${ic("trophy")} ${recordStreak()}</div><div class="l">рекорд серии</div></div>
      </div>
+     <div class="hsum">${ic("flame","or")}<span>Серия <b class="num">${st}</b> ${pl(st,"день","дня","дней")} · бонус <b>×${dcm(mult(st).toFixed(1))}</b></span></div>
      ${shieldLine(st)}
      ${lesRowHtml(L)}
    </div>
+   <button class="morebtn" id="moreBtn" aria-expanded="${open}" aria-controls="homeMore">${ic("chart")}<span>${open?"Свернуть":"Ещё: статистика, империя, настройки"}</span><span class="go">›</span></button>
+   <div id="homeMore"${open?"":" hidden"}>
    ${ins?`<div class="glass card" style="margin-top:13px"><h3>Инсайт недели</h3>
      <div style="display:flex;gap:10px;font-size:13.5px;color:var(--mut);line-height:1.55;align-items:flex-start"><span style="flex:none;color:var(--gold)">${ic("bulb")}</span><span class="ins-t">${ins}</span></div></div>`:""}
    ${L>1?`<button class="share-btn" id="shareBtn">${ic("share")} Поделиться своей империей</button>`:""}
    <div class="grid sgrid" style="margin-top:13px">
      <div class="glass card" data-go="habits"><h3>Месяц выполнен <span class="go">›</span></h3><div class="donut-wrap"><canvas id="hDonut"></canvas><div class="donut-c"><div class="p e" id="hDonutP">0%</div><div class="t">привычки</div></div></div></div>
      <div class="glass card" data-go="habits"><h3>Монеты по дням <span class="go">›</span></h3><canvas id="hSpark"></canvas><div style="margin-top:8px;font-size:12px;color:var(--mut)">${C} сегодня: <b class="cy num" id="hToday">0</b></div></div>
-     <div class="glass card" data-go="money"><h3>Баланс месяца <span class="go">›</span></h3><div class="stat"><div class="v ${inc-out>=0?'e':'dn'} num">${sgn(inc-out)} ₽</div><div class="l">доход ${nf(inc)} · расход ${nf(out)}</div></div></div>
+     <div class="glass card" data-go="money"${secOn("money")?"":" hidden"}><h3>Баланс месяца <span class="go">›</span></h3><div class="stat"><div class="v ${inc-out>=0?'e':'dn'} num">${sgn(inc-out)} ₽</div><div class="l">доход ${nf(inc)} · расход ${nf(out)}</div></div></div>
      <div class="glass card" data-go="tasks"><h3>Задачи <span class="go">›</span></h3><div class="stat"><div class="v g num">${tOpen}</div><div class="l">открыто · ${S.tasks.filter(t=>t.done).length} готово</div></div></div>
-     <div class="glass card" data-go="body"><h3>Вес <span class="go">›</span></h3><div class="stat"><div class="v cy num">${w?dcm(w)+" кг":"—"}</div><div class="l">${S.body.goalW?"цель "+dcm(S.body.goalW)+" кг":w?"цель не задана":"запиши вес"}</div></div>${S.body.log.length>1?'<canvas id="hBody" style="margin-top:8px"></canvas>':""}</div>
+     <div class="glass card" data-go="body"${secOn("body")?"":" hidden"}><h3>Вес <span class="go">›</span></h3><div class="stat"><div class="v cy num">${w?dcm(w)+" кг":"—"}</div><div class="l">${S.body.goalW?"цель "+dcm(S.body.goalW)+" кг":w?"цель не задана":"запиши вес"}</div></div>${S.body.log.length>1?'<canvas id="hBody" style="margin-top:8px"></canvas>':""}</div>
      <div class="glass card" data-go="shop"><h3>Империя · уровень ${L} <span class="go">›</span></h3><canvas id="hCity"></canvas><div style="text-align:center;font-size:11px;color:var(--mut2);margin-top:6px"><b class="e">${L} ${pl(L,"здание","здания","зданий")}</b> · следующее через ${nf(hi-xp)} ${STAR}</div></div>
    </div>
-   ${ACCOUNT?accCard():`<div class="bkrow">
+   <div class="glass card secs"><h3>Разделы</h3>
+     <div class="sr"><span>Финансы<small>доходы и расходы месяца</small></span><button class="sw" role="switch" aria-checked="${secOn("money")}" data-sec="money" aria-label="Раздел «Финансы»"></button></div>
+     <div class="sr"><span>Тело<small>вес, нормы калорий и воды</small></span><button class="sw" role="switch" aria-checked="${secOn("body")}" data-sec="body" aria-label="Раздел «Тело»"></button></div>
+   </div>
+   ${ACCOUNT?"":`<div class="bkrow">
      <button class="bk" id="bkSave">${ic("download")} Скачать копию данных</button>
      <button class="bk" id="bkLoad">${ic("inbox")} Восстановить из копии</button>
    </div>
    <p class="bknote">Данные живут в этом браузере. Копия — страховка при смене телефона или чистке кэша.</p>`}
    <button class="reset" id="resetBtn">сбросить всё и начать с чистого листа</button>
+   </div>
+   ${ACCOUNT?accCard():""}
    ${legalLinks()}`;
   // charts
   const now=new Date(),y=now.getFullYear(),mo=now.getMonth(),diM=new Date(y,mo+1,0).getDate();
@@ -2086,8 +2123,11 @@ function vHome(root){
   const hp=root.querySelector("#heroPath"); hp.addEventListener("click",()=>goPath()); onKeys(hp,goPath);
   const lr=root.querySelector("#lesRow"); const lrGo=()=>{ const n=+lr.dataset.n; if(n) openLesson(n); else goPath(); };
   lr.addEventListener("click",lrGo); onKeys(lr,lrGo);
-  root.querySelector("#bkSave").addEventListener("click",downloadBackup);
-  root.querySelector("#bkLoad").addEventListener("click",restoreBackup);
+  // «Ещё» разворачивает и сворачивает сводки; перерисовка — чтобы графики легли в настоящую ширину
+  root.querySelector("#moreBtn").addEventListener("click",()=>{ lsSet(MORE_KEY,moreOpen()?"0":"1"); render(); });
+  root.querySelectorAll(".sw[data-sec]").forEach(b=>b.addEventListener("click",()=>{ secSet(b.dataset.sec,b.getAttribute("aria-checked")!=="true"); render(); }));
+  const bkS=root.querySelector("#bkSave"); if(bkS) bkS.addEventListener("click",downloadBackup);
+  const bkL=root.querySelector("#bkLoad"); if(bkL) bkL.addEventListener("click",restoreBackup);
   if(ACCOUNT) accBind(root);
   const pn=root.querySelector("#payNoteIn"); if(pn) pn.addEventListener("click",()=>openLogin());   // почту заказа подставит сам
   root.querySelector("#resetBtn").addEventListener("click",async()=>{
@@ -2949,6 +2989,8 @@ function draw(){
   showWallet();
   document.getElementById("lvlChip").innerHTML=`Ур. ${L}<span class="rk"> · ${rankName(rankOf(L))}</span>`;
   document.querySelectorAll(".tab").forEach(t=>{ const on=t.dataset.t===(cur==="path"?"home":cur); t.classList.toggle("on",on); t.setAttribute("aria-current",on?"page":"false"); });
+  let nTabs=0; document.querySelectorAll(".tab").forEach(t=>{ const on=secOn(t.dataset.t)||t.dataset.t===cur; t.hidden=!on; if(on) nTabs++; });
+  document.getElementById("tabs").style.gridTemplateColumns=`repeat(${nTabs},minmax(0,1fr))`;
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
   const root=document.getElementById("v-"+cur); root.classList.add("on"); RENDER[cur](root);
   // новая вкладка въезжает снизу на 8 px за 220 мс; перерисовка той же вкладки — без движения

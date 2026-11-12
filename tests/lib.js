@@ -25,6 +25,39 @@ const OUT_DIR = path.join(__dirname, "__snapshots");
 try { fs.mkdirSync(OUT_DIR, { recursive: true }); } catch (e) {}
 const launch = () => chromium.launch({ executablePath: chromePath() });
 
+// ═══════════ «Обзор» без каши (12.11.2026) и прежние проверки ═══════════
+// С 12.11.2026 «Обзор» по умолчанию простой: сводки, империя, копия данных и
+// сброс свёрнуты под «Ещё», а «Финансы» и «Тело» — вкладки по желанию (память
+// телефона: `magnat_more_open`, `magnat_sections`). Сотни прежних проверок
+// ходят по всем шести вкладкам и жмут то, что теперь свёрнуто, — они проверяют
+// сами экраны, а не то, как человек до них добрался. Поэтому каждая страница
+// теста по умолчанию открывается «развёрнутой, все разделы включены» — так же,
+// как у человека, который нажал «Ещё» и включил оба раздела. Простой вид, как у
+// нового человека, — `b.newContext({ magnatSimple: true })`; его сторожит
+// 01-scenarios, блок 1м.
+const FULL_VIEW = () => { try {
+  if (localStorage.getItem("magnat_more_open") === null) localStorage.setItem("magnat_more_open", "1");
+  if (localStorage.getItem("magnat_sections") === null) localStorage.setItem("magnat_sections", '{"money":1,"body":1}');
+} catch (e) {} };
+const realLaunch = chromium.launch.bind(chromium);
+chromium.launch = async (opts) => {
+  const b = await realLaunch(opts);
+  const newContext = b.newContext.bind(b);
+  b.newContext = async (o = {}) => {
+    const { magnatSimple, ...rest } = o;
+    const ctx = await newContext(rest);
+    if (!magnatSimple) await ctx.addInitScript(FULL_VIEW);
+    return ctx;
+  };
+  // browser.newPage() заводит свой контекст и закрывает его вместе со страницей — так же и здесь
+  b.newPage = async (o = {}) => {
+    const ctx = await b.newContext(o), page = await ctx.newPage(), close = page.close.bind(page);
+    page.close = async (...a) => { await close(...a); await ctx.close().catch(() => {}); };
+    return page;
+  };
+  return b;
+};
+
 // «Начать своё» с 29.09.2026 открывает выбор привычек: жмём «Начать» с тем,
 // что отмечено по умолчанию (три привычки). Сам выбор проверяет 01-scenarios, блок 1б.
 // С 06.10.2026 следом открывается урок 1 — закрываем «Готово», как человек.
