@@ -721,6 +721,138 @@ async function walkTabs(p, label) {
     await ctx.close();
   }
 
+  // ---------- 1м. Простой «Обзор» 12.11.2026 ----------
+  // Владелец 03.11: «куча всего-всего… переполненное… каша, будто ничего не понятно», друг — то же.
+  // Новый человек видит четыре вкладки и один экран: сегодня, уровень, урок. Сводки, империя,
+  // копия данных, сброс и выключатели разделов — под «Ещё». Здесь страницы БЕЗ развёрнутого вида
+  // из lib.js (magnatSimple) — ровно как у человека, открывшего сайт впервые
+  console.log('\n1м) Простой «Обзор»: четыре вкладки, сводки под «Ещё», разделы по желанию');
+  {
+    const simplePage = async (vp) => {
+      const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: 1, magnatSimple: true });
+      const p = await ctx.newPage(); p.errs = [];
+      p.on('pageerror', e => p.errs.push('PAGEERROR: ' + e.message));
+      p.on('console', m => { if (m.type() === 'error') p.errs.push('CONSOLE: ' + m.text()); });
+      p.on('dialog', d => d.accept());
+      return { ctx, p };
+    };
+    const view = p => p.evaluate(() => {
+      const vis = e => !!e && !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
+      const tabs = [...document.querySelectorAll('.tab')].filter(t => !t.hidden);
+      const mb = document.querySelector('#moreBtn');
+      return { tabs: tabs.map(t => t.dataset.t), cols: getComputedStyle(document.getElementById('tabs')).gridTemplateColumns.split(' ').length,
+        tabBox: tabs.map(t => { const r = t.getBoundingClientRect(); return r.width >= 44 && r.height >= 44 && r.left >= 0 && r.right <= innerWidth; }).every(Boolean),
+        more: vis(document.querySelector('#homeMore')), exp: mb && mb.getAttribute('aria-expanded'), btn: mb ? mb.textContent.trim() : '',
+        tiles: vis(document.querySelector('.hero .tiles')), hsum: vis(document.querySelector('.hero .hsum')) ? document.querySelector('.hero .hsum').textContent : '',
+        bar: vis(document.querySelector('.hero .bar-t')), les: vis(document.querySelector('#lesRow')), today: document.querySelectorAll('#todayChips .tchip').length,
+        donut: vis(document.querySelector('#hDonut')), reset: vis(document.querySelector('#resetBtn')), legal: vis(document.querySelector('#v-home .legal')),
+        moneyCard: vis(document.querySelector('#v-home .card[data-go="money"]')), bodyCard: vis(document.querySelector('#v-home .card[data-go="body"]')),
+        sw: Object.fromEntries([...document.querySelectorAll('.sw[data-sec]')].map(s => [s.dataset.sec, s.getAttribute('aria-checked')])),
+        ls: Object.keys(localStorage).filter(k => /more_open|sections/.test(k)).map(k => k + '=' + localStorage.getItem(k)),
+        inS: /more_open|sections/.test(JSON.stringify(S)) || /more_open|sections/.test(localStorage.getItem('magnat_app_v2') || ''),
+        h: document.querySelector('#v-home').scrollHeight };
+    });
+    {
+    // новый человек: «Начать своё» → четыре вкладки, сводки свёрнуты, в хранилище — ни одного ключа вида
+    const { ctx, p } = await simplePage({ width: 390, height: 844 });
+    await p.goto(URL); await p.waitForTimeout(400);
+    await startClean(p);
+    const v0 = await view(p);
+    (JSON.stringify(v0.tabs) === '["home","habits","tasks","shop"]' && v0.cols === 4 && v0.tabBox)
+      ? ok('новый человек: вкладок четыре — Обзор, Привычки, Задачи, Награды; каждая ≥ 44 px и целиком на экране')
+      : bad('вкладки нового человека: ' + JSON.stringify({ tabs: v0.tabs, cols: v0.cols, box: v0.tabBox }));
+    (!v0.more && v0.exp === 'false' && /^Ещё/.test(v0.btn) && !v0.tiles && !v0.donut && !v0.reset && !v0.moneyCard && !v0.bodyCard)
+      ? ok('сводки, графики, империя и сброс свёрнуты под «Ещё»') : bad('свёрнутый Обзор: ' + JSON.stringify(v0));
+    (v0.today === 3 && v0.bar && v0.les && /Серия 0 дней · бонус ×1/.test(v0.hsum) && v0.legal)
+      ? ok('на виду главное: три привычки на сегодня, полоса уровня, урок и серия одной строкой')
+      : bad('главное на Обзоре: ' + JSON.stringify({ today: v0.today, bar: v0.bar, les: v0.les, hsum: v0.hsum, legal: v0.legal }));
+    (!v0.ls.length && !v0.inS) ? ok('пока человек ничего не нажал, ключей вида в хранилище нет; в данных и копии их нет никогда')
+      : bad('ключи вида: ' + JSON.stringify({ ls: v0.ls, inS: v0.inS }));
+    // «Ещё» разворачивает, выбор переживает перезагрузку, «Свернуть» сворачивает
+    await p.click('#moreBtn'); await p.waitForTimeout(300);
+    const v1 = await view(p);
+    (v1.more && v1.exp === 'true' && v1.btn.startsWith('Свернуть') && v1.tiles && v1.donut && v1.reset && !v1.hsum && v1.h > v0.h)
+      ? ok(`«Ещё» разворачивает: плитки серии, графики, сброс; Обзор ${v0.h} → ${v1.h} px`) : bad('развёрнутый Обзор: ' + JSON.stringify(v1));
+    (!v1.moneyCard && !v1.bodyCard && v1.sw.money === 'false' && v1.sw.body === 'false')
+      ? ok('«Финансы» и «Тело» у нового человека выключены — и вкладки, и карточки сводки') : bad('разделы нового человека: ' + JSON.stringify(v1.sw));
+    await p.reload(); await p.waitForTimeout(400);
+    const v2 = await view(p);
+    v2.more ? ok('развёрнутый Обзор пережил перезагрузку') : bad('после перезагрузки снова свёрнуто: ' + JSON.stringify(v2.ls));
+    await p.click('#moreBtn'); await p.waitForTimeout(300); await p.reload(); await p.waitForTimeout(400);
+    const v3 = await view(p);
+    (!v3.more && v3.exp === 'false') ? ok('«Свернуть» сворачивает и тоже помнится') : bad('после «Свернуть»: ' + JSON.stringify(v3));
+    // выключатель раздела: вкладка появляется, помнится, уходит; данные не трогаются
+    await p.click('#moreBtn'); await p.waitForTimeout(300);
+    await p.click('.sw[data-sec="money"]'); await p.waitForTimeout(300);
+    const v4 = await view(p);
+    (JSON.stringify(v4.tabs) === '["home","habits","tasks","money","shop"]' && v4.cols === 5 && v4.tabBox && v4.sw.money === 'true' && v4.moneyCard)
+      ? ok('«Финансы» включены: пятая вкладка на своём месте, карточка баланса в сводке') : bad('включение «Финансов»: ' + JSON.stringify(v4));
+    await p.reload(); await p.waitForTimeout(400);
+    await p.click('.tab[data-t="money"]'); await p.waitForTimeout(300);
+    const mOk = await p.evaluate(() => cur === 'money' && document.querySelector('#v-money').innerHTML.length > 50);
+    mOk ? ok('после перезагрузки вкладка «Финансы» на месте и открывается') : bad('вкладка «Финансы» после перезагрузки');
+    await p.evaluate(() => { S.finance.entries.push({ id: uid(), type: 'out', cat: '🍔 Еда', amount: 250, date: TODAY }); save(); render(); });
+    await p.click('.tab[data-t="home"]'); await p.waitForTimeout(300);
+    await p.click('.sw[data-sec="money"]'); await p.waitForTimeout(300);
+    const v5 = await view(p), n5 = await p.evaluate(() => S.finance.entries.length);
+    (!v5.tabs.includes('money') && v5.sw.money === 'false' && n5 === 1)
+      ? ok('выключил сам — вкладки нет, даже когда записи есть; записи целы') : bad('выключение «Финансов»: ' + JSON.stringify({ tabs: v5.tabs, sw: v5.sw, n5 }));
+    // урок «Запиши в «Финансы»» ведёт в выключенный раздел: вкладка видна, пока человек там
+    await p.evaluate(() => { cur = 'money'; render(); }); await p.waitForTimeout(250);
+    const t6 = await p.evaluate(() => [...document.querySelectorAll('.tab')].filter(t => !t.hidden).map(t => t.dataset.t + (t.classList.contains('on') ? '*' : '')));
+    await p.click('.tab[data-t="home"]'); await p.waitForTimeout(250);
+    const t7 = (await view(p)).tabs;
+    (t6.includes('money*') && !t7.includes('money')) ? ok('переход в выключенный раздел (урок 4) показывает его вкладку, пока человек там') : bad('переход в выключенный раздел: ' + JSON.stringify({ t6, t7 }));
+    errCheck(p, 'простой Обзор');
+    await ctx.close();
+  }
+  {
+    // кто пользовался «Финансами» и «Телом» до 12.11 — вкладки остаются сами, без выключателей
+    const { ctx, p } = await simplePage({ width: 390, height: 844 });
+    await p.goto(URL); await p.waitForTimeout(300);
+    await p.evaluate(() => localStorage.setItem('magnat_app_v2', JSON.stringify({ habits: [{ id: 111111, ico: '', name: 'Бег' }], checks: {}, tasks: [],
+      finance: { income: 0, entries: [{ id: 5, type: 'in', cat: '💼 Зарплата', amount: 1000, date: '2026-11-01' }] },
+      body: { goalW: 0, log: [{ date: '2026-11-01', w: 80 }] }, rv: 2, lastLv: 1 })));
+    await p.reload(); await p.waitForTimeout(400);
+    const v = await view(p);
+    (JSON.stringify(v.tabs) === '["home","habits","tasks","money","body","shop"]' && v.cols === 6 && !v.ls.length)
+      ? ok('у кого уже есть записи в «Финансах» и «Теле», после обновления все шесть вкладок — ничего не пропало') : bad('прежний пользователь: ' + JSON.stringify(v));
+    errCheck(p, 'прежний пользователь');
+    await ctx.close();
+  }
+  {
+    // пример — те же четыре вкладки; «Начать своё» видно без «Ещё»
+    const { ctx, p } = await simplePage({ width: 390, height: 844 });
+    await p.goto(URL); await p.waitForTimeout(400);
+    await p.click('#obDemo'); await p.waitForTimeout(400);
+    const v = await view(p), own = await p.evaluate(() => { const e = document.querySelector('#startOwn'); return !!e && e.offsetHeight > 0; });
+    (JSON.stringify(v.tabs) === '["home","habits","tasks","shop"]' && own && !v.more)
+      ? ok('пример открывается тем же простым Обзором: четыре вкладки, «Начать своё» на виду') : bad('пример: ' + JSON.stringify({ tabs: v.tabs, own, more: v.more }));
+    errCheck(p, 'пример в простом виде');
+    await ctx.close();
+  }
+  for (const w of [320, 390]) {
+    // узкий телефон: без бокового скролла, низ Обзора не под панелью вкладок — свёрнутый и развёрнутый
+    const { ctx, p } = await simplePage({ width: w, height: 640 });
+    await p.goto(URL); await p.waitForTimeout(400);
+    await startClean(p);
+    const fit = async () => p.evaluate(() => { window.scrollTo(0, 1e6); const n = document.querySelector('nav.tabs').getBoundingClientRect().top;
+      const last = [...document.querySelectorAll('#v-home > *')].filter(e => e.offsetHeight).pop().getBoundingClientRect();
+      const sw = document.querySelector('.sw[data-sec]'), r = sw && sw.offsetHeight ? sw.getBoundingClientRect() : null;
+      const hit = r ? [[r.left + r.width / 2, r.top - 8], [r.left + r.width / 2, r.bottom + 8]].every(([x, y]) => document.elementFromPoint(x, y) === sw) : null;
+      return { scroll: document.documentElement.scrollWidth - innerWidth, last: Math.round(last.bottom), nav: Math.round(n), hit }; });
+    const a = await fit();
+    await p.click('#moreBtn'); await p.waitForTimeout(300);
+    const c = await fit();
+    (a.scroll <= 0 && c.scroll <= 0 && a.last <= a.nav && c.last <= c.nav)
+      ? ok(`${w}px: без бокового скролла, низ Обзора над панелью — свёрнуто (${a.last} ≤ ${a.nav}) и развёрнуто (${c.last} ≤ ${c.nav})`)
+      : bad(`${w}px простой Обзор: ` + JSON.stringify({ a, c }));
+    c.hit ? ok(`${w}px: выключатель раздела ловит палец на 8 px выше и ниже — цель ≥ 44 px`) : bad(`${w}px: выключатель мал для пальца`);
+    errCheck(p, `простой Обзор ${w}px`);
+    await ctx.close();
+  }
+  }
+
   // ---------- 2. демо ----------
   console.log('\n2) Онбординг → «Посмотреть пример» (демо-данные)');
   {

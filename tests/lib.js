@@ -35,10 +35,20 @@ const launch = () => chromium.launch({ executablePath: chromePath() });
 // как у человека, который нажал «Ещё» и включил оба раздела. Простой вид, как у
 // нового человека, — `b.newContext({ magnatSimple: true })`; его сторожит
 // 01-scenarios, блок 1м.
-const FULL_VIEW = () => { try {
-  if (localStorage.getItem("magnat_more_open") === null) localStorage.setItem("magnat_more_open", "1");
-  if (localStorage.getItem("magnat_sections") === null) localStorage.setItem("magnat_sections", '{"money":1,"body":1}');
-} catch (e) {} };
+// 🔴 Хранилище здесь не трогать: ни читать, ни писать. Скрипт идёт до страницы,
+// и любое касание localStorage в этот миг отдаёт после перезагрузки СТАРУЮ копию
+// данных — под нагрузкой 47 из 96 перезагрузок (12.11.2026), падали проверки
+// «данные пережили перезагрузку», «id плывут», «вторая вкладка». Поэтому ключи
+// вида не записываем, а отвечаем за них, пока их нет: человек нажал «Свернуть»
+// или выключил раздел — в хранилище его выбор, и он главнее.
+const FULL_VIEW = () => {
+  const DEF = { magnat_more_open: "1", magnat_sections: '{"money":1,"body":1}' };
+  const get = Storage.prototype.getItem;
+  Storage.prototype.getItem = function (k) {
+    const v = get.call(this, k);
+    return v === null && Object.prototype.hasOwnProperty.call(DEF, k) ? DEF[k] : v;
+  };
+};
 const realLaunch = chromium.launch.bind(chromium);
 chromium.launch = async (opts) => {
   const b = await realLaunch(opts);

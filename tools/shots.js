@@ -21,8 +21,10 @@ function convert(src, dst, quality) {
 
 (async () => {
   const b = await chromium.launch({ executablePath: chromePath() });
-  // Android-браузер, а не айфон: иначе сверху встанет подсказка «Поставь на экран Домой»
-  const ctx = await b.newContext({ viewport: { width: 390, height: 780 }, deviceScaleFactor: 1.6, isMobile: true, hasTouch: true, locale: "ru-RU",
+  // Android-браузер, а не айфон: иначе сверху встанет подсказка «Поставь на экран Домой».
+  // magnatSimple — вид нового человека (простой Обзор, четыре вкладки, 12.11.2026), а не
+  // развёрнутый, в котором tests/lib.js открывает страницы тестов
+  const ctx = await b.newContext({ magnatSimple: true, viewport: { width: 390, height: 780 }, deviceScaleFactor: 1.6, isMobile: true, hasTouch: true, locale: "ru-RU",
     reducedMotion: "reduce", userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36" });
   const p = await ctx.newPage();
   await p.goto("file://" + path.join(ROOT, "app.html") + "?demo");
